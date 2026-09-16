@@ -119,7 +119,7 @@ var create_post_default = defineTool3({
 });
 
 // src/lib/mcp/index.ts
-var projectRef = "apbkatkixxcbcyrnafgs";
+var projectRef = "xoiceivuqbxnmpfdiklg";
 var mcp_default = defineMcp({
   name: "fun-profile-mcp",
   title: "FUN Profile",

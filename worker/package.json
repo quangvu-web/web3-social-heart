@@ -1,0 +1,23 @@
+{
+  "name": "fun-agora-rtc-token",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker for generating Agora RTC tokens with userAccount support",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "agora-token": "^2.0.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241112.0",
+    "typescript": "^5.6.3",
+    "wrangler": "^3.91.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,45 @@
+// _shared/angel/persona/blocks.ts
+// Sprint 2 — Refactor backend: barrel re-export mọi rule block hiện có
+// từ `angel-facts.ts`, để các entry point tương lai chỉ import từ
+// `_shared/angel/persona/blocks.ts` thay vì reach vào file monolith cũ.
+//
+// KHÔNG copy nội dung rule sang đây — vẫn dùng biến `let` gốc để việc
+// override từ DB (`applyAngelRuleOverrides`) tiếp tục hoạt động runtime.
+// Sprint 3 (versioning prompt) sẽ chuyển sang đọc "published version"
+// thay vì đọc trực tiếp biến gốc.
+
+export {
+  PRONOUN_SUBJECT_RULE,
+  NARRATIVE_CHARACTER_VOICE_RULE,
+  RICH_FORMAT_RULE,
+  OFFICIAL_FACTS,
+  SCOPE_EXPANSION_RULE,
+  ANTI_HALLUCINATION_RULE,
+  RESPONSE_LENGTH_RULE,
+  LONG_INPUT_HANDLING_RULE,
+  LIGHT_LANGUAGE_RULE,
+  SEEDING_CONTEXT_FIDELITY_RULE,
+  SEED_PHRASE_WARNING_DISCIPLINE_RULE,
+  WIT_AND_CHARM_RULE,
+  EMOTIONAL_ATTUNEMENT_RULE,
+  CALLBACK_MEMORY_RULE,
+  WEB_PERSONA_PROMPT,
+  WEB_LANGUAGE_MIRROR_RULE,
+  ANGEL_RULE_KEYS,
+  DEFAULT_PRONOUN_SUBJECT_RULE,
+  DEFAULT_NARRATIVE_CHARACTER_VOICE_RULE,
+  DEFAULT_RICH_FORMAT_RULE,
+  DEFAULT_OFFICIAL_FACTS,
+  DEFAULT_SCOPE_EXPANSION_RULE,
+  DEFAULT_ANTI_HALLUCINATION_RULE,
+  DEFAULT_RESPONSE_LENGTH_RULE,
+  DEFAULT_LONG_INPUT_HANDLING_RULE,
+  DEFAULT_LIGHT_LANGUAGE_RULE,
+  DEFAULT_SEEDING_CONTEXT_FIDELITY_RULE,
+  DEFAULT_SEED_PHRASE_WARNING_DISCIPLINE_RULE,
+  DEFAULT_WEB_PERSONA_PROMPT,
+  DEFAULT_WEB_LANGUAGE_MIRROR_RULE,
+  DEFAULT_WIT_AND_CHARM_RULE,
+  DEFAULT_EMOTIONAL_ATTUNEMENT_RULE,
+  DEFAULT_CALLBACK_MEMORY_RULE,
+} from "../../angel-facts.ts";

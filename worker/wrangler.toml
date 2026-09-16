@@ -1,0 +1,50 @@
+# Cloudflare Worker Configuration
+# Agora RTC Token Service for Fun Profile
+
+name = "fun-agora-rtc-token"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Environment variables (non-sensitive)
+[vars]
+ALLOWED_ORIGINS = "https://angelquangvu-funprofile.lovable.app,https://id-preview--7ea0fa7c-4fc2-4fc1-9ff9-fdfadf138a52.lovable.app,https://7ea0fa7c-4fc2-4fc1-9ff9-fdfadf138a52.lovableproject.com"
+TOKEN_TTL_SECONDS = "3600"
+# Required for /upload/live-recording JWT verification
+# SUPABASE_URL = "https://<project-ref>.supabase.co"
+# SUPABASE_ANON_KEY = "<anon-key>"
+
+# Secrets (set via `wrangler secret put <NAME>`)
+# Token service:
+# - AGORA_APP_ID
+# - AGORA_APP_CERTIFICATE
+# - API_KEY
+# Cloud Recording:
+# - AGORA_CUSTOMER_ID
+# - AGORA_CUSTOMER_SECRET
+# Preferred storage envs:
+# - REC_STORAGE_BUCKET
+# - REC_STORAGE_ACCESS_KEY
+# - REC_STORAGE_SECRET_KEY
+# - REC_STORAGE_REGION
+# - REC_R2_ENDPOINT
+# - PUBLIC_MEDIA_BASE_URL
+# - REC_ENABLE_HEAD_FALLBACK (optional: "true"/"false")
+# Backward-compatible fallback envs:
+# - R2_ACCESS_KEY_ID
+# - R2_SECRET_ACCESS_KEY
+# - R2_BUCKET
+# - R2_REGION
+# - R2_ENDPOINT
+# - R2_ACCOUNT_ID (optional)
+# - RECORDING_PLAYBACK_BASE_URL
+# - SUPABASE_URL
+# - SUPABASE_ANON_KEY
+
+[[r2_buckets]]
+binding = "RECORDINGS_BUCKET"
+bucket_name = "livestreampro"
+
+# Observability
+[observability]
+enabled = true

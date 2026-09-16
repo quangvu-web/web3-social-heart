@@ -1,0 +1,17 @@
+# Codex CLI config cho dự án FUN Profile
+# Docs: https://github.com/openai/codex
+
+# Hỏi trước khi chạy lệnh có rủi ro (rm, git push --force, network, …)
+approval_policy = "on-request"
+
+# Sandbox: chỉ cho phép Codex ghi trong thư mục repo
+sandbox_mode = "workspace-write"
+
+# Model mặc định — có thể đổi qua: codex --model gpt-5
+model = "gpt-5-codex"
+
+# Hiển thị reasoning ngắn gọn
+model_reasoning_effort = "medium"
+
+# Đường dẫn rule chung cho Codex agent
+# (Codex tự đọc AGENTS.md ở root, không cần khai báo thêm)

@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@fun/chat": [
+        "./packages/fun-chat/src/index.ts"
+      ],
+      "@fun/chat-call": [
+        "./packages/fun-chat-call/src/index.ts"
+      ],
+      "@fun/chat-call/*": [
+        "./packages/fun-chat-call/src/*"
+      ],
+      "@fun/chat/*": [
+        "./packages/fun-chat/src/*"
+      ]
+    },
+    "skipLibCheck": true,
+    "strictNullChecks": false
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
+}

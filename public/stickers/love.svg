@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#fff1f2"/>
+  <path d="M256 420c-88-54-164-122-164-208 0-52 40-92 92-92 36 0 60 18 72 40 12-22 36-40 72-40 52 0 92 40 92 92 0 86-76 154-164 208z" fill="#ef4444"/>
+  <text x="256" y="132" font-family="Arial, sans-serif" font-size="54" text-anchor="middle" fill="#7f1d1d">LOVE</text>
+</svg>
+

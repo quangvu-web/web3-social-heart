@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#fff7ed"/>
+  <rect x="44" y="44" width="424" height="424" rx="88" fill="#fde68a"/>
+  <path d="M180 318c18 46 60 80 120 80s102-34 120-80" fill="none" stroke="#0f172a" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="206" cy="214" r="20" fill="#0f172a"/>
+  <circle cx="306" cy="214" r="20" fill="#0f172a"/>
+  <text x="256" y="136" font-family="Arial, sans-serif" font-size="54" text-anchor="middle" fill="#14532d">HELLO</text>
+</svg>
+

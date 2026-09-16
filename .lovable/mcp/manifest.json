@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://lramftbsjrqyysdqlfdg.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "fun-profile-mcp",
+      "version": "0.1.0",
+      "title": "FUN Profile"
+    },
+    "tools": [
+      {
+        "name": "get_my_profile",
+        "title": "Lấy thông tin hồ sơ",
+        "description": "Lấy hồ sơ FUN Profile của người dùng đang đăng nhập (username, display name, bio, avatar).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_my_posts",
+        "title": "Liệt kê bài viết của tôi",
+        "description": "Liệt kê các bài viết gần đây của người dùng đang đăng nhập trên FUN Profile.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "default": 10,
+              "description": "Số lượng bài viết trả về (1-50).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_post",
+        "title": "Đăng bài viết mới",
+        "description": "Tạo một bài viết mới trên FUN Profile dưới danh nghĩa người dùng đang đăng nhập.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "content": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 5000,
+              "description": "Nội dung bài viết (bắt buộc, tối đa 5000 ký tự)."
+            }
+          },
+          "required": [
+            "content"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+services:
+  rtmp-origin:
+    build:
+      context: .
+    ports:
+      - "1935:1935"
+      - "8080:8080"
+    volumes:
+      - hls-data:/var/www/hls
+    depends_on:
+      - rtmp-callback
+    restart: unless-stopped
+
+  rtmp-callback:
+    build:
+      context: ./callback-proxy
+    environment:
+      PORT: "8080"
+      SUPABASE_LIVE_RTMP_FUNCTION_URL: "${SUPABASE_LIVE_RTMP_FUNCTION_URL}"
+      RTMP_CALLBACK_SECRET: "${RTMP_CALLBACK_SECRET}"
+    restart: unless-stopped
+
+volumes:
+  hls-data:

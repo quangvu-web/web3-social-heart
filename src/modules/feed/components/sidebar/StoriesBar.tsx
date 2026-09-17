@@ -71,7 +71,15 @@ export const StoriesBar = memo(() => {
 
     fetchCurrentUser();
     fetchStories();
+
+    // Keep in sync when the session arrives after an OAuth redirect
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      void loadUserFromSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
 
   const gradientColors = [
     'from-primary to-gold',

@@ -53,6 +53,7 @@
     "@tiptap/extension-link": "^3.27.3",
     "@tiptap/react": "^3.27.3",
     "@tiptap/starter-kit": "^3.27.3",
+    "@walletconnect/utils": "2.21.1",
     "agora-rtc-sdk-ng": "^4.24.2",
     "bitcoinjs-lib": "^7.0.1",
     "buffer": "^6.0.3",

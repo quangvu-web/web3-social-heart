@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable/index';
 import { Loader2 } from 'lucide-react';
 interface SocialLoginProps {
   onSuccess?: (userId: string, isNewUser: boolean) => void;
@@ -63,16 +62,13 @@ export const SocialLogin = ({
     const timeout = setTimeout(() => setGoogleLoading(false), 60000);
     
     try {
-      const result = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
       });
-      
-      if (result.redirected) {
-        return; // timeout will handle cleanup
-      }
-      
+
       clearTimeout(timeout);
-      if (result.error) throw result.error;
+      if (error) throw error;
       setGoogleLoading(false);
     } catch (error: any) {
       clearTimeout(timeout);

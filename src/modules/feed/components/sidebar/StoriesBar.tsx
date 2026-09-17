@@ -24,17 +24,25 @@ export const StoriesBar = memo(() => {
   const [stories, setStories] = useState<Story[]>([]);
 
   useEffect(() => {
+    const loadUserFromSession = async (session: any) => {
+      if (!session?.user) {
+        setCurrentUser(null);
+        return;
+      }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      // Fallback to the session user so the bar never shows the logged-out state
+      setCurrentUser(profile ?? { id: session.user.id, username: session.user.email ?? '', avatar_url: null });
+    };
+
     const fetchCurrentUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        setCurrentUser(profile);
-      }
+      await loadUserFromSession(session);
     };
+
 
     const fetchStories = async () => {
       // Fetch recent users who posted as "stories" simulation

@@ -136,7 +136,7 @@ export const useFeedPosts = () => {
 
   useEffect(() => {
     const channel = supabase
-      .channel('feed-posts-realtime')
+      .channel(`feed-posts-realtime-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'posts' },

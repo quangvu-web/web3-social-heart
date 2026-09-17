@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface LiveFriend {
@@ -20,6 +20,9 @@ export interface LiveFriend {
 export function useFollowingLiveStatus() {
   const [liveFriends, setLiveFriends] = useState<LiveFriend[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Unique per hook instance: several components mount this hook at the same
+  // time, and a shared channel topic makes `.on()` throw after `subscribe()`.
+  const channelIdRef = useRef(`following-live-status-${Math.random().toString(36).slice(2)}`);
 
   const fetchLiveFriends = async () => {
     const {
@@ -88,7 +91,7 @@ export function useFollowingLiveStatus() {
 
     // Subscribe to live_sessions changes — any status change triggers a refresh
     const channel = supabase
-      .channel('following-live-status')
+      .channel(channelIdRef.current)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'live_sessions' },

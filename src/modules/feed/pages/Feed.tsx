@@ -1,5 +1,4 @@
-import { useEffect, useState, memo, useRef, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useEffect, memo, useRef, useCallback } from 'react';
 import { FacebookNavbar } from '@/components/layout/FacebookNavbar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import ScrollToTopButton from '@/components/common/ScrollToTopButton';
@@ -7,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2 } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { useDeviceFingerprint } from '@/hooks/useDeviceFingerprint';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Module imports
 import { FacebookCreatePost } from '../components/post/FacebookCreatePost';
@@ -46,7 +46,8 @@ const PostSkeleton = memo(() => (
 PostSkeleton.displayName = 'PostSkeleton';
 
 const Feed = () => {
-  const [currentUserId, setCurrentUserId] = useState('');
+  const { session, isLoading: isAuthLoading } = useAuth();
+  const currentUserId = session?.user?.id || '';
   const { t } = useLanguage();
   useDeviceFingerprint(currentUserId || null);
   const { 
@@ -83,23 +84,6 @@ const Feed = () => {
     return () => observer.disconnect();
   }, [handleObserver]);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) setCurrentUserId(session.user.id);
-    };
-
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setCurrentUserId(session?.user?.id || '');
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
   return (
     <div className="min-h-screen bg-background">
       <FacebookNavbar />
@@ -118,9 +102,9 @@ const Feed = () => {
             <div className="col-span-1 lg:col-span-6 w-full px-2 sm:px-0">
               <StoriesBar />
 
-              {currentUserId && <FacebookCreatePost onPostCreated={refetch} />}
+              {!isAuthLoading && currentUserId && <FacebookCreatePost onPostCreated={refetch} />}
 
-              {!currentUserId && (
+              {!isAuthLoading && !currentUserId && (
                 <div className="fb-card p-4 mb-4 text-center">
                   <p className="text-muted-foreground">{t('loginToPost')}</p>
                 </div>

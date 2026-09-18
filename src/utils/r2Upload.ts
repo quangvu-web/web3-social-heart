@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { retryUploadOperation } from './uploadRetry';
 
 export interface R2UploadResult {
   url: string;
@@ -80,48 +81,55 @@ async function getPresignedUrl(
   accessToken?: string,
   timeoutMs: number = 30000
 ): Promise<{ uploadUrl: string; publicUrl: string }> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  return retryUploadOperation(async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  try {
-    // Use provided token or get fresh one
-    let token = accessToken;
-    if (!token) {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Chưa đăng nhập');
+    try {
+      // Use provided token or get fresh one
+      let token = accessToken;
+      if (!token) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('Chưa đăng nhập');
+        }
+        token = session.access_token;
       }
-      token = session.access_token;
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/get-upload-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': supabaseKey,
+        },
+        body: JSON.stringify({ key, contentType, fileSize }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Không thể chuẩn bị upload: ${errorData.error || `HTTP ${response.status}`}`);
+      }
+
+      const data = await response.json();
+      if (!data.uploadUrl || !data.publicUrl) {
+        throw new Error('Máy chủ trả về URL upload không hợp lệ');
+      }
+
+      return { uploadUrl: data.uploadUrl, publicUrl: data.publicUrl };
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error('Hết thời gian chuẩn bị upload ảnh');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-    const response = await fetch(`${supabaseUrl}/functions/v1/get-upload-url`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'apikey': supabaseKey,
-      },
-      body: JSON.stringify({ key, contentType, fileSize }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (!data.uploadUrl || !data.publicUrl) {
-      throw new Error('Invalid response from server');
-    }
-
-    return { uploadUrl: data.uploadUrl, publicUrl: data.publicUrl };
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  });
 }
 
 /**
@@ -132,25 +140,35 @@ async function uploadWithPresignedUrl(
   uploadUrl: string,
   timeoutMs: number = 120000
 ): Promise<void> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  await retryUploadOperation(async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  try {
-    const response = await fetch(uploadUrl, {
-      method: 'PUT',
-      body: file,
-      headers: {
-        'Content-Type': file.type,
-      },
-      signal: controller.signal,
-    });
+    try {
+      const response = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+        },
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      throw new Error(`Upload failed: HTTP ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Upload ảnh thất bại: HTTP ${response.status}`);
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new TypeError('Hết thời gian upload ảnh');
+      }
+      if (error instanceof TypeError && /failed to fetch/i.test(error.message)) {
+        throw new TypeError('Không thể kết nối tới kho lưu trữ ảnh (CORS hoặc mạng)');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  });
 }
 
 /**

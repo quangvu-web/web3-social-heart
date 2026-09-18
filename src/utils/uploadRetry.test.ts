@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { retryUploadOperation } from './uploadRetry';
+import { formatUploadError, retryUploadOperation } from './uploadRetry';
 
 test('retries a transient upload failure and returns the eventual result', async () => {
   let attempts = 0;
@@ -23,4 +23,10 @@ test('does not retry a server validation error', async () => {
   }, { maxAttempts: 3, delayMs: 0 })).rejects.toThrow('File type not allowed');
 
   expect(attempts).toBe(1);
+});
+
+test('turns browser fetch failures into an actionable upload message', () => {
+  expect(formatUploadError(new TypeError('Failed to fetch'), 'prepare')).toBe(
+    'Không thể kết nối tới máy chủ chuẩn bị upload ảnh (mạng hoặc CORS).',
+  );
 });

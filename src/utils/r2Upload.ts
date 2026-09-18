@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { retryUploadOperation } from './uploadRetry';
+import { formatUploadError, retryUploadOperation } from './uploadRetry';
 
 export interface R2UploadResult {
   url: string;
@@ -124,6 +124,9 @@ async function getPresignedUrl(
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         throw new Error('Hết thời gian chuẩn bị upload ảnh');
+      }
+      if (error instanceof TypeError && /failed to fetch/i.test(error.message)) {
+        throw new TypeError(formatUploadError(error, 'prepare'));
       }
       throw error;
     } finally {

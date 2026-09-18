@@ -3,6 +3,21 @@ export interface UploadRetryOptions {
   delayMs?: number;
 }
 
+export function formatUploadError(error: unknown, stage: 'prepare' | 'put'): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/failed to fetch|network|cors/i.test(message)) {
+    return stage === 'prepare'
+      ? 'Không thể kết nối tới máy chủ chuẩn bị upload ảnh (mạng hoặc CORS).'
+      : 'Không thể kết nối tới kho lưu trữ ảnh (mạng hoặc CORS).';
+  }
+  if (/timeout|timed out|hết thời gian/i.test(message)) {
+    return stage === 'prepare'
+      ? 'Hết thời gian chuẩn bị upload ảnh.'
+      : 'Hết thời gian upload ảnh.';
+  }
+  return message || 'Upload ảnh thất bại.';
+}
+
 function isRetryableUploadError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === 'AbortError') return false;
   if (error instanceof TypeError) return true;

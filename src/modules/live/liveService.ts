@@ -493,7 +493,13 @@ export async function uploadLiveThumbnail(
   liveSessionId: string
 ): Promise<string | null> {
   try {
-    const path = `live/${liveSessionId}/thumbnail.jpg`;
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id;
+    if (!userId) {
+      console.warn('[liveService] uploadLiveThumbnail: no authenticated user');
+      return null;
+    }
+    const path = `${userId}/${liveSessionId}/thumbnail.jpg`;
     const { error } = await supabase.storage
       .from('live-thumbnails')
       .upload(path, thumbnailBlob, {

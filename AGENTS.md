@@ -24,8 +24,9 @@
 - Hỗ trợ ví: MetaMask, Bitget, Trust Wallet, FUN Wallet, BTC Testnet (qua Snaps).
 
 ## 5. Supabase / Lovable Cloud
+- Exception: `src/integrations/supabase/client.ts` may be edited only for client initialization. It must read `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from `import.meta.env`; it must never contain a service-role key or any secret. `src/integrations/supabase/types.ts` remains auto-generated and must not be edited.
 - Client import: `import { supabase } from "@/integrations/supabase/client"`.
-- KHÔNG sửa `src/integrations/supabase/client.ts` và `types.ts` (auto-gen).
+- Không sửa `src/integrations/supabase/types.ts` (auto-gen).
 - KHÔNG sửa `.env` (VITE_SUPABASE_*) — auto-gen.
 - KHÔNG chain `.update().select()` — tách thành 2 query: update xong rồi select riêng.
 - KHÔNG đụng các schema: `auth`, `storage`, `realtime`, `supabase_functions`, `vault`.
@@ -55,7 +56,8 @@
 - Anti-Sybil: trust score, 48h delay, 1000 CAMLY requirement.
 
 ## 11. Cấm tuyệt đối
-- ❌ Sửa file trong `src/integrations/supabase/`, `pdk/core/`, `pdk/config/`.
+- The generated-client restriction above does not apply to the client initialization exception in section 5; all other files under `src/integrations/supabase/` remain protected.
+- ❌ Sửa file trong `src/integrations/supabase/types.ts`, `pdk/core/`, `pdk/config/`.
 - ❌ Sửa file migration đã apply trong `supabase/migrations/`.
 - ❌ Tạo backend Python/Node server trong repo (đây là client-side app).
 - ❌ Dùng CSS custom — chỉ Tailwind + design tokens trong `src/index.css`.

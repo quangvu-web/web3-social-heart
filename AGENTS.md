@@ -27,7 +27,8 @@
 - Exception: `src/integrations/supabase/client.ts` may be edited only for client initialization. It must read `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from `import.meta.env`; it must never contain a service-role key or any secret. `src/integrations/supabase/types.ts` remains auto-generated and must not be edited.
 - Client import: `import { supabase } from "@/integrations/supabase/client"`.
 - Không sửa `src/integrations/supabase/types.ts` (auto-gen).
-- KHÔNG sửa `.env` (VITE_SUPABASE_*) — auto-gen.
+- `.env` được phép chứa duy nhất `VITE_SUPABASE_URL` và `VITE_SUPABASE_PUBLISHABLE_KEY` để Lovable có thể build frontend. Đây là các giá trị public, không được thêm service-role key, private key, access token, refresh token hoặc backend secret. Không ghi giá trị secret khác vào `.env`.
+- `.env.local` vẫn dành cho override local và không được commit.
 - KHÔNG chain `.update().select()` — tách thành 2 query: update xong rồi select riêng.
 - KHÔNG đụng các schema: `auth`, `storage`, `realtime`, `supabase_functions`, `vault`.
 - Mọi migration phải kèm `GRANT` cho table mới trong schema `public`. RLS bắt buộc.

@@ -425,18 +425,35 @@ export const FacebookCreatePost = ({ onPostCreated }: FacebookCreatePostProps) =
   }, []);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const loadProfile = async (userId: string) => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      setProfile(data);
+    };
+
+    const initializeProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        setProfile(data);
+      if (session?.user) {
+        await loadProfile(session.user.id);
       }
     };
-    fetchProfile();
+
+    void initializeProfile();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        setTimeout(() => {
+          void loadProfile(session.user.id);
+        }, 0);
+      } else if (event === 'SIGNED_OUT') {
+        setProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {

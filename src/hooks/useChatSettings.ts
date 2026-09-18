@@ -79,32 +79,16 @@ export function useChatSettings(userId: string | null) {
   };
 }
 
-// Check if a user can message another user
-export async function canSendMessage(senderId: string, receiverId: string): Promise<boolean> {
-  // Get receiver's chat settings
-  const { data: settings } = await supabase
-    .from('chat_settings')
-    .select('who_can_message')
-    .eq('user_id', receiverId)
-    .maybeSingle();
+// Check if a user can message another user (evaluated server-side)
+export async function canSendMessage(_senderId: string, receiverId: string): Promise<boolean> {
+  const { data, error } = await (supabase as any).rpc('can_user_message', {
+    p_receiver_id: receiverId,
+  });
 
-  const whoCanMessage = settings?.who_can_message || 'friends';
-
-  switch (whoCanMessage) {
-    case 'everyone':
-      return true;
-    case 'nobody':
-      return false;
-    case 'friends':
-    default:
-      // Check if they are friends
-      const { data: friendship } = await supabase
-        .from('friendships')
-        .select('id')
-        .or(`and(user_id.eq.${senderId},friend_id.eq.${receiverId}),and(user_id.eq.${receiverId},friend_id.eq.${senderId})`)
-        .eq('status', 'accepted')
-        .limit(1);
-
-      return (friendship?.length || 0) > 0;
+  if (error) {
+    console.warn('[useChatSettings] can_user_message error:', error);
+    return false;
   }
+
+  return data === true;
 }

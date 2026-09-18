@@ -14,8 +14,8 @@ export default defineConfig(({ mode }) => {
   ].filter((name) => !env[name]);
 
   if (missingSupabaseEnv.length > 0) {
-    throw new Error(
-      `Missing required frontend environment variables: ${missingSupabaseEnv.join(', ')}`
+    console.warn(
+      `[vite] Missing frontend environment variables: ${missingSupabaseEnv.join(', ')}`
     );
   }
 

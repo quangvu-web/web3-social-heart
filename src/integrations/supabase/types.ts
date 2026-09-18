@@ -7370,6 +7370,7 @@ export type Database = {
         Returns: number
       }
       calculate_trust_score: { Args: { p_user_id: string }; Returns: number }
+      can_user_message: { Args: { p_receiver_id: string }; Returns: boolean }
       check_action_rate_limit: {
         Args: { p_action_type: string; p_user_id: string }
         Returns: Json
@@ -7455,6 +7456,13 @@ export type Database = {
           recording_uid: number
           resource_id: string
           sid: string
+        }[]
+      }
+      get_live_session_credentials: {
+        Args: { _session_id: string }
+        Returns: {
+          rtmps_url: string
+          stream_key: string
         }[]
       }
       get_user_rewards: {

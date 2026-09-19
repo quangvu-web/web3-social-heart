@@ -187,6 +187,16 @@ export function getTransformedImageUrl(
     return originalUrl;
   }
 
+  // Public R2 dev domains are already browser-loadable. Do not rewrite them
+  // to the media.fun.rich zone: that zone may not serve every R2 bucket.
+  try {
+    if (new URL(originalUrl).hostname.endsWith('r2.dev')) {
+      return originalUrl;
+    }
+  } catch {
+    return originalUrl;
+  }
+
   // Only transform images we fully control (R2 custom domain / R2 dev / same zone),
   // to avoid Cloudflare remote-origin 403s (e.g. Unsplash template covers).
   const canTransformRemotely = (() => {

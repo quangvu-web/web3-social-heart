@@ -49,7 +49,7 @@ import { trackFunGameAction } from '@/features/fun-play/trackFunGameAction';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface FacebookCreatePostProps {
-  onPostCreated: () => void;
+  onPostCreated: () => void | Promise<void>;
 }
 
 const MAX_CONTENT_LENGTH = 20000;
@@ -770,6 +770,10 @@ export const FacebookCreatePost = ({ onPostCreated }: FacebookCreatePostProps) =
       console.log('[CreatePost] Success!', result);
       setSubmitStep('done');
 
+      // Wait for the active feed query to load the newly-created post before
+      // closing the composer, otherwise the UI can keep showing stale posts.
+      await onPostCreated();
+
       // Cleanup upload queue
       uploadQueueRef.current?.cancelAll();
       
@@ -787,7 +791,6 @@ export const FacebookCreatePost = ({ onPostCreated }: FacebookCreatePostProps) =
         visibility: privacy,
       });
       toast.success(language === 'vi' ? 'Bài viết đã được đăng thành công' : t('postPublished'));
-      onPostCreated();
     } catch (error: any) {
       if (error.name === 'AbortError' || error.message === 'Đã huỷ') {
         console.log('[CreatePost] Aborted');

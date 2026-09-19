@@ -35,6 +35,7 @@ import { toast } from 'sonner';
 import { ImagePlus, Video, X, Loader2, MapPin, Sparkles, Wand2, SmilePlus, AlignLeft, Heart, Check, Mic, Radio, Coins } from 'lucide-react';
 import { FILE_LIMITS, getVideoDuration } from '@/utils/imageCompression';
 import { UploadQueue, UploadItem, createUploadQueue } from '@/utils/uploadQueue';
+import { buildMediaPayload, resolveCompletedMedia } from '@/utils/uploadPayload';
 import { EmojiPicker } from '../comment/EmojiPicker';
 import { FriendTagDialog } from '../dialog/FriendTagDialog';
 import type { TaggedFriend } from '../../types';
@@ -619,7 +620,8 @@ export const FacebookCreatePost = ({ onPostCreated }: FacebookCreatePostProps) =
 
   const handleSubmit = async () => {
     // Get completed image URLs from the upload queue
-    const completedMedia = uploadQueueRef.current?.getCompletedUrls() || [];
+    const queueMedia = uploadQueueRef.current?.getCompletedUrls() || [];
+    const completedMedia = resolveCompletedMedia(uploadItems, queueMedia);
     const pendingUploads = uploadItems.filter(item => item.status === 'uploading' || item.status === 'queued');
     
     console.log('[CreatePost] === SUBMIT START ===', {
@@ -631,6 +633,11 @@ export const FacebookCreatePost = ({ onPostCreated }: FacebookCreatePostProps) =
     // Check if there are still uploads in progress
     if (pendingUploads.length > 0) {
       toast.error(`Vui lòng đợi ${pendingUploads.length} file upload xong`);
+      return;
+    }
+
+    if (uploadItems.length > 0 && completedMedia.length === 0) {
+      toast.error('Vui lòng đợi media upload hoàn tất trước khi đăng bài');
       return;
     }
     
@@ -713,16 +720,16 @@ export const FacebookCreatePost = ({ onPostCreated }: FacebookCreatePostProps) =
       if (abortController.signal.aborted) throw new Error('Đã huỷ');
       
       // Collect all media URLs (already uploaded via queue)
-      const mediaUrls: Array<{ url: string; type: 'image' | 'video' }> = [...completedMedia];
+      const { mediaUrls, imageUrl, videoUrl } = buildMediaPayload(completedMedia);
 
-      console.log('[CreatePost] Media URLs prepared:', mediaUrls.length);
+      console.log('[CreatePost] uploadItems:', uploadItems);
+      console.log('[CreatePost] completedMedia:', completedMedia);
+      console.log('[CreatePost] mediaUrls:', mediaUrls);
+      console.log('[CreatePost] image_url:', imageUrl);
       
       if (abortController.signal.aborted) throw new Error('Đã huỷ');
 
       // For backward compatibility
-      const firstImage = mediaUrls.find((m) => m.type === 'image');
-      const firstVideo = mediaUrls.find((m) => m.type === 'video');
-
       console.log('[CreatePost] Step: saving - Calling edge function...');
       setSubmitStep('saving');
 
@@ -737,8 +744,8 @@ export const FacebookCreatePost = ({ onPostCreated }: FacebookCreatePostProps) =
         body: JSON.stringify({
           content: content.trim() || '',
           media_urls: mediaUrls,
-          image_url: firstImage?.url || null,
-          video_url: firstVideo?.url || null,
+          image_url: imageUrl,
+          video_url: videoUrl,
           location: location,
           tagged_user_ids: taggedFriends.map(f => f.id),
           visibility: privacy,

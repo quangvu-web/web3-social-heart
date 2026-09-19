@@ -7,6 +7,7 @@
     "dev": "vite",
     "prebuild": "node scripts/generate-version.mjs",
     "build": "vite build",
+    "test": "bun test",
     "build:dev": "node scripts/generate-version.mjs && vite build --mode development",
     "build:fun-chat": "npm --prefix packages/fun-chat run build",
     "pack:fun-chat": "npm run build:fun-chat && npm pack ./packages/fun-chat --pack-destination .",

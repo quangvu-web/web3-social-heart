@@ -145,7 +145,7 @@ const Profile = () => {
       setProfile(data);
 
       // Fetch user's own posts
-      const { data: postsData } = await supabase
+      const { data: postsData, error: postsError } = await supabase
         .from('posts')
         .select(`
           *,
@@ -156,6 +156,11 @@ const Profile = () => {
         .eq('user_id', profileId)
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
+
+      if (postsError) {
+        console.error('[Profile] Failed to load posts:', postsError);
+        throw postsError;
+      }
 
       setOriginalPosts(postsData || []); // Keep for photos grid
 
@@ -231,7 +236,7 @@ const Profile = () => {
         setFriendsPreview([]);
       }
     } catch (error) {
-      // Error fetching profile - silent fail
+      console.error('[Profile] Failed to refresh profile:', error);
     } finally {
       setLoading(false);
     }
@@ -688,7 +693,7 @@ const Profile = () => {
                             onPostCreated={() => {
                               const profileId = userId || currentUserId;
                               if (profileId) {
-                                fetchProfile(profileId);
+                                return fetchProfile(profileId, currentUserId);
                               }
                             }}
                           />

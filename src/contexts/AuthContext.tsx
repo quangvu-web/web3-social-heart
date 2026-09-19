@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useRef, useCallback, Re
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { withTimeout } from '@/lib/asyncTimeout';
+import { getGoogleAvatarToSync } from '@/utils/googleAvatarSync';
 
 interface Profile {
   id: string;
@@ -173,7 +174,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const ensureProfile = useCallback(async (user: User): Promise<Profile | null> => {
     // Try to fetch first
     let profile = await fetchProfile(user.id);
-    if (profile) return profile;
+    if (profile) {
+      const googleAvatar = getGoogleAvatarToSync({
+        profileAvatarUrl: profile.avatar_url,
+        provider: user.app_metadata?.provider,
+        providers: user.app_metadata?.providers,
+        userMetadata: user.user_metadata,
+      });
+
+      if (!googleAvatar) return profile;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: googleAvatar })
+        .eq('id', user.id)
+        .is('avatar_url', null)
+        .select('avatar_url')
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[AuthContext] Google avatar sync failed:', error);
+        return profile;
+      }
+
+      if (data?.avatar_url) {
+        profile = { ...profile, avatar_url: data.avatar_url };
+        if (isMountedRef.current) setProfile(profile);
+      }
+
+      return profile;
+    }
 
     console.log('[AuthContext] Profile not found, creating fallback...');
 

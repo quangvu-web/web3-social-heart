@@ -9,7 +9,7 @@ interface LazyImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   fallback?: string;
   placeholderColor?: string;
   priority?: boolean;
-  onLoadError?: () => void;
+  onLoadError?: (event: React.SyntheticEvent<HTMLImageElement, Event>) => void;
   hideOnError?: boolean;
   /** Unload image when scrolled out of viewport to free RAM (for long lists) */
   unloadOnExit?: boolean;
@@ -78,10 +78,10 @@ export const LazyImage = memo(({
     hasLoadedOnce.current = true;
   }, []);
 
-  const handleError = useCallback(() => {
+  const handleError = useCallback((event: React.SyntheticEvent<HTMLImageElement, Event>) => {
     setHasError(true);
     setIsLoaded(true);
-    onLoadError?.();
+    onLoadError?.(event);
   }, [onLoadError]);
 
   useEffect(() => {

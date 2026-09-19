@@ -28,6 +28,7 @@ import { EditPostDialog } from './EditPostDialog';
 import { ReactionButton } from './ReactionButton';
 import { ReactionSummary } from './ReactionSummary';
 import { MediaGrid } from './MediaGrid';
+import { normalizeMediaUrls } from '@/utils/mediaNormalization';
 import { ExpandableContent } from './ExpandableContent';
 import {
   MessageCircle,
@@ -317,8 +318,9 @@ const FacebookPostCardComponent = ({
   const mediaItems = useMemo(() => {
     const items: Array<{ url: string; type: 'image' | 'video' }> = [];
     
-    if (post.media_urls && Array.isArray(post.media_urls) && post.media_urls.length > 0) {
-      return post.media_urls;
+    const normalizedMedia = normalizeMediaUrls(post.media_urls);
+    if (normalizedMedia.length > 0) {
+      return normalizedMedia;
     }
     
     if (post.image_url) {

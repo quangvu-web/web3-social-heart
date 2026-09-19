@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeMediaUrls } from '@/utils/mediaNormalization';
 
 export interface PostStats {
   reactions: { id: string; user_id: string; type: string }[];
@@ -100,11 +101,20 @@ const fetchFeedPage = async (cursor: string | null): Promise<FeedPage> => {
   const hasMore = (posts?.length || 0) > POSTS_PER_PAGE;
   const postsToReturn = hasMore ? posts?.slice(0, POSTS_PER_PAGE) : posts;
 
-  const postsData: FeedPost[] = (postsToReturn || []).map(post => ({
-    ...post,
-    media_urls: (post.media_urls as Array<{ url: string; type: 'image' | 'video' }>) || null,
-    visibility: post.visibility || 'public',
-  }));
+  const postsData: FeedPost[] = (postsToReturn || []).map(post => {
+    console.log('[Feed] post media response:', {
+      id: post.id,
+      image_url: post.image_url,
+      media_urls: post.media_urls,
+      media_urls_type: typeof post.media_urls,
+    });
+
+    return {
+      ...post,
+      media_urls: normalizeMediaUrls(post.media_urls),
+      visibility: post.visibility || 'public',
+    };
+  });
   
   const postIds = postsData.map(p => p.id);
   const postStats = await fetchPostStats(postIds);

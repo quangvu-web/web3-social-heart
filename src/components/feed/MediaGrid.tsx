@@ -28,7 +28,8 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
   // Filter out broken media
   const media = initialMedia.filter(item => !brokenUrls.has(item.url));
 
-  const handleMediaError = useCallback((url: string) => {
+  const handleMediaError = useCallback((url: string, event: unknown) => {
+    console.error('[MediaGrid] media load error:', { url, event });
     setBrokenUrls(prev => new Set(prev).add(url));
   }, []);
 
@@ -55,12 +56,12 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
     return (
       <>
         {item.type === 'video' ? (
-          <LazyVideo
+            <LazyVideo
             src={item.url}
             className="w-full max-h-[600px] bg-black"
             showControls
             muted
-            onError={() => handleMediaError(item.url)}
+            onError={(event) => handleMediaError(item.url, event)}
           />
         ) : (
           <div 
@@ -71,8 +72,7 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
               src={item.url}
               alt="Post media"
               className="w-full max-h-[600px] bg-black"
-              hideOnError
-              onLoadError={() => handleMediaError(item.url)}
+              onLoadError={(event) => handleMediaError(item.url, event)}
               transformPreset="post"
             />
           </div>
@@ -104,7 +104,7 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
                     className="w-full h-full object-cover"
                     showControls
                     muted
-                    onError={() => handleMediaError(item.url)}
+                    onError={(event) => handleMediaError(item.url, event)}
                   />
                 </div>
               ) : (
@@ -113,8 +113,7 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
                     src={item.url}
                     alt={`Media ${index + 1}`}
                     className="w-full h-full hover:opacity-95 transition-opacity"
-                    hideOnError
-                    onLoadError={() => handleMediaError(item.url)}
+                    onLoadError={(event) => handleMediaError(item.url, event)}
                     transformPreset="post-grid"
                   />
                 </div>
@@ -149,7 +148,7 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
                   className="w-full h-full object-cover"
                   showControls
                   muted
-                  onError={() => handleMediaError(media[0].url)}
+                  onError={(event) => handleMediaError(media[0].url, event)}
                 />
               </div>
             ) : (
@@ -158,8 +157,7 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
                   src={media[0].url}
                   alt="Media 1"
                   className="w-full h-full hover:opacity-95"
-                  hideOnError
-                  onLoadError={() => handleMediaError(media[0].url)}
+                  onLoadError={(event) => handleMediaError(media[0].url, event)}
                   transformPreset="post-grid"
                 />
               </div>
@@ -174,7 +172,7 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
                   className="w-full h-full object-cover"
                   showControls
                   muted
-                  onError={() => handleMediaError(media[1].url)}
+                  onError={(event) => handleMediaError(media[1].url, event)}
                 />
               </div>
             ) : (
@@ -183,8 +181,7 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
                   src={media[1].url}
                   alt="Media 2"
                   className="w-full h-full hover:opacity-95"
-                  hideOnError
-                  onLoadError={() => handleMediaError(media[1].url)}
+                  onLoadError={(event) => handleMediaError(media[1].url, event)}
                   transformPreset="post-grid"
                 />
               </div>
@@ -199,7 +196,7 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
                   className="w-full h-full object-cover"
                   showControls
                   muted
-                  onError={() => handleMediaError(media[2].url)}
+                  onError={(event) => handleMediaError(media[2].url, event)}
                 />
               </div>
             ) : (
@@ -208,8 +205,7 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
                   src={media[2].url}
                   alt="Media 3"
                   className="w-full h-full hover:opacity-95"
-                  hideOnError
-                  onLoadError={() => handleMediaError(media[2].url)}
+                  onLoadError={(event) => handleMediaError(media[2].url, event)}
                   transformPreset="post-grid"
                 />
               </div>
@@ -245,7 +241,7 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
                   className="w-full h-full object-cover"
                   showControls={false}
                   muted
-                  onError={() => handleMediaError(item.url)}
+                onError={(event) => handleMediaError(item.url, event)}
                 />
               </div>
             ) : (
@@ -254,8 +250,7 @@ export const MediaGrid = memo(({ media: initialMedia }: MediaGridProps) => {
                   src={item.url}
                   alt={`Media ${index + 1}`}
                   className="w-full h-full hover:opacity-95"
-                  hideOnError
-                  onLoadError={() => handleMediaError(item.url)}
+                  onLoadError={(event) => handleMediaError(item.url, event)}
                   transformPreset="post-grid"
                 />
               </div>

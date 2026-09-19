@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { UnifiedAuthForm } from '@/components/auth/UnifiedAuthForm';
@@ -6,53 +6,36 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import LanguageSwitcher from '@/components/layout/LanguageSwitcher';
 // Use direct paths for logos to ensure consistency across all environments
 import { Button } from '@/components/ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, Loader2 } from 'lucide-react';
+import { TelegramOtpChallenge } from '@/modules/auth/components/TelegramOtpChallenge';
+
+type GoogleTelegramChallenge = {
+  challengeId: string;
+  userId: string;
+  isNewUser: boolean;
+};
 
 const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { t } = useLanguage();
+  const [googleChallenge, setGoogleChallenge] = useState<GoogleTelegramChallenge | null>(null);
+  const [verifiedSocialUser, setVerifiedSocialUser] = useState<{ userId: string; isNewUser: boolean } | null>(null);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const startedGoogleCheck = useRef(false);
+  const googleVerified = useRef(false);
   
   // SSO flow parameters
   const returnTo = searchParams.get('return_to');
   const ssoFlow = searchParams.get('sso_flow') === 'true';
+  const isGoogleOAuthCallback =
+    searchParams.get('oauth_callback') === 'google'
+    || sessionStorage.getItem('google_oauth_2fa_pending') === 'true';
 
-  useEffect(() => {
-    // Check if Law of Light was accepted before allowing access to auth
-    const pending = localStorage.getItem('law_of_light_accepted_pending');
-    if (!pending) {
-      navigate('/law-of-light', { replace: true });
-      return;
-    }
-
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // If SSO flow, redirect back to authorize endpoint with token
-        if (ssoFlow && returnTo) {
-          handleSSORedirect(session.access_token);
-        } else {
-          navigate('/');
-        }
-      }
-    };
-    checkUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        // If SSO flow, redirect back to authorize endpoint with token
-        if (ssoFlow && returnTo) {
-          handleSSORedirect(session.access_token);
-        }
-        // Otherwise handled by UnifiedAuthForm callbacks
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate, ssoFlow, returnTo]);
+  const [checkingGoogle2fa, setCheckingGoogle2fa] = useState(isGoogleOAuthCallback);
 
   // Handle SSO redirect back to authorize endpoint
-  const handleSSORedirect = (accessToken: string) => {
+  const handleSSORedirect = useCallback((accessToken: string) => {
     if (!returnTo) return;
     
     try {
@@ -85,7 +68,102 @@ const Auth = () => {
       console.error('Invalid return_to URL:', err);
       navigate('/');
     }
+  }, [navigate, returnTo]);
+
+  useEffect(() => {
+    if (verifiedSocialUser) return;
+    // Check if Law of Light was accepted before allowing access to auth
+    const pending = localStorage.getItem('law_of_light_accepted_pending');
+    if (!pending && !isGoogleOAuthCallback) {
+      navigate('/law-of-light', { replace: true });
+      return;
+    }
+
+    let active = true;
+    const checkUser = async () => {
+      if (isGoogleOAuthCallback && startedGoogleCheck.current) return;
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (!active) return;
+      if (sessionError) {
+        setGoogleError('Không thể kiểm tra phiên đăng nhập. Vui lòng đăng nhập lại.');
+        setCheckingGoogle2fa(false);
+        return;
+      }
+      // OAuth can emit SIGNED_IN after the initial session lookup.
+      if (!session) return;
+      if (isGoogleOAuthCallback && !googleVerified.current) {
+        if (startedGoogleCheck.current) return;
+        startedGoogleCheck.current = true;
+        setCheckingGoogle2fa(true);
+        try {
+          const { data: profile, error: profileError } = await supabase.from('profiles')
+            .select('created_at').eq('id', session.user.id).maybeSingle();
+          if (profileError) throw profileError;
+          const isNewUser = Boolean(profile && Date.now() - new Date(profile.created_at).getTime() < 60000);
+          const { data, error } = await supabase.functions.invoke('telegram-oauth-start');
+          if (error || !data?.success) {
+            throw error ?? new Error('Could not start Telegram verification');
+          }
+          if (data.requires_telegram_2fa === true && data.challenge_id && data.user_id === session.user.id) {
+            const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+            if (signOutError) throw signOutError;
+            if (active) setGoogleChallenge({
+              challengeId: data.challenge_id,
+              userId: session.user.id,
+              isNewUser,
+            });
+            return;
+          }
+          // Only an explicit server response can skip the second factor.
+          if (data.requires_telegram_2fa !== false) throw new Error('Invalid Telegram challenge');
+          sessionStorage.removeItem('google_oauth_2fa_pending');
+          if (active) setVerifiedSocialUser({ userId: session.user.id, isNewUser });
+          return;
+        } catch (error) {
+          console.error('[Auth] Google Telegram 2FA start failed:', error);
+          await supabase.auth.signOut({ scope: 'local' });
+          if (active) setGoogleError('Không thể bắt đầu xác thực Telegram. Vui lòng đăng nhập lại.');
+          return;
+        } finally {
+          if (active) setCheckingGoogle2fa(false);
+        }
+      }
+      if (!active) return;
+      if (ssoFlow && returnTo) {
+        handleSSORedirect(session.access_token);
+      } else {
+        navigate('/');
+      }
+    };
+    // Register first so a delayed OAuth session cannot be missed.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session && !googleVerified.current) {
+        // Never call auth methods inside the auth callback's lock.
+        if (isGoogleOAuthCallback) {
+          setTimeout(() => { if (active) void checkUser(); }, 0);
+        } else if (ssoFlow && returnTo) {
+          handleSSORedirect(session.access_token);
+        }
+      }
+    });
+    void checkUser();
+    return () => { active = false; subscription.unsubscribe(); };
+  }, [isGoogleOAuthCallback, navigate, ssoFlow, returnTo, handleSSORedirect, verifiedSocialUser]);
+
+  const cancelGoogleVerification = async () => {
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) {
+      setGoogleError('Không thể kết thúc phiên đăng nhập. Vui lòng thử lại.');
+      return;
+    }
+    sessionStorage.removeItem('google_oauth_2fa_pending');
+    startedGoogleCheck.current = false;
+    setGoogleChallenge(null);
+    setGoogleError(null);
+    setCheckingGoogle2fa(false);
+    navigate('/auth', { replace: true });
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-amber-50/20 flex items-center justify-center p-4 relative overflow-hidden">
@@ -151,10 +229,41 @@ const Auth = () => {
 
         {/* Right Side - Auth Form with fixed dimensions to prevent CLS */}
         <div className="w-full max-w-lg mx-auto min-h-[560px]">
-          <UnifiedAuthForm />
+          {googleChallenge ? (
+            <TelegramOtpChallenge
+              challengeId={googleChallenge.challengeId}
+              userId={googleChallenge.userId}
+              isNewUser={googleChallenge.isNewUser}
+              beforeSetSession={() => {
+                googleVerified.current = true;
+                sessionStorage.removeItem('google_oauth_2fa_pending');
+              }}
+              onVerified={(userId, isNewUser) => {
+                setGoogleChallenge(null);
+                setVerifiedSocialUser({ userId, isNewUser });
+              }}
+              onCancel={() => { void cancelGoogleVerification(); }}
+            />
+          ) : googleError || checkingGoogle2fa ? (
+            <div className="min-h-[320px] flex flex-col gap-4 items-center justify-center">
+              {googleError ? <p role="alert" className="text-destructive">{googleError}</p> : (
+                <><Loader2 className="animate-spin text-primary" size={32} /><p>Đang kiểm tra xác thực Telegram...</p></>
+              )}
+              <Button variant="outline" onClick={() => { void cancelGoogleVerification(); }}>Đăng nhập lại</Button>
+            </div>
+          ) : (
+            <UnifiedAuthForm
+              verifiedSocialUser={verifiedSocialUser}
+              onCompleted={verifiedSocialUser ? async () => {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session && ssoFlow && returnTo) handleSSORedirect(session.access_token);
+                else navigate('/', { replace: true });
+              } : undefined}
+            />
+          )}
           
           {/* Guest Mode Option */}
-          <div className="mt-6 text-center">
+          {!isGoogleOAuthCallback && <div className="mt-6 text-center">
             <div className="relative flex items-center gap-4 py-2">
               <div className="flex-1 border-t border-muted" />
               <span className="text-sm text-muted-foreground uppercase tracking-wider font-medium">
@@ -188,7 +297,7 @@ const Auth = () => {
                 </span>
               </button>
             </div>
-          </div>
+          </div>}
           
           {/* Last line - same size as left sidebar features */}
           <p className="text-center mt-4 text-base text-muted-foreground font-medium">

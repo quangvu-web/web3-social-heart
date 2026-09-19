@@ -85,6 +85,7 @@ const Auth = () => {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (!active) return;
       if (sessionError) {
+        sessionStorage.removeItem('google_oauth_2fa_pending');
         setGoogleError('Không thể kiểm tra phiên đăng nhập. Vui lòng đăng nhập lại.');
         setCheckingGoogle2fa(false);
         return;
@@ -121,6 +122,7 @@ const Auth = () => {
           return;
         } catch (error) {
           console.error('[Auth] Google Telegram 2FA start failed:', error);
+          sessionStorage.removeItem('google_oauth_2fa_pending');
           await supabase.auth.signOut({ scope: 'local' });
           if (active) setGoogleError('Không thể bắt đầu xác thực Telegram. Vui lòng đăng nhập lại.');
           return;

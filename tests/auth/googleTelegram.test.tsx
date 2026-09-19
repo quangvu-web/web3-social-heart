@@ -85,12 +85,14 @@ test('Telegram service failure blocks login and clears the first-factor session'
   expect(container.textContent).not.toContain('Authenticated feed');
   expect(container.querySelector('[role="alert"]')).not.toBeNull();
   expect(session).toBeNull();
+  expect(sessionStorage.getItem('google_oauth_2fa_pending')).toBeNull();
 });
 test('a malformed challenge cannot complete login', async () => {
   response = { data: { success: true, requires_telegram_2fa: true }, error: null };
   await mount();
   expect(container.textContent).not.toContain('Authenticated feed');
   expect(session).toBeNull();
+  expect(sessionStorage.getItem('google_oauth_2fa_pending')).toBeNull();
 });
 test('accounts with Telegram 2FA explicitly disabled can continue', async () => {
   response = { data: { success: true, requires_telegram_2fa: false }, error: null };

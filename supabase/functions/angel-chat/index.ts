@@ -101,19 +101,25 @@ Deno.serve(withUsage('angel-chat', 'Angel AI · DM', async (req) => {
     const lastUserMsg = cleaned[cleaned.length - 1]?.content ?? '';
     const t0 = Date.now();
     const userEmail = userData.user.email ?? null;
-    await loadAngelRuleOverrides(adminClient);
+    // Các cấu hình độc lập nhau — đọc song song để giảm thời gian chờ trước FUN Core.
+    const [_ruleOverrides, _memSettings, _rollingSettings] = await Promise.all([
+      loadAngelRuleOverrides(adminClient),
+      getAngelMemorySettings(adminClient),
+      getRollingSummarySettings(adminClient, 'web'),
+    ]);
 
     // ANGEL MEMORY — nạp trí nhớ dài hạn cho bé (theo web user id) nếu admin bật
-    const _memSettings = await getAngelMemorySettings(adminClient);
     const _webMemOn = isMemoryEnabledForChannel(_memSettings, 'web');
-    const memoryRow = _webMemOn ? await getAngelMemory(adminClient, { channel: 'web', userKey: userData.user.id }) : null;
+    const [_memoryRow, _rollingRow] = await Promise.all([
+      _webMemOn ? getAngelMemory(adminClient, { channel: 'web', userKey: userData.user.id }) : Promise.resolve(null),
+      _rollingSettings.enabled
+        ? loadRollingSummary(adminClient, { channel: 'web', scopeKey: userData.user.id })
+        : Promise.resolve(null),
+    ]);
+    const memoryRow = _memoryRow;
     const memoryMsg = _webMemOn ? buildMemoryContextMessage(memoryRow) : null;
 
     // ROLLING SUMMARY (web) — nếu bật, prepend tóm tắt hội thoại cũ
-    const _rollingSettings = await getRollingSummarySettings(adminClient, 'web');
-    const _rollingRow = _rollingSettings.enabled
-      ? await loadRollingSummary(adminClient, { channel: 'web', scopeKey: userData.user.id })
-      : null;
     const _summaryMsg = buildSummaryPrefix(_rollingRow);
 
 
@@ -175,7 +181,7 @@ Deno.serve(withUsage('angel-chat', 'Angel AI · DM', async (req) => {
         ],
       });
       reply = enforceAngelVietnamesePronounContract(result.text);
-      await logAngelConversation(adminClient, {
+      void logAngelConversation(adminClient, {
         triggerSource: 'web_chat',
         source: 'web_chat',
         webUserId: userData.user.id,
@@ -186,7 +192,7 @@ Deno.serve(withUsage('angel-chat', 'Angel AI · DM', async (req) => {
         botReply: reply,
         provider: result.provider,
         latencyMs: Date.now() - t0,
-      });
+      }).catch((err) => console.warn('[angel-chat] conversation log failed', err));
 
       // Cross-device: lưu reply lên server
       if (adminClient) {

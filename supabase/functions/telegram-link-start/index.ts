@@ -7,6 +7,40 @@ import {
   telegramJson,
 } from "../_shared/telegram.ts";
 
+async function ensureTelegramWebhook(): Promise<boolean> {
+  const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
+  const webhookSecret = Deno.env.get("TELEGRAM_WEBHOOK_SECRET");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
+
+  if (!botToken || !webhookSecret || !supabaseUrl) {
+    console.error("[telegram-link-start] webhook environment is incomplete");
+    return false;
+  }
+
+  const webhookUrl = `${supabaseUrl}/functions/v1/telegram-webhook?secret=${encodeURIComponent(webhookSecret)}`;
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: webhookUrl,
+        allowed_updates: ["message"],
+        drop_pending_updates: false,
+      }),
+    });
+    const result = (await response.json().catch(() => ({}))) as { ok?: boolean };
+    if (!response.ok || result?.ok === false) {
+      console.error("[telegram-link-start] setWebhook failed", response.status, result);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("[telegram-link-start] setWebhook request failed", error);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: telegramCorsHeaders });
@@ -22,6 +56,10 @@ Deno.serve(async (req) => {
   const botUsername = Deno.env.get("TELEGRAM_BOT_USERNAME");
   if (!botUsername) {
     return telegramJson({ error: "TELEGRAM_BOT_USERNAME is not configured" }, 500);
+  }
+
+  if (!(await ensureTelegramWebhook())) {
+    return telegramJson({ error: "Failed to configure Telegram webhook" }, 502);
   }
 
   const { adminClient } = getTelegramClients(req);

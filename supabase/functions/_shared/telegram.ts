@@ -97,7 +97,7 @@ export async function sendTelegramMessage(chatId: string, text: string): Promise
 export async function createTelegramChallenge(params: {
   adminClient: SupabaseClient;
   userId: string;
-  firstFactor: "email_otp" | "wallet" | "password";
+  firstFactor: "email_otp" | "wallet" | "password" | "google";
 }): Promise<
   | { ok: true; challengeId: string; expiresInSeconds: number }
   | { ok: false; code: "not_enabled" | "rate_limited" | "send_failed" | "db_error"; error: string }

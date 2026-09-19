@@ -6,21 +6,33 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import LanguageSwitcher from '@/components/layout/LanguageSwitcher';
 // Use direct paths for logos to ensure consistency across all environments
 import { Button } from '@/components/ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, Loader2 } from 'lucide-react';
+import { TelegramOtpChallenge } from '@/modules/auth/components/TelegramOtpChallenge';
+
+type GoogleTelegramChallenge = {
+  challengeId: string;
+  userId: string;
+  isNewUser: boolean;
+};
 
 const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { t } = useLanguage();
+  const [googleChallenge, setGoogleChallenge] = useState<GoogleTelegramChallenge | null>(null);
+  const [checkingGoogle2fa, setCheckingGoogle2fa] = useState(false);
   
   // SSO flow parameters
   const returnTo = searchParams.get('return_to');
   const ssoFlow = searchParams.get('sso_flow') === 'true';
+  const isGoogleOAuthCallback =
+    searchParams.get('oauth_callback') === 'google'
+    || sessionStorage.getItem('google_oauth_2fa_pending') === 'true';
 
   useEffect(() => {
     // Check if Law of Light was accepted before allowing access to auth
     const pending = localStorage.getItem('law_of_light_accepted_pending');
-    if (!pending) {
+    if (!pending && !isGoogleOAuthCallback) {
       navigate('/law-of-light', { replace: true });
       return;
     }
@@ -28,6 +40,42 @@ const Auth = () => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        if (isGoogleOAuthCallback) {
+          setCheckingGoogle2fa(true);
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('created_at')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            const isNewUser = Boolean(
+              profile && Date.now() - new Date(profile.created_at).getTime() < 60000,
+            );
+
+            const { data, error } = await supabase.functions.invoke('telegram-oauth-start');
+            if (error || !data?.success) {
+              throw error ?? new Error(data?.error || 'Could not start Telegram verification');
+            }
+
+            if (data.requires_telegram_2fa && data.challenge_id) {
+              sessionStorage.removeItem('google_oauth_2fa_pending');
+              setGoogleChallenge({
+                challengeId: data.challenge_id,
+                userId: data.user_id || session.user.id,
+                isNewUser,
+              });
+              await supabase.auth.signOut({ scope: 'local' });
+              return;
+            }
+            sessionStorage.removeItem('google_oauth_2fa_pending');
+          } catch (error) {
+            sessionStorage.removeItem('google_oauth_2fa_pending');
+            console.error('[Auth] Google Telegram 2FA start failed:', error);
+          } finally {
+            setCheckingGoogle2fa(false);
+          }
+        }
+
         // If SSO flow, redirect back to authorize endpoint with token
         if (ssoFlow && returnTo) {
           handleSSORedirect(session.access_token);
@@ -49,7 +97,7 @@ const Auth = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, ssoFlow, returnTo]);
+  }, [isGoogleOAuthCallback, navigate, searchParams, ssoFlow, returnTo]);
 
   // Handle SSO redirect back to authorize endpoint
   const handleSSORedirect = (accessToken: string) => {
@@ -151,7 +199,25 @@ const Auth = () => {
 
         {/* Right Side - Auth Form with fixed dimensions to prevent CLS */}
         <div className="w-full max-w-lg mx-auto min-h-[560px]">
-          <UnifiedAuthForm />
+          {googleChallenge ? (
+            <TelegramOtpChallenge
+              challengeId={googleChallenge.challengeId}
+              userId={googleChallenge.userId}
+              isNewUser={googleChallenge.isNewUser}
+              beforeSetSession={() => window.history.replaceState({}, '', '/auth')}
+              onVerified={() => navigate('/')}
+              onCancel={() => {
+                setGoogleChallenge(null);
+                window.history.replaceState({}, '', '/auth');
+              }}
+            />
+          ) : checkingGoogle2fa ? (
+            <div className="min-h-[320px] flex items-center justify-center">
+              <Loader2 className="animate-spin text-emerald-700" size={32} />
+            </div>
+          ) : (
+            <UnifiedAuthForm />
+          )}
           
           {/* Guest Mode Option */}
           <div className="mt-6 text-center">

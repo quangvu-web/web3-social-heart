@@ -142,7 +142,7 @@ const Telegram2FAGuide = () => {
               <TipBox type="info">
                 <strong>Áp dụng cho:</strong> Đăng nhập Email OTP, Wallet Login và Email/Password thông thường.
                 <br />
-                <strong>Không áp dụng:</strong> Google OAuth đăng nhập vẫn giữ nguyên như cũ.
+                <strong>Áp dụng:</strong> Google OAuth cũng yêu cầu mã Telegram khi tài khoản đã bật Telegram 2FA.
               </TipBox>
             </CardContent>
           </Card>

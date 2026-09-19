@@ -5,3 +5,8 @@ project_id = "xoiceivuqbxnmpfdiklg"
 # Supabase gateway before the function runs.
 [functions.get-upload-url]
 verify_jwt = false
+
+# Telegram authenticates webhook requests with TELEGRAM_WEBHOOK_SECRET rather
+# than a Supabase user JWT. The function validates that secret itself.
+[functions.telegram-webhook]
+verify_jwt = false

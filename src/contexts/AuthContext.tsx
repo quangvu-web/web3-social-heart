@@ -305,6 +305,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       if (!isMountedRef.current) return;
 
+      if (
+        initialSession
+        && sessionStorage.getItem('google_oauth_2fa_pending') === 'true'
+        && window.location.pathname !== '/auth'
+      ) {
+        window.location.replace('/auth?oauth_callback=google');
+        return;
+      }
+
       let freshUser = initialSession?.user ?? null;
       if (initialSession) {
         try {
@@ -354,6 +363,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!isMountedRef.current) return;
+
+        if (
+          event === 'SIGNED_IN'
+          && newSession
+          && sessionStorage.getItem('google_oauth_2fa_pending') === 'true'
+          && window.location.pathname !== '/auth'
+        ) {
+          window.location.replace('/auth?oauth_callback=google');
+          return;
+        }
 
         console.log('[AuthContext] Auth state change:', event, newSession?.user?.id);
 

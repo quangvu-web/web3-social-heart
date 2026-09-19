@@ -23,6 +23,9 @@ export const SocialLogin = ({
       }
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
+        if (new URLSearchParams(window.location.search).get('oauth_callback') === 'google') {
+          return;
+        }
         const provider = session.user.app_metadata?.provider;
         if (provider && provider !== 'email') {
           setGoogleLoading(false);
@@ -57,6 +60,7 @@ export const SocialLogin = ({
   }, [onSuccess]);
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+    sessionStorage.setItem('google_oauth_2fa_pending', 'true');
     
     // Auto-reset loading after 60s in case popup gets stuck
     const timeout = setTimeout(() => setGoogleLoading(false), 60000);
@@ -64,13 +68,14 @@ export const SocialLogin = ({
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin },
+        options: { redirectTo: `${window.location.origin}/auth?oauth_callback=google` },
       });
 
       clearTimeout(timeout);
       if (error) throw error;
       setGoogleLoading(false);
     } catch (error: any) {
+      sessionStorage.removeItem('google_oauth_2fa_pending');
       clearTimeout(timeout);
       toast.error(error.message || t('authErrorGeneric'));
       setGoogleLoading(false);

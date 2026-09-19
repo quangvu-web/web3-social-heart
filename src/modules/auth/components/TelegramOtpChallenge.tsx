@@ -12,6 +12,7 @@ interface TelegramOtpChallengeProps {
   isNewUser: boolean;
   onVerified: (userId: string, isNewUser: boolean) => void;
   onCancel: () => void;
+  beforeSetSession?: () => void;
 }
 
 export const TelegramOtpChallenge = ({
@@ -20,6 +21,7 @@ export const TelegramOtpChallenge = ({
   isNewUser,
   onVerified,
   onCancel,
+  beforeSetSession,
 }: TelegramOtpChallengeProps) => {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,6 +44,7 @@ export const TelegramOtpChallenge = ({
         throw new Error(data?.error || 'Telegram verification failed');
       }
 
+      beforeSetSession?.();
       const { error: sessionError } = await supabase.auth.setSession({
         access_token: data.access_token,
         refresh_token: data.refresh_token,
@@ -57,7 +60,7 @@ export const TelegramOtpChallenge = ({
     } finally {
       setLoading(false);
     }
-  }, [challengeId, isNewUser, onVerified, otp, userId]);
+  }, [beforeSetSession, challengeId, isNewUser, onVerified, otp, userId]);
 
   return (
     <div className="space-y-6">

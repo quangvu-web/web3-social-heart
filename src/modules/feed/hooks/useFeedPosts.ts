@@ -112,8 +112,11 @@ export const useFeedPosts = () => {
     retry: 2,
   });
 
-  const refetch = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['feed-posts'] });
+  const refetch = useCallback(async () => {
+    await queryClient.refetchQueries({
+      queryKey: ['feed-posts'],
+      type: 'active',
+    });
   }, [queryClient]);
 
   useEffect(() => {

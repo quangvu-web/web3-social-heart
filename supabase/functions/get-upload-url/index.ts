@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
     // https://pub-fe745f8832684f4198a9b0e88e8d451a.r2.dev
     const publicUrl = Deno.env.get('CLOUDFLARE_R2_PUBLIC_URL')!;
 
-    if (!accountId || !accessKeyId || !secretAccessKey || !bucketName) {
+    if (!accountId || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl) {
       throw new Error('Missing R2 configuration');
     }
 

@@ -1,1 +1,7 @@
 project_id = "xoiceivuqbxnmpfdiklg"
+
+# The function validates the user JWT itself so it can return CORS headers
+# consistently for authentication errors instead of being rejected by the
+# Supabase gateway before the function runs.
+[functions.get-upload-url]
+verify_jwt = false

@@ -257,7 +257,7 @@ const Auth = () => {
           ) : googleError || checkingGoogle2fa ? (
             <div className="min-h-[320px] flex flex-col gap-4 items-center justify-center">
               {googleError ? <p role="alert" className="text-destructive">{googleError}</p> : (
-                <><Loader2 className="animate-spin text-primary" size={32} /><p>Đang kiểm tra xác thực Telegram...</p></>
+                <><Loader2 className="animate-spin text-primary" size={32} /><p>Đang hoàn tất đăng nhập...</p></>
               )}
               <Button variant="outline" onClick={() => { void cancelGoogleVerification(); }}>Đăng nhập lại</Button>
             </div>

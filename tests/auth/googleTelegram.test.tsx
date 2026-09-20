@@ -13,6 +13,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true, getComputedStyle: br
 const googleSession = { user: { id: 'google-user' }, access_token: 'first-factor-token' };
 let session: typeof googleSession | null;
 let response: { data: unknown; error: Error | null };
+let pendingStartResponse: Promise<typeof response> | null;
 let starts: number;
 let startAuthorization: string | undefined;
 let otpValid: boolean;
@@ -41,7 +42,8 @@ mock.module('../../src/integrations/supabase/client', () => ({ supabase: {
     if (name === 'telegram-2fa-verify') return otpValid
       ? { data: { success: true, user_id: 'google-user', access_token: 'verified-token', refresh_token: 'verified-refresh' }, error: null }
       : { data: { success: false, error: 'Invalid Telegram OTP' }, error: null };
-    starts++; startAuthorization = options?.headers?.Authorization; return response;
+    starts++; startAuthorization = options?.headers?.Authorization;
+    return pendingStartResponse ?? response;
   } },
 } }));
 mock.module('../../src/i18n/LanguageContext', () => ({ useLanguage: () => ({ t: (key: string) => key }) }));
@@ -69,6 +71,7 @@ beforeEach(() => {
   sessionStorage.setItem('google_oauth_2fa_pending', 'true');
   session = googleSession; starts = 0; startAuthorization = undefined; otpValid = true; profileCreatedAt = '2020-01-01'; createdWallets = []; oauthRedirect = '';
   response = { data: { success: true, requires_telegram_2fa: true, challenge_id: 'challenge-1', user_id: 'google-user' }, error: null };
+  pendingStartResponse = null;
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
 });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
@@ -101,6 +104,19 @@ test('accounts with Telegram 2FA explicitly disabled can continue', async () => 
   await mount();
   expect(container.textContent).toContain('Authenticated feed');
   expect(sessionStorage.getItem('google_oauth_2fa_pending')).toBeNull();
+});
+test('a Google callback waiting for a no-2FA response never mentions Telegram', async () => {
+  let resolveStartResponse!: (value: typeof response) => void;
+  pendingStartResponse = new Promise(resolve => { resolveStartResponse = resolve; });
+  response = { data: { success: true, requires_telegram_2fa: false }, error: null };
+
+  await mount();
+  expect(starts).toBe(1);
+  expect(container.textContent).not.toContain('Telegram');
+  expect(container.textContent).toContain('Đang hoàn tất đăng nhập...');
+
+  await act(async () => { resolveStartResponse(response); });
+  expect(container.textContent).toContain('Authenticated feed');
 });
 test('a late SIGNED_IN event starts the Telegram challenge once', async () => {
   session = null;

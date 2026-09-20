@@ -23,7 +23,8 @@ export const SocialLogin = ({
       }
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        if (new URLSearchParams(window.location.search).get('oauth_callback') === 'google') {
+        if (new URLSearchParams(window.location.search).get('oauth_callback') === 'google'
+          || sessionStorage.getItem('google_oauth_2fa_pending') === 'true') {
           return;
         }
         const provider = session.user.app_metadata?.provider;
@@ -66,18 +67,25 @@ export const SocialLogin = ({
     const timeout = setTimeout(() => setGoogleLoading(false), 60000);
     
     try {
+      const callback = new URL('/auth', window.location.origin);
+      callback.searchParams.set('oauth_callback', 'google');
+      const currentParams = new URLSearchParams(window.location.search);
+      if (currentParams.get('sso_flow') === 'true' && currentParams.get('return_to')) {
+        callback.searchParams.set('sso_flow', 'true');
+        callback.searchParams.set('return_to', currentParams.get('return_to')!);
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth?oauth_callback=google` },
+        options: { redirectTo: callback.toString() },
       });
 
       clearTimeout(timeout);
       if (error) throw error;
       setGoogleLoading(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       sessionStorage.removeItem('google_oauth_2fa_pending');
       clearTimeout(timeout);
-      toast.error(error.message || t('authErrorGeneric'));
+      toast.error(error instanceof Error ? error.message : t('authErrorGeneric'));
       setGoogleLoading(false);
     }
   };

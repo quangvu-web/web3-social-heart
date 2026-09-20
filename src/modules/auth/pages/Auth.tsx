@@ -8,6 +8,11 @@ import LanguageSwitcher from '@/components/layout/LanguageSwitcher';
 import { Button } from '@/components/ui/button';
 import { Eye, Loader2 } from 'lucide-react';
 import { TelegramOtpChallenge } from '@/modules/auth/components/TelegramOtpChallenge';
+import {
+  getFunctionHttpStatus,
+  getGoogleTelegramStartErrorMessage,
+  parseGoogleTelegramStartResponse,
+} from '@/modules/auth/lib/googleTelegram2fa';
 
 type GoogleTelegramChallenge = {
   challengeId: string;
@@ -101,22 +106,25 @@ const Auth = () => {
             .select('created_at').eq('id', session.user.id).maybeSingle();
           if (profileError) throw profileError;
           const isNewUser = Boolean(profile && Date.now() - new Date(profile.created_at).getTime() < 60000);
-          const { data, error } = await supabase.functions.invoke('telegram-oauth-start');
-          if (error || !data?.success) {
-            throw error ?? new Error('Could not start Telegram verification');
-          }
-          if (data.requires_telegram_2fa === true && data.challenge_id && data.user_id === session.user.id) {
+          const { data, error } = await supabase.functions.invoke('telegram-oauth-start', {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+          if (error) throw error;
+
+          const result = parseGoogleTelegramStartResponse(data, session.user.id);
+          if (result.kind === 'challenge') {
             const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
             if (signOutError) throw signOutError;
             if (active) setGoogleChallenge({
-              challengeId: data.challenge_id,
+              challengeId: result.challengeId,
               userId: session.user.id,
               isNewUser,
             });
             return;
           }
+
           // Only an explicit server response can skip the second factor.
-          if (data.requires_telegram_2fa !== false) throw new Error('Invalid Telegram challenge');
+          if (result.kind !== 'skip') throw new Error('Invalid Telegram challenge');
           sessionStorage.removeItem('google_oauth_2fa_pending');
           if (active) setVerifiedSocialUser({ userId: session.user.id, isNewUser });
           return;
@@ -124,7 +132,7 @@ const Auth = () => {
           console.error('[Auth] Google Telegram 2FA start failed:', error);
           sessionStorage.removeItem('google_oauth_2fa_pending');
           await supabase.auth.signOut({ scope: 'local' });
-          if (active) setGoogleError('Không thể bắt đầu xác thực Telegram. Vui lòng đăng nhập lại.');
+          if (active) setGoogleError(getGoogleTelegramStartErrorMessage(getFunctionHttpStatus(error)));
           return;
         } finally {
           if (active) setCheckingGoogle2fa(false);
@@ -153,12 +161,12 @@ const Auth = () => {
   }, [isGoogleOAuthCallback, navigate, ssoFlow, returnTo, handleSSORedirect, verifiedSocialUser]);
 
   const cancelGoogleVerification = async () => {
+    sessionStorage.removeItem('google_oauth_2fa_pending');
     const { error } = await supabase.auth.signOut({ scope: 'local' });
     if (error) {
       setGoogleError('Không thể kết thúc phiên đăng nhập. Vui lòng thử lại.');
       return;
     }
-    sessionStorage.removeItem('google_oauth_2fa_pending');
     startedGoogleCheck.current = false;
     setGoogleChallenge(null);
     setGoogleError(null);

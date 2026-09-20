@@ -14,6 +14,7 @@ const googleSession = { user: { id: 'google-user' }, access_token: 'first-factor
 let session: typeof googleSession | null;
 let response: { data: unknown; error: Error | null };
 let starts: number;
+let startAuthorization: string | undefined;
 let otpValid: boolean;
 let profileCreatedAt: string;
 let createdWallets: string[];
@@ -35,12 +36,12 @@ mock.module('../../src/integrations/supabase/client', () => ({ supabase: {
     select: () => ({ eq: () => ({ count: 1, error: null, maybeSingle: async () => ({ data: { created_at: profileCreatedAt }, error: null }) }) }),
     update: () => ({ eq: async () => ({ error: null }) }),
   }),
-  functions: { invoke: async (name: string, options?: { body?: { user_id: string } }) => {
+  functions: { invoke: async (name: string, options?: { body?: { user_id: string }; headers?: { Authorization?: string } }) => {
     if (name === 'create-custodial-wallet') { createdWallets.push(options?.body?.user_id || ''); return { data: { success: true }, error: null }; }
     if (name === 'telegram-2fa-verify') return otpValid
       ? { data: { success: true, user_id: 'google-user', access_token: 'verified-token', refresh_token: 'verified-refresh' }, error: null }
       : { data: { success: false, error: 'Invalid Telegram OTP' }, error: null };
-    starts++; return response;
+    starts++; startAuthorization = options?.headers?.Authorization; return response;
   } },
 } }));
 mock.module('../../src/i18n/LanguageContext', () => ({ useLanguage: () => ({ t: (key: string) => key }) }));
@@ -66,7 +67,7 @@ async function mount({ accepted = true, guarded = false, url = '/auth?oauth_call
 beforeEach(() => {
   localStorage.clear(); sessionStorage.clear(); listeners = new Set();
   sessionStorage.setItem('google_oauth_2fa_pending', 'true');
-  session = googleSession; starts = 0; otpValid = true; profileCreatedAt = '2020-01-01'; createdWallets = []; oauthRedirect = '';
+  session = googleSession; starts = 0; startAuthorization = undefined; otpValid = true; profileCreatedAt = '2020-01-01'; createdWallets = []; oauthRedirect = '';
   response = { data: { success: true, requires_telegram_2fa: true, challenge_id: 'challenge-1', user_id: 'google-user' }, error: null };
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
 });
@@ -78,6 +79,7 @@ test('the routed Google callback displays Telegram OTP before the feed', async (
   expect(container.textContent).not.toContain('Authenticated feed');
   expect(session).toBeNull();
   expect(starts).toBe(1);
+  expect(startAuthorization).toBe('Bearer first-factor-token');
 });
 test('Telegram service failure blocks login and clears the first-factor session', async () => {
   response = { data: null, error: new Error('service unavailable') };

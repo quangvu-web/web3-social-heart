@@ -10,3 +10,13 @@ verify_jwt = false
 # than a Supabase user JWT. The function validates that secret itself.
 [functions.telegram-webhook]
 verify_jwt = false
+
+# Google sessions can be signed with the current signing key rather than the
+# legacy JWT secret. The function validates the supplied bearer token itself.
+[functions.telegram-oauth-start]
+verify_jwt = false
+
+# This step begins without a browser session after the first factor is removed;
+# the function validates the one-time challenge and code itself.
+[functions.telegram-2fa-verify]
+verify_jwt = false

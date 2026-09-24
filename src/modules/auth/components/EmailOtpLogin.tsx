@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Mail, ArrowRight, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
 import { TelegramOtpChallenge } from './TelegramOtpChallenge';
+import { emailOtpErrorKey } from '../lib/emailOtpErrors';
 
 interface EmailOtpLoginProps {
   onSuccess: (userId: string, isNewUser: boolean) => void;
@@ -19,6 +20,7 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [loading, setLoading] = useState(false);
+  const inFlight = useRef(false);
   const [countdown, setCountdown] = useState(0);
   const [telegramChallenge, setTelegramChallenge] = useState<{
     challengeId: string;
@@ -35,56 +37,77 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
   }, [countdown]);
 
   const handleSendOtp = useCallback(async () => {
-    if (!email) {
+    if (inFlight.current) return;
+    const identifier = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
       toast.error(t('authErrorInvalidEmail'));
       return;
     }
 
+    inFlight.current = true;
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('sso-otp-request', {
-        body: { identifier: email, type: 'email' },
+        body: { identifier, type: 'email' },
       });
 
-      if (error) throw error;
+      if (error || !data?.success) {
+        toast.error(t(await emailOtpErrorKey(error, data)));
+        return;
+      }
+
+      if (data.email_sent !== true) {
+        toast.error(t('otpEmailNotDelivered'));
+        return;
+      }
 
       if (data?.success) {
+        setEmail(identifier);
         setStep('otp');
         setCountdown(300); // 5 minutes
-        toast.success(`${t('otpSentTo')} ${email}`);
+        toast.success(`${t('otpSentTo')} ${identifier}`);
       } else {
-        throw new Error(data?.error || 'Failed to send OTP');
+        toast.error(t('otpServiceUnavailable'));
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : t('errorOccurred');
-      toast.error(message);
+      toast.error(t(await emailOtpErrorKey(error)));
     } finally {
+      inFlight.current = false;
       setLoading(false);
     }
   }, [email, t]);
 
   const handleVerifyOtp = useCallback(async () => {
-    if (otp.length !== 6) {
+    if (inFlight.current) return;
+    if (!/^\d{6}$/.test(otp)) {
       toast.error(t('otpInvalid'));
       return;
     }
 
+    inFlight.current = true;
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('sso-otp-verify', {
-        body: { identifier: email, code: otp, type: 'email' },
+        body: { identifier: email.trim().toLowerCase(), code: otp, type: 'email' },
       });
 
-      if (error) throw error;
+      if (error || !data?.success) {
+        toast.error(t(await emailOtpErrorKey(error, data, 'verify')));
+        return;
+      }
 
-      if (data?.success && data?.requires_telegram_2fa && data?.challenge_id && data?.user_id) {
+      if (data.requires_telegram_2fa) {
+        if (!data.challenge_id || !data.user_id) {
+          toast.error(t('otpServiceUnavailable'));
+          return;
+        }
         setTelegramChallenge({
           challengeId: data.challenge_id,
           userId: data.user_id,
           isNewUser: Boolean(data.is_new_user),
         });
-        toast.success('Telegram OTP sent');
-      } else if (data?.success && data?.access_token && data?.refresh_token) {
+        toast.success(t('otpTelegramSent'));
+      } else if (data?.success && data?.access_token && data?.refresh_token && data?.user_id) {
         // Set session directly from tokens returned by edge function
         const { error: sessionError } = await supabase.auth.setSession({
           access_token: data.access_token,
@@ -92,7 +115,6 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
         });
 
         if (sessionError) {
-          console.error('Session set error:', sessionError);
           throw new Error('Failed to establish session');
         }
 
@@ -108,26 +130,27 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
           .update({ last_login_platform: 'FUN Profile' })
           .eq('id', data.user_id);
 
-        console.log('[OTP] Session established for user:', data.user_id);
         toast.success(t('welcomeBack'));
         onSuccess(data.user_id, data.is_new_user);
       } else {
-        throw new Error(data?.error || 'Verification failed');
+        toast.error(t('otpServiceUnavailable'));
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : t('otpInvalid');
-      toast.error(message);
+      toast.error(t(await emailOtpErrorKey(error, undefined, 'verify')));
     } finally {
+      inFlight.current = false;
       setLoading(false);
     }
   }, [email, otp, t, onSuccess]);
 
   const handleResendOtp = useCallback(async () => {
+    if (inFlight.current) return;
     setOtp('');
     await handleSendOtp();
   }, [handleSendOtp]);
 
   const handleBackToEmail = useCallback(() => {
+    if (inFlight.current) return;
     setStep('email');
     setOtp('');
   }, []);
@@ -168,11 +191,14 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
               <Input
                 id="email"
                 type="email"
+                disabled={loading}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('authEmailPlaceholder')}
                 className="pl-10 h-12 rounded-full border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/30 transition-all duration-300"
-                onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); void handleSendOtp(); }
+                }}
               />
             </div>
           </div>
@@ -277,6 +303,7 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
 
           <button
             onClick={handleBackToEmail}
+            disabled={loading}
             className="w-full text-sm text-slate-500 hover:text-slate-700"
           >
             ← {t('cancel')}

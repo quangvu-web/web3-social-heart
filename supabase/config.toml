@@ -20,3 +20,11 @@ verify_jwt = false
 # the function validates the one-time challenge and code itself.
 [functions.telegram-2fa-verify]
 verify_jwt = false
+
+# Email OTP begins before a browser session exists. Each function validates
+# the identifier and one-time code itself.
+[functions.sso-otp-request]
+verify_jwt = false
+
+[functions.sso-otp-verify]
+verify_jwt = false

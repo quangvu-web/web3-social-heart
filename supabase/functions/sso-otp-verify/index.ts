@@ -122,16 +122,22 @@ Deno.serve(async (req: Request) => {
     console.log('[OTP-VERIFY] OTP verified successfully');
 
     // Mark OTP as used
-    const { error: consumeError } = await supabase
-      .from('otp_codes')
-      .update({ is_used: true })
-      .eq('id', otpRecord.id)
-      .eq('is_used', false);
+    const { data: consumedOtpId, error: consumeError } = await supabase.rpc('consume_otp_code', {
+      p_otp_id: otpRecord.id,
+      p_identifier: identifier,
+      p_code: code,
+    });
     if (consumeError) {
       console.error('[OTP-VERIFY] Failed to consume OTP', { code: consumeError.code });
       return new Response(
         JSON.stringify({ success: false, error_code: 'service_unavailable' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!consumedOtpId) {
+      return new Response(
+        JSON.stringify({ success: false, error_code: 'otp_expired' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

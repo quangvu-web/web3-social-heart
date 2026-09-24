@@ -4,12 +4,18 @@ import { runInNewContext } from 'node:vm';
 // Run the actual Deno handlers; replace only hosted DB, mail and Telegram boundaries.
 let rateCalls: any[], writes: any[], sent: number, sessions: number;
 let rateError: boolean, insertError: boolean, deleteError: boolean, fetchError: boolean;
-let updateError: boolean;
+let updateError: boolean, consumeError: boolean;
 let delivery: 'ok'|'error'|'throw'|'missing';
 let record: any, telegram: any;
 const client = {
  rpc: async (name:string,args:any) => {
   if(name==='check_rate_limit') {rateCalls.push(args);return {data:rateError?null:{allowed:rateCalls.length<=3,remaining:3-rateCalls.length},error:rateError?{message:'private db detail'}:null};}
+  if(name==='consume_otp_code') {
+    if (consumeError) return {data:null,error:{code:'42501',message:'private db detail'}};
+    const canConsume = record && record.id===args.p_otp_id && record.identifier===args.p_identifier && record.code===args.p_code && !record.is_used && record.expires_at>new Date().toISOString();
+    if (canConsume) { record.is_used=true; return {data:record.id,error:null}; }
+    return {data:null,error:null};
+  }
   return {data:'user-1',error:null};
  },
  from: (table:string) => {
@@ -45,7 +51,7 @@ async function load(name:string){
 }
 const request=await load('sso-otp-request');const verify=await load('sso-otp-verify');
 function req(body:unknown){return new Request('http://local.test',{method:'POST',body:JSON.stringify(body),headers:{'Content-Type':'application/json'}});}
-beforeEach(()=>{rateCalls=[];writes=[];updateError=false;sent=0;sessions=0;rateError=false;insertError=false;deleteError=false;fetchError=false;delivery='ok';telegram={ok:false,code:'not_enabled'};record={id:'otp-1',identifier:'test@example.com',type:'email',code:'123456',is_used:false,attempts:0,max_attempts:5,expires_at:new Date(Date.now()+300000).toISOString()};});
+beforeEach(()=>{rateCalls=[];writes=[];updateError=false;consumeError=false;sent=0;sessions=0;rateError=false;insertError=false;deleteError=false;fetchError=false;delivery='ok';telegram={ok:false,code:'not_enabled'};record={id:'otp-1',identifier:'test@example.com',type:'email',code:'123456',is_used:false,attempts:0,max_attempts:5,expires_at:new Date(Date.now()+300000).toISOString()};});
 test('successful send requires email provider acceptance and normalized storage',async()=>{const r=await request(req({identifier:' Test@Example.COM ',type:'email'}));expect(r.status).toBe(200);expect(await r.json()).toMatchObject({success:true,email_sent:true});expect(writes.find(w=>w.op==='insert').value.identifier).toBe('test@example.com');expect(rateCalls[0]).toMatchObject({p_key:'otp_request:test@example.com',p_limit:3,p_window_ms:3600000});});
 for(const mode of ['error','throw','missing'] as const)test(`delivery ${mode} cannot return success`,async()=>{delivery=mode;const r=await request(req({identifier:'test@example.com'}));expect(r.status).toBeGreaterThanOrEqual(500);expect(await r.json()).toMatchObject({success:false,email_sent:false,error_code:'email_delivery_failed'});});
 test('fourth request in an hour is rejected without sending another email',async()=>{for(let i=0;i<3;i++)expect((await request(req({identifier:'test@example.com'}))).status).toBe(200);const r=await request(req({identifier:'test@example.com'}));expect(r.status).toBe(429);expect(sent).toBe(3);});
@@ -59,6 +65,7 @@ test('database read errors are service errors, not expired OTP',async()=>{fetchE
 test('Telegram enabled returns only a challenge, never tokens',async()=>{telegram={ok:true,challengeId:'challenge-1',expiresInSeconds:300};const r=await verify(req({identifier:'test@example.com',code:'123456'}));expect(await r.json()).toMatchObject({requires_telegram_2fa:true,challenge_id:'challenge-1'});expect(sessions).toBe(0);});
 test('Telegram failure cannot fall through to session creation',async()=>{telegram={ok:false,code:'delivery_failed',error:'private service detail'};const r=await verify(req({identifier:'test@example.com',code:'123456'}));expect(r.status).toBe(500);expect(sessions).toBe(0);});
 
-test('failed OTP consumption never creates a session',async()=>{updateError=true;const r=await verify(req({identifier:'test@example.com',code:'123456'}));expect(r.status).toBe(500);expect(sessions).toBe(0);expect(record.is_used).toBe(false);});
+test('failed OTP consumption never creates a session',async()=>{consumeError=true;const r=await verify(req({identifier:'test@example.com',code:'123456'}));expect(r.status).toBe(500);expect(sessions).toBe(0);expect(record.is_used).toBe(false);});
+test('concurrent verification creates exactly one session for a single OTP',async()=>{const results=await Promise.all([verify(req({identifier:'test@example.com',code:'123456'})),verify(req({identifier:'test@example.com',code:'123456'}))]);const bodies=await Promise.all(results.map(r=>r.json()));expect(results.map(r=>r.status).sort()).toEqual([200,400]);expect(bodies.find(body=>body.success===false)).toMatchObject({error_code:'otp_expired'});expect(sessions).toBe(1);});
 test('failed attempt counter write returns a service error',async()=>{updateError=true;const r=await verify(req({identifier:'test@example.com',code:'000000'}));expect(r.status).toBe(500);expect(sessions).toBe(0);});
 test('verify limiter failure cannot create a session',async()=>{rateError=true;const r=await verify(req({identifier:'test@example.com',code:'123456'}));expect(r.status).toBe(503);expect(sessions).toBe(0);});

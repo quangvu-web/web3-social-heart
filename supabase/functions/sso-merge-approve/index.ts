@@ -316,7 +316,7 @@ FUN Profile - Một sản phẩm của FUN Ecosystem
 Email này được gửi tự động, vui lòng không trả lời.`;
 
           await resend.emails.send({
-            from: 'FUN Profile <noreply@profile.funecosystem.org>',
+            from: 'FUN Profile <noreply@funprofile.funecosystem.org>',
             to: [mergeRequest.email],
             subject: 'Tài khoản FUN ID của bạn đã sẵn sàng',
             text: plainText,
@@ -398,7 +398,7 @@ FUN Profile - Một sản phẩm của FUN Ecosystem
 Email này được gửi tự động, vui lòng không trả lời.`;
 
           await resend.emails.send({
-            from: 'FUN Profile <noreply@profile.funecosystem.org>',
+            from: 'FUN Profile <noreply@funprofile.funecosystem.org>',
             to: [mergeRequest.email],
             subject: 'Tài khoản của bạn đã được liên kết thành công',
             text: plainText,

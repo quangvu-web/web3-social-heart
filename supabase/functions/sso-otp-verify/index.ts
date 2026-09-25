@@ -13,11 +13,11 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { identifier, code } = await req.json();
+    const input = await req.json().catch(() => null);
+    const identifier = typeof input?.identifier === 'string' ? input.identifier.trim().toLowerCase() : '';
+    const code = input?.code;
 
-    console.log(`[OTP-VERIFY] Verifying OTP for: ${identifier}`);
-
-    if (!identifier || !code) {
+    if (!identifier || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
       return new Response(
         JSON.stringify({ success: false, error: 'Identifier and code are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -28,6 +28,25 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const verifyRateLimit = await supabase.rpc('check_rate_limit', {
+      p_key: `otp_verify:${identifier}`,
+      p_limit: 10,
+      p_window_ms: 3600000,
+    });
+    if (verifyRateLimit.error || typeof verifyRateLimit.data?.allowed !== 'boolean') {
+      console.error('[OTP-VERIFY] Rate limit check failed');
+      return new Response(
+        JSON.stringify({ success: false, error_code: 'service_unavailable' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!verifyRateLimit.data.allowed) {
+      return new Response(
+        JSON.stringify({ success: false, error_code: 'rate_limited' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Find valid OTP
     const { data: otpRecord, error: fetchError } = await supabase
@@ -40,7 +59,15 @@ Deno.serve(async (req: Request) => {
       .limit(1)
       .maybeSingle();
 
-    if (fetchError || !otpRecord) {
+    if (fetchError) {
+      console.error('[OTP-VERIFY] OTP lookup failed', { code: fetchError.code });
+      return new Response(
+        JSON.stringify({ success: false, error_code: 'service_unavailable' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!otpRecord) {
       console.warn('[OTP-VERIFY] No valid OTP found');
       return new Response(
         JSON.stringify({ success: false, error: 'OTP expired or not found. Please request a new one.' }),
@@ -50,10 +77,17 @@ Deno.serve(async (req: Request) => {
 
     // Check max attempts
     if (otpRecord.attempts >= otpRecord.max_attempts) {
-      await supabase
+      const { error: lockError } = await supabase
         .from('otp_codes')
         .update({ is_used: true })
         .eq('id', otpRecord.id);
+      if (lockError) {
+        console.error('[OTP-VERIFY] Failed to lock exhausted OTP', { code: lockError.code });
+        return new Response(
+          JSON.stringify({ success: false, error_code: 'service_unavailable' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       return new Response(
         JSON.stringify({ success: false, error: 'Too many failed attempts. Please request a new OTP.' }),
@@ -63,10 +97,17 @@ Deno.serve(async (req: Request) => {
 
     // Verify OTP
     if (otpRecord.code !== code) {
-      await supabase
+      const { error: attemptError } = await supabase
         .from('otp_codes')
         .update({ attempts: otpRecord.attempts + 1 })
         .eq('id', otpRecord.id);
+      if (attemptError) {
+        console.error('[OTP-VERIFY] Failed to record OTP attempt', { code: attemptError.code });
+        return new Response(
+          JSON.stringify({ success: false, error_code: 'service_unavailable' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       return new Response(
         JSON.stringify({ 
@@ -81,30 +122,29 @@ Deno.serve(async (req: Request) => {
     console.log('[OTP-VERIFY] OTP verified successfully');
 
     // Mark OTP as used
-    await supabase
-      .from('otp_codes')
-      .update({ is_used: true })
-      .eq('id', otpRecord.id);
+    const { data: consumedOtpId, error: consumeError } = await supabase.rpc('consume_otp_code', {
+      p_otp_id: otpRecord.id,
+      p_identifier: identifier,
+      p_code: code,
+    });
+    if (consumeError) {
+      console.error('[OTP-VERIFY] Failed to consume OTP', { code: consumeError.code });
+      return new Response(
+        JSON.stringify({ success: false, error_code: 'service_unavailable' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (!consumedOtpId) {
+      return new Response(
+        JSON.stringify({ success: false, error_code: 'otp_expired' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Determine user email
     const userEmail = otpRecord.type === 'email' 
       ? identifier.toLowerCase() 
       : `${identifier.replace(/[^0-9]/g, '')}@phone.local`;
-
-    // Rate limit OTP verification attempts
-    const verifyRateLimit = await supabase.rpc('check_rate_limit', {
-      p_key: `otp_verify:${identifier.toLowerCase()}`,
-      p_limit: 10,
-      p_window_ms: 3600000
-    });
-    
-    if (verifyRateLimit.data && !verifyRateLimit.data.allowed) {
-      console.warn('[OTP-VERIFY] Rate limit exceeded for verification:', identifier);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Too many verification attempts. Please wait.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     // Find user by email using RPC (bypasses listUsers bug with NULL email_change)
     const findUserByEmail = async (email: string) => {
@@ -267,7 +307,7 @@ Deno.serve(async (req: Request) => {
 
     if (telegramChallenge.code !== "not_enabled") {
       return new Response(
-        JSON.stringify({ success: false, error: telegramChallenge.error }),
+        JSON.stringify({ success: false, error_code: telegramChallenge.code === 'rate_limited' ? 'rate_limited' : 'service_unavailable' }),
         {
           status: telegramChallenge.code === "rate_limited" ? 429 : 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -330,11 +370,10 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('[OTP-VERIFY] Error:', error);
-    const errMsg = error instanceof Error ? error.message : 'Internal server error';
+  } catch {
+    console.error('[OTP-VERIFY] Verification failed');
     return new Response(
-      JSON.stringify({ success: false, error: errMsg }),
+      JSON.stringify({ success: false, error_code: 'service_unavailable' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

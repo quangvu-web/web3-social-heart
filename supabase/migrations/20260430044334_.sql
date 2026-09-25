@@ -1,0 +1,2 @@
+ALTER TABLE public.live_sessions
+ADD COLUMN IF NOT EXISTS rtmp_ended_at TIMESTAMP WITH TIME ZONE;;

@@ -348,7 +348,21 @@ export default function TelegramGroupPanel() {
     const { data, error } = await supabase.functions.invoke("telegram-community-admin", {
       body: { action, payload },
     });
-    if (error) throw error;
+    if (error) {
+      let message = error.message;
+      if (error.context instanceof Response) {
+        try {
+          const body = await error.context.clone().json();
+          if (typeof body?.error === "string") message = body.error;
+        } catch {
+          // Keep the original message when the gateway returns non-JSON.
+        }
+      }
+      if (/permission denied for (table|relation) telegram_community_settings/i.test(message)) {
+        message = "Backend chưa có quyền truy cập danh sách nhóm. Cần khôi phục quyền database cho chức năng quản trị Telegram.";
+      }
+      throw new Error(message);
+    }
     if (!data?.success && data?.error) throw new Error(data.error);
     return data;
   };

@@ -16,6 +16,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Bot, RefreshCw, Save, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { formatMyt } from "@/lib/formatMyt";
 
 type GroupRow = {
   id: string;
@@ -273,10 +274,7 @@ QUY TẮC KHÁC:
 - Ngôn ngữ ánh sáng: khẳng định tích cực, không "đừng/tránh/không được" mệnh lệnh.`;
 
 function fmtMalaysia(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", {
-    timeZone: "Asia/Kuala_Lumpur",
-    hour12: false,
-  });
+  return formatMyt(iso);
 }
 
 function normaliseGroup(row: Partial<GroupRow>): GroupRow {
@@ -326,6 +324,10 @@ export default function TelegramAiTriggersTab() {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [auditError, setAuditError] = useState(false);
+  const [groupsError, setGroupsError] = useState(false);
+  const [runtimeError, setRuntimeError] = useState(false);
+  const [runtimeLoaded, setRuntimeLoaded] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [filterSource, setFilterSource] = useState("all");
   const [filterGroup, setFilterGroup] = useState("all");
@@ -334,6 +336,7 @@ export default function TelegramAiTriggersTab() {
   const [cacheEntryCount, setCacheEntryCount] = useState(0);
 
   const loadGroups = async () => {
+    setGroupsError(false);
     const { data, error } = await (supabase as any)
       .from("telegram_community_settings")
       .select(
@@ -342,6 +345,7 @@ export default function TelegramAiTriggersTab() {
       .order("group_id", { ascending: true });
 
     if (error) {
+      setGroupsError(true);
       toast.error("Load group thất bại: " + error.message);
       return;
     }
@@ -356,6 +360,7 @@ export default function TelegramAiTriggersTab() {
 
   const loadAudit = async () => {
     setLoading(true);
+    setAuditError(false);
     let query = (supabase as any)
       .from("telegram_ai_audit")
       .select("*")
@@ -368,6 +373,7 @@ export default function TelegramAiTriggersTab() {
     const { data, error } = await query;
     setLoading(false);
     if (error) {
+      setAuditError(true);
       toast.error("Load audit log thất bại: " + error.message);
       return;
     }
@@ -387,8 +393,10 @@ export default function TelegramAiTriggersTab() {
         .from("telegram_ai_response_cache")
         .select("id", { count: "exact", head: true }),
     ]);
+    setRuntimeError(Boolean(logsError || cacheError));
     if (!logsError) setRuntimeLogs((logs ?? []) as RuntimeLogRow[]);
     if (!cacheError) setCacheEntryCount(count ?? 0);
+    setRuntimeLoaded(!logsError && !cacheError);
   };
 
   useEffect(() => {
@@ -588,7 +596,7 @@ export default function TelegramAiTriggersTab() {
           <div>
             <h2 className="text-lg font-semibold">Runtime Analytics 24h</h2>
             <p className="text-sm text-muted-foreground">
-              Theo dõi quyết định AI, Gemini calls, cache và spam để kiểm soát chi phí.
+              Tối đa 1.000 log mới nhất trong 24 giờ; các chỉ số log phản ánh tập đã tải, không phải tổng toàn hệ thống.
             </p>
           </div>
           <div className="flex gap-2">
@@ -601,19 +609,20 @@ export default function TelegramAiTriggersTab() {
             </Button>
           </div>
         </div>
+        {runtimeError && <p role="status" className="text-sm text-destructive">Không tải mới được analytics; các số liệu hiện có không nên xem là số liệu hiện thời. Thử tải lại.</p>}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          <MetricCard label="AI replies" value={allowedLogs.length} />
-          <MetricCard label="Gemini calls" value={geminiCalls} />
-          <MetricCard label="Cache hits" value={cacheHits} />
-          <MetricCard label="Cache misses" value={cacheMisses} />
-          <MetricCard label="Cache entries" value={cacheEntryCount} />
-          <MetricCard label="Tokens" value={totalTokens} />
-          <MetricCard label="Est. cost" value={`$${totalCost.toFixed(4)}`} />
-          <MetricCard label="Spam blocked" value={spamBlocked} />
-          <MetricCard label="Knowledge searches" value={knowledgeSearches} />
-          <MetricCard label="Avg latency" value={`${avgLatency}ms`} />
+          <MetricCard label="AI replies · tập đã tải" value={!runtimeLoaded ? "Chưa có dữ liệu" : allowedLogs.length} />
+          <MetricCard label="Gemini calls · tập đã tải" value={!runtimeLoaded ? "Chưa có dữ liệu" : geminiCalls} />
+          <MetricCard label="Cache hits · tập đã tải" value={!runtimeLoaded ? "Chưa có dữ liệu" : cacheHits} />
+          <MetricCard label="Cache misses · tập đã tải" value={!runtimeLoaded ? "Chưa có dữ liệu" : cacheMisses} />
+          <MetricCard label="Cache entries" value={!runtimeLoaded ? "Chưa có dữ liệu" : cacheEntryCount} />
+          <MetricCard label="Tokens · tập đã tải" value={!runtimeLoaded ? "Chưa có dữ liệu" : totalTokens} />
+          <MetricCard label="Est. cost · tập đã tải" value={!runtimeLoaded ? "Chưa có dữ liệu" : `$${totalCost.toFixed(4)}`} />
+          <MetricCard label="Spam blocked · tập đã tải" value={!runtimeLoaded ? "Chưa có dữ liệu" : spamBlocked} />
+          <MetricCard label="Knowledge searches · tập đã tải" value={!runtimeLoaded ? "Chưa có dữ liệu" : knowledgeSearches} />
+          <MetricCard label="Avg latency · tập đã tải" value={!runtimeLoaded ? "Chưa có dữ liệu" : `${avgLatency}ms`} />
         </div>
-        <div className="text-xs text-muted-foreground">Tool calls hôm nay: {toolCalls}</div>
+        <div className="text-xs text-muted-foreground">Tool calls · tập log đã tải: {runtimeLoaded ? toolCalls : "Chưa có dữ liệu"}</div>
       </Card>
 
       <Card className="space-y-3 p-4">
@@ -642,7 +651,9 @@ export default function TelegramAiTriggersTab() {
       </Card>
 
 
-      {groups.length === 0 ? (
+      {groupsError ? (
+        <Card className="flex items-center justify-between gap-3 p-6 text-sm text-destructive">Không tải được danh sách group; chưa thể xác nhận danh sách rỗng.<Button variant="outline" size="sm" onClick={() => void loadGroups()}>Thử lại</Button></Card>
+      ) : groups.length === 0 ? (
         <Card className="p-6 text-center text-muted-foreground">Chưa có group nào.</Card>
       ) : (
         <>
@@ -1437,7 +1448,7 @@ export default function TelegramAiTriggersTab() {
           <table className="w-full text-sm">
             <thead className="border-b text-left text-xs text-muted-foreground">
               <tr>
-                <th className="py-2 pr-3">Thời gian (MYT)</th>
+                <th className="py-2 pr-3">Thời gian (MYT, UTC+8)</th>
                 <th className="py-2 pr-3">Nguồn</th>
                 <th className="py-2 pr-3">Group</th>
                 <th className="py-2 pr-3">User</th>
@@ -1447,7 +1458,9 @@ export default function TelegramAiTriggersTab() {
               </tr>
             </thead>
             <tbody>
-              {audit.length === 0 ? (
+              {auditError ? (
+                <tr><td colSpan={7} className="py-6 text-center text-destructive">Không tải được audit log; danh sách trống chưa được xác nhận. <Button variant="outline" size="sm" onClick={() => void loadAudit()}>Thử lại</Button></td></tr>
+              ) : audit.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-6 text-center text-muted-foreground">
                     Chưa có log.
@@ -1724,4 +1737,3 @@ function MetricCard(props: { label: string; value: string | number }) {
     </div>
   );
 }
-

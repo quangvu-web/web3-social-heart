@@ -5,13 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTelegramWebhookStatus, type TelegramWebhookInfo, type TelegramWebhookStatus } from "./telegramWebhookStatus";
-
-const MYT_FORMATTER = new Intl.DateTimeFormat("vi-VN", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: "Asia/Kuala_Lumpur",
-  hour12: false,
-});
+import { formatMyt } from "@/lib/formatMyt";
 
 type WebhookSnapshot = {
   info: TelegramWebhookInfo;
@@ -113,7 +107,7 @@ export default function OverviewTab() {
             {checkedAt && (
               <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock3 className="h-3.5 w-3.5" />
-                Kiểm tra lúc {MYT_FORMATTER.format(checkedAt)} MYT (UTC+8)
+                Kiểm tra lúc {formatMyt(checkedAt)} MYT (UTC+8)
               </span>
             )}
           </div>

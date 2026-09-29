@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, MessageCircle, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { formatMyt } from "@/lib/formatMyt";
 import BotDmConversationDialog from "./BotDmConversationDialog";
 
 
@@ -26,10 +28,6 @@ interface DmUserRow {
 }
 
 type LinkFilter = "all" | "linked" | "unlinked";
-
-function fmtKL(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur" });
-}
 
 function toCsv(rows: DmUserRow[]): string {
   if (!rows.length) return "";
@@ -55,9 +53,10 @@ function toCsv(rows: DmUserRow[]): string {
 export default function BotDmUsersSection() {
   const [filter, setFilter] = useState<LinkFilter>("all");
   const [viewing, setViewing] = useState<{ id: number; name: string } | null>(null);
+  const [search, setSearch] = useState("");
 
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["bot-dm-users"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -72,10 +71,14 @@ export default function BotDmUsersSection() {
   });
 
   const filtered = useMemo(() => {
-    if (filter === "linked") return users.filter((u) => !!u.linked_user_id);
-    if (filter === "unlinked") return users.filter((u) => !u.linked_user_id);
-    return users;
-  }, [users, filter]);
+    const q = search.trim().toLowerCase();
+    return users.filter((u) => {
+      const matchesFilter = filter === "all" || (filter === "linked" ? !!u.linked_user_id : !u.linked_user_id);
+      const matchesSearch = !q || [u.username, u.first_name, u.last_name, String(u.telegram_user_id)]
+        .some((v) => (v ?? "").toLowerCase().includes(q));
+      return matchesFilter && matchesSearch;
+    });
+  }, [users, filter, search]);
 
   const stats = useMemo(() => {
     const now = Date.now();
@@ -130,20 +133,25 @@ export default function BotDmUsersSection() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label="Tổng user DM" value={stats.total} />
-          <Stat label="Hoạt động 24h" value={stats.today} />
-          <Stat label="Hoạt động 7 ngày" value={stats.week} />
-          <Stat label="% đã liên kết" value={`${stats.linkedPct}%`} />
+          <Stat label="Tổng trong tối đa 500 bản ghi đã tải" value={stats.total} />
+          <Stat label="Hoạt động 24h · mẫu đã tải" value={stats.today} />
+          <Stat label="Hoạt động 7 ngày · mẫu đã tải" value={stats.week} />
+          <Stat label="% đã liên kết · mẫu đã tải" value={`${stats.linkedPct}%`} />
         </div>
 
-        <div className="max-h-[480px] overflow-y-auto rounded border">
-          <table className="w-full text-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <Input aria-label="Tìm người dùng DM trong bản ghi đã tải" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm tên, username hoặc Telegram ID trong bản ghi đã tải…" className="sm:max-w-md" />
+          <span className="text-xs text-muted-foreground">Hiển thị {filtered.length} / {users.length}; truy vấn giới hạn 500 bản ghi gần nhất.</span>
+        </div>
+
+        <div className="max-h-[480px] overflow-auto rounded border">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="sticky top-0 bg-background z-10">
               <tr className="text-left text-muted-foreground">
                 <th className="p-2">User</th>
                 <th className="p-2">Msgs</th>
                 <th className="p-2">Lệnh cuối</th>
-                <th className="p-2">Lần cuối (KL)</th>
+                <th className="p-2">Lần cuối (MYT, UTC+8)</th>
                 <th className="p-2">Trạng thái</th>
                 <th className="p-2"></th>
               </tr>
@@ -152,12 +160,15 @@ export default function BotDmUsersSection() {
               {isLoading && (
                 <tr><td colSpan={6} className="text-center py-6 text-muted-foreground">Loading…</td></tr>
               )}
-              {!isLoading && filtered.length === 0 && (
+              {isError && (
+                <tr><td colSpan={6} className="py-6 text-center text-destructive">Không tải được dữ liệu DM: {error instanceof Error ? error.message : "Lỗi không xác định"} <Button variant="outline" size="sm" onClick={() => void refetch()}>Thử lại</Button></td></tr>
+              )}
+              {!isLoading && !isError && filtered.length === 0 && (
                 <tr><td colSpan={6} className="text-center py-6 text-muted-foreground">
-                  Chưa có user nào DM bot. Dữ liệu sẽ tích lũy từ các tin nhắn DM mới.
+                  {users.length ? "Không có bản ghi khớp bộ lọc tìm kiếm." : "Chưa có bản ghi DM trong tập dữ liệu tải được."}
                 </td></tr>
               )}
-              {filtered.map((u) => (
+              {!isError && filtered.map((u) => (
                 <tr key={u.telegram_user_id} className="border-t">
                   <td className="p-2">
                     <div className="font-medium">{u.first_name || "(no name)"} {u.last_name ?? ""}</div>
@@ -168,7 +179,7 @@ export default function BotDmUsersSection() {
                   </td>
                   <td className="p-2 tabular-nums">{u.message_count}</td>
                   <td className="p-2 text-muted-foreground">{u.last_command ?? "—"}</td>
-                  <td className="p-2 text-muted-foreground">{fmtKL(u.last_seen_at)}</td>
+                  <td className="p-2 text-muted-foreground">{formatMyt(u.last_seen_at)}</td>
                   <td className="p-2">
                     {u.linked_user_id ? (
                       <Badge variant="default">Đã liên kết</Badge>

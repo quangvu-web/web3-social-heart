@@ -1,0 +1,10 @@
+{
+  "nodeModulesDir": "none",
+  "lock": {
+    "path": "./deno.test.lock"
+  },
+  "imports": {
+    "npm:@supabase/supabase-js@2": "npm:@supabase/supabase-js@2.111.0",
+    "npm:@supabase/supabase-js@2.45.0": "npm:@supabase/supabase-js@2.45.0"
+  }
+}

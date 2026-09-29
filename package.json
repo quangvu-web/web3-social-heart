@@ -12,7 +12,8 @@
     "build:fun-chat": "npm --prefix packages/fun-chat run build",
     "pack:fun-chat": "npm run build:fun-chat && npm pack ./packages/fun-chat --pack-destination .",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.node.json"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -96,6 +97,7 @@
     "@lovable.dev/vite-plugin-dev-server-bridge": "^1.0.2",
     "@lovable.dev/vite-plugin-hmr-gate": "^1.5.0",
     "@tailwindcss/typography": "^0.5.16",
+    "@types/bun": "^1.4.2",
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",

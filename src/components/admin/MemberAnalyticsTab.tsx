@@ -176,6 +176,7 @@ export default function MemberAnalyticsTab() {
       <Card>
         <CardHeader><CardTitle className="text-base">Joins vs Leaves</CardTitle></CardHeader>
         <CardContent className="h-72">
+          {loading ? <p className="text-sm text-muted-foreground">Đang tải…</p> : statsError ? <p className="text-sm text-destructive">Không tải được thống kê; hãy dùng Thử tải lại.</p> : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -188,6 +189,7 @@ export default function MemberAnalyticsTab() {
               <Line type="monotone" dataKey="Net" stroke="#2563eb" />
             </LineChart>
           </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -195,6 +197,7 @@ export default function MemberAnalyticsTab() {
         <Card>
           <CardHeader><CardTitle className="text-base">Top Invite Links</CardTitle></CardHeader>
           <CardContent className="h-72">
+            {loading ? <p className="text-sm text-muted-foreground">Đang tải…</p> : eventsError ? <p className="text-sm text-destructive">Không tải được event; hãy dùng Thử tải lại.</p> : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={inviteData} layout="vertical" margin={{ left: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -204,6 +207,7 @@ export default function MemberAnalyticsTab() {
                 <Bar dataKey="joins" fill="#eab308" />
               </BarChart>
             </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -236,7 +240,7 @@ export default function MemberAnalyticsTab() {
                 {loading && <tr><td colSpan={4} className="text-center py-4 text-muted-foreground">Đang tải…</td></tr>}
                 {!loading && eventsError && <tr><td colSpan={4} className="text-center py-4 text-destructive">Không tải được event trong khoảng này.</td></tr>}
                 {!loading && !eventsError && events.length === 0 && <tr><td colSpan={4} className="text-center py-4 text-muted-foreground">Không có event trong khoảng đã chọn.</td></tr>}
-                {events.slice(0, 200).map((e) => (
+                {!loading && !eventsError && events.slice(0, 200).map((e) => (
                   <tr key={e.id} className="border-t">
                     <td className="py-1">{new Date(e.occurred_at).toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur" })}</td>
                     <td>{e.event_type}</td>

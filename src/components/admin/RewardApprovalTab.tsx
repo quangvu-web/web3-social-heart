@@ -278,7 +278,7 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Coins className="w-5 h-5 text-yellow-500" />
-              Duyệt thưởng V2 ({filteredUsers.length} users)
+              Duyệt thưởng V2 ({dataLoading ? "Đang tải…" : dataError || !dataLoaded ? "Chưa xác minh" : `${filteredUsers.length} users`})
             </CardTitle>
             <Button 
               variant="outline" 

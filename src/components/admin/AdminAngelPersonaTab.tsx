@@ -587,8 +587,10 @@ export default function AdminAngelPersonaTab() {
             <b> chưa </b>set persona riêng. Group đã set persona riêng (tab AI Triggers)
             vẫn ưu tiên bản của group đó. Để trống = không cộng gì.
           </p>
+          {(loading || loadError || !loaded) && <p role="status" className="text-sm text-muted-foreground">{loading ? "Đang tải cấu hình…" : "Chưa xác minh được cấu hình; ô trống không xác nhận đang dùng mặc định."}</p>}
           <Textarea
             rows={10}
+            disabled={!canSavePersona}
             value={globalPersona}
             onChange={(e) => setGlobalPersona(e.target.value)}
             placeholder="Để trống = dùng persona mặc định ở trên."
@@ -599,6 +601,7 @@ export default function AdminAngelPersonaTab() {
             <label className="text-sm font-medium mb-1 block">Ghi chú nội bộ (không gửi bot)</label>
             <Textarea
               rows={3}
+              disabled={!canSavePersona}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="VD: đã nới 'mình' phản thân ngày 2026-07-04…"

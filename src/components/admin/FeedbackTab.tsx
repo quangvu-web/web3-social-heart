@@ -255,7 +255,7 @@ export default function FeedbackTab() {
           <CardTitle className="flex items-center gap-2">
             <MessageCircle className="h-5 w-5" />
             Feedback từ /feedback
-            <Badge variant="outline">{filtered.length}</Badge>
+            <Badge variant="outline">{loading ? "Đang tải…" : loadError || !loaded ? "Chưa xác minh" : filtered.length}</Badge>
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <Select value={range} onValueChange={(v) => setRange(v as RangeFilter)}>

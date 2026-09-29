@@ -95,7 +95,10 @@ export default function BotDmUsersSection() {
     };
   }, [users]);
 
+  const unverifiedLabel = isLoading ? "Đang tải…" : isError ? "Chưa xác minh" : null;
+
   function downloadCsv() {
+    if (isLoading || isError) return;
     const csv = toCsv(filtered);
     if (!csv) {
       toast.info("Chưa có dữ liệu để export");
@@ -126,22 +129,22 @@ export default function BotDmUsersSection() {
               <SelectItem value="unlinked">Chưa liên kết</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" onClick={downloadCsv}>
+          <Button size="sm" variant="outline" onClick={downloadCsv} disabled={isLoading || isError}>
             <Download className="h-4 w-4 mr-1" /> CSV
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label="Tổng trong tối đa 500 bản ghi đã tải" value={stats.total} />
-          <Stat label="Hoạt động 24h · mẫu đã tải" value={stats.today} />
-          <Stat label="Hoạt động 7 ngày · mẫu đã tải" value={stats.week} />
-          <Stat label="% đã liên kết · mẫu đã tải" value={`${stats.linkedPct}%`} />
+          <Stat label="Tổng trong tối đa 500 bản ghi đã tải" value={unverifiedLabel ?? stats.total} />
+          <Stat label="Hoạt động 24h · mẫu đã tải" value={unverifiedLabel ?? stats.today} />
+          <Stat label="Hoạt động 7 ngày · mẫu đã tải" value={unverifiedLabel ?? stats.week} />
+          <Stat label="% đã liên kết · mẫu đã tải" value={unverifiedLabel ?? `${stats.linkedPct}%`} />
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <Input aria-label="Tìm người dùng DM trong bản ghi đã tải" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm tên, username hoặc Telegram ID trong bản ghi đã tải…" className="sm:max-w-md" />
-          <span className="text-xs text-muted-foreground">Hiển thị {filtered.length} / {users.length}; truy vấn giới hạn 500 bản ghi gần nhất.</span>
+          <span className="text-xs text-muted-foreground">{unverifiedLabel ?? `Hiển thị ${filtered.length} / ${users.length}; truy vấn giới hạn 500 bản ghi gần nhất.`}</span>
         </div>
 
         <div className="max-h-[480px] overflow-auto rounded border">

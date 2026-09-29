@@ -39,6 +39,8 @@ export default function TelegramAllowlistsTab() {
   const [newBotChatId, setNewBotChatId] = useState("");
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const handlesVerified = !loading && !handlesError;
+  const botsVerified = !loading && !botsError;
   const query = search.trim().toLowerCase();
   const visibleHandles = handles.filter((r) => [r.handle, r.note ?? "", String(r.chat_id ?? "global")].some((v) => v.toLowerCase().includes(query)));
   const visibleBots = bots.filter((r) => [r.username, String(r.chat_id ?? "global")].some((v) => v.toLowerCase().includes(query)));
@@ -53,8 +55,8 @@ export default function TelegramAllowlistsTab() {
     ]);
     if (he) { setHandlesError(true); toast.error(`Tải handles lỗi: ${he.message}`); }
     if (be) { setBotsError(true); toast.error(`Tải bots lỗi: ${be.message}`); }
-    setHandles((h as HandleRow[]) ?? []);
-    setBots((b as BotRow[]) ?? []);
+    if (!he) setHandles((h as HandleRow[]) ?? []);
+    if (!be) setBots((b as BotRow[]) ?? []);
     setLoading(false);
   }
 
@@ -63,6 +65,7 @@ export default function TelegramAllowlistsTab() {
   }, []);
 
   async function addHandle() {
+    if (!handlesVerified || saving) return;
     const handle = normHandle(newHandle);
     if (!handle) return toast.error("Nhập handle");
     const chat_id = newHandleChatId.trim() ? Number(newHandleChatId.trim()) : null;
@@ -81,6 +84,7 @@ export default function TelegramAllowlistsTab() {
   }
 
   async function removeHandle(id: string) {
+    if (!handlesVerified || saving) return;
     const { error } = await supabase.from("trusted_telegram_handles").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Đã xoá");
@@ -88,6 +92,7 @@ export default function TelegramAllowlistsTab() {
   }
 
   async function addBot() {
+    if (!botsVerified || saving) return;
     const username = normHandle(newBot);
     if (!username) return toast.error("Nhập bot username");
     const chat_id = newBotChatId.trim() ? Number(newBotChatId.trim()) : null;
@@ -102,6 +107,7 @@ export default function TelegramAllowlistsTab() {
   }
 
   async function removeBot(id: string) {
+    if (!botsVerified || saving) return;
     const { error } = await supabase.from("trusted_bot_usernames").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Đã xoá");
@@ -115,7 +121,7 @@ export default function TelegramAllowlistsTab() {
           <CardTitle className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5" /> Trusted Telegram channels / handles
           </CardTitle>
-          <p className="text-xs text-muted-foreground">Đã tải {handles.length} mục.</p>
+          <p className="text-xs text-muted-foreground">{handlesVerified ? `Đã tải ${handles.length} mục.` : "Chưa xác minh được danh sách."}</p>
           <p className="text-sm text-muted-foreground">
             Các handle hợp lệ sẽ không bị bot xoá khi xuất hiện dưới dạng link <code>t.me/&lt;handle&gt;</code>.
             Để <strong>chat_id trống</strong> = áp dụng toàn cục.
@@ -130,7 +136,7 @@ export default function TelegramAllowlistsTab() {
             <Input placeholder="handle (vd: funrich_community)" value={newHandle} onChange={(e) => setNewHandle(e.target.value)} />
             <Input placeholder="ghi chú (tuỳ chọn)" value={newHandleNote} onChange={(e) => setNewHandleNote(e.target.value)} />
             <Input placeholder="chat_id (trống = global)" value={newHandleChatId} onChange={(e) => setNewHandleChatId(e.target.value)} />
-            <Button onClick={addHandle} disabled={saving}><Plus className="w-4 h-4 mr-1" />Thêm handle</Button>
+            <Button onClick={addHandle} disabled={saving || !handlesVerified}><Plus className="w-4 h-4 mr-1" />Thêm handle</Button>
           </div>
           <div className="space-y-2">
             {loading && <p className="text-sm text-muted-foreground">Đang tải…</p>}
@@ -141,7 +147,7 @@ export default function TelegramAllowlistsTab() {
                 <Badge variant="secondary">@{r.handle}</Badge>
                 {r.chat_id ? <Badge variant="outline">chat {r.chat_id}</Badge> : <Badge variant="outline">global</Badge>}
                 <span className="text-sm text-muted-foreground flex-1 truncate">{r.note ?? ""}</span>
-                <Button size="sm" variant="ghost" onClick={() => removeHandle(r.id)}><Trash2 className="w-4 h-4" /></Button>
+                <Button size="sm" variant="ghost" disabled={!handlesVerified || saving} onClick={() => removeHandle(r.id)}><Trash2 className="w-4 h-4" /></Button>
               </div>
             ))}
           </div>
@@ -153,7 +159,7 @@ export default function TelegramAllowlistsTab() {
           <CardTitle className="flex items-center gap-2">
             <Bot className="w-5 h-5" /> Trusted bot usernames
           </CardTitle>
-          <p className="text-xs text-muted-foreground">Đã tải {bots.length} mục.</p>
+          <p className="text-xs text-muted-foreground">{botsVerified ? `Đã tải ${bots.length} mục.` : "Chưa xác minh được danh sách."}</p>
           <p className="text-sm text-muted-foreground">
             Các bot Telegram được phép mention (<code>@xxx_bot</code>) mà không bị moderation xoá.
           </p>
@@ -162,7 +168,7 @@ export default function TelegramAllowlistsTab() {
           <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr_auto] gap-2">
             <Input placeholder="bot username (vd: funrich_community_bot)" value={newBot} onChange={(e) => setNewBot(e.target.value)} />
             <Input placeholder="chat_id (trống = global)" value={newBotChatId} onChange={(e) => setNewBotChatId(e.target.value)} />
-            <Button onClick={addBot} disabled={saving}><Plus className="w-4 h-4 mr-1" />Thêm bot</Button>
+            <Button onClick={addBot} disabled={saving || !botsVerified}><Plus className="w-4 h-4 mr-1" />Thêm bot</Button>
           </div>
           <div className="space-y-2">
             {loading && <p className="text-sm text-muted-foreground">Đang tải…</p>}
@@ -173,7 +179,7 @@ export default function TelegramAllowlistsTab() {
                 <Badge variant="secondary">@{r.username}</Badge>
                 {r.chat_id ? <Badge variant="outline">chat {r.chat_id}</Badge> : <Badge variant="outline">global</Badge>}
                 <div className="flex-1" />
-                <Button size="sm" variant="ghost" onClick={() => removeBot(r.id)}><Trash2 className="w-4 h-4" /></Button>
+                <Button size="sm" variant="ghost" disabled={!botsVerified || saving} onClick={() => removeBot(r.id)}><Trash2 className="w-4 h-4" /></Button>
               </div>
             ))}
           </div>

@@ -18,7 +18,9 @@ type Row = {
 
 export default function TelegramFatherChannelTab() {
   const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [draft, setDraft] = useState<Record<string, { id: string; title: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -28,13 +30,17 @@ export default function TelegramFatherChannelTab() {
       .from("telegram_group_config")
       .select("id, group_id, group_title, ai_enabled, father_channel_id, father_channel_title")
       .order("group_title", { ascending: true });
-    setLoading(false);
     if (error) {
-      toast.error("Không load được danh sách group: " + error.message);
+      setLoadError(true);
+      setLoading(false);
+      toast.error("Không tải được danh sách nhóm Telegram.");
       return;
     }
     const list = (data ?? []) as Row[];
     setRows(list);
+    setLoaded(true);
+    setLoadError(false);
+    setLoading(false);
     const next: Record<string, { id: string; title: string }> = {};
     for (const r of list) {
       next[r.id] = {
@@ -51,7 +57,7 @@ export default function TelegramFatherChannelTab() {
 
   const save = async (row: Row) => {
     const d = draft[row.id];
-    if (!d) return;
+    if (!d || !loaded || loadError || loading) return;
     const trimmedId = d.id.trim();
     let parsed: number | null = null;
     if (trimmedId) {
@@ -95,7 +101,7 @@ export default function TelegramFatherChannelTab() {
             <Crown className="w-5 h-5 text-yellow-500" />
             <h2 className="text-lg font-semibold">Kênh "Cha Vũ Trụ" theo nhóm</h2>
           </div>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
@@ -112,7 +118,9 @@ export default function TelegramFatherChannelTab() {
         </p>
       </Card>
 
-      {rows.length === 0 && !loading ? (
+      {loading ? <Card className="p-6 text-center text-muted-foreground">Đang tải cấu hình nhóm…</Card> : loadError ? (
+        <Card className="p-6 text-center space-y-3"><p className="text-destructive">Không xác minh được cấu hình nhóm. Bản chỉnh sửa đang giữ nguyên.</p><Button variant="outline" onClick={() => void load()}><RefreshCw className="w-4 h-4 mr-2"/>Thử lại</Button></Card>
+      ) : rows.length === 0 ? (
         <Card className="p-6 text-center text-muted-foreground">
           Chưa có nhóm Telegram nào trong <code>telegram_group_config</code>.
         </Card>
@@ -154,6 +162,7 @@ export default function TelegramFatherChannelTab() {
                     id={`fid-${row.id}`}
                     value={d.id}
                     placeholder="-1001234567890"
+                    disabled={!loaded || loading || loadError}
                     onChange={(e) =>
                       setDraft((p) => ({ ...p, [row.id]: { ...d, id: e.target.value } }))
                     }
@@ -165,6 +174,7 @@ export default function TelegramFatherChannelTab() {
                     id={`ftitle-${row.id}`}
                     value={d.title}
                     placeholder="CAMLY COIN CHANNEL"
+                    disabled={!loaded || loading || loadError}
                     onChange={(e) =>
                       setDraft((p) => ({ ...p, [row.id]: { ...d, title: e.target.value } }))
                     }
@@ -173,7 +183,7 @@ export default function TelegramFatherChannelTab() {
               </div>
 
               <div className="flex justify-end">
-                <Button size="sm" onClick={() => save(row)} disabled={isSaving}>
+                <Button size="sm" onClick={() => save(row)} disabled={isSaving || !loaded || loading || loadError}>
                   <Save className={`w-4 h-4 mr-2 ${isSaving ? "animate-pulse" : ""}`} />
                   {isSaving ? "Đang lưu…" : "Lưu"}
                 </Button>

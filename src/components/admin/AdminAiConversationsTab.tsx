@@ -77,7 +77,9 @@ function todayMytYmd(): string {
 
 export default function AdminAiConversationsTab() {
   const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [preset, setPreset] = useState<PresetRange>("7");
   const [singleDay, setSingleDay] = useState<string>(todayMytYmd());
   const [rangeFrom, setRangeFrom] = useState<string>(todayMytYmd());
@@ -114,13 +116,17 @@ export default function AdminAiConversationsTab() {
       q = q.or(`user_message.ilike.%${s}%,bot_reply.ilike.%${s}%,username.ilike.%${s}%`);
     }
     const { data, error } = await q;
-    setLoading(false);
     if (error) {
-      toast.error("Không tải được: " + error.message);
+      setLoadError(true);
+      setLoading(false);
+      toast.error("Không tải được lịch sử hội thoại Telegram.");
       return;
     }
     setRows((data as unknown as Row[]) ?? []);
     setCheckedIds(new Set());
+    setLoaded(true);
+    setLoadError(false);
+    setLoading(false);
   }
 
   useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [preset]);
@@ -138,7 +144,7 @@ export default function AdminAiConversationsTab() {
   }
 
   async function doDelete() {
-    if (checkedIds.size === 0) return;
+    if (checkedIds.size === 0 || !loaded || loadError || loading) return;
     setDeleting(true);
     const ids = Array.from(checkedIds);
     const { error } = await supabase
@@ -157,7 +163,7 @@ export default function AdminAiConversationsTab() {
   }
 
   function exportCsv() {
-    if (!rows.length) return;
+    if (!rows.length || !loaded || loadError || loading) return;
     const header = ["created_at_myt", "source", "group_id", "chat_id", "user_id", "web_user_id", "username", "full_name", "trigger_source", "language", "provider", "latency_ms", "user_message", "bot_reply", "error"];
     const escape = (v: unknown) => {
       const s = v == null ? "" : String(v);
@@ -236,13 +242,13 @@ export default function AdminAiConversationsTab() {
             variant="destructive"
             size="sm"
             onClick={() => setConfirmDelete(true)}
-            disabled={checkedIds.size === 0 || deleting}
+            disabled={!loaded || loadError || loading || checkedIds.size === 0 || deleting}
             className="gap-2"
           >
             <Trash2 className="w-4 h-4" />
             Xoá ({checkedIds.size})
           </Button>
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!rows.length} className="gap-2">
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!loaded || loadError || loading || !rows.length} className="gap-2">
             <Download className="w-4 h-4" /> CSV
           </Button>
         </div>
@@ -273,16 +279,16 @@ export default function AdminAiConversationsTab() {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && !loading && (
-                <tr><td colSpan={9} className="px-2 py-6 text-center text-muted-foreground">Chưa có dữ liệu.</td></tr>
-              )}
+              {loading && <tr><td colSpan={9} className="px-2 py-6 text-center text-muted-foreground">Đang tải…</td></tr>}
+              {!loading && loadError && <tr><td colSpan={9} className="px-2 py-6 text-center text-destructive">Không tải được dữ liệu. <Button variant="outline" size="sm" onClick={() => void load()}>Thử lại</Button></td></tr>}
+              {!loading && loaded && !loadError && rows.length === 0 && <tr><td colSpan={9} className="px-2 py-6 text-center text-muted-foreground">Không có hội thoại trong phạm vi đã chọn.</td></tr>}
               {rows.map((r) => (
                 <tr
                   key={r.id}
                   className="border-t hover:bg-muted/30 align-top"
                 >
                   <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
+                    <Checkbox disabled={!loaded || loadError || loading}
                       checked={checkedIds.has(r.id)}
                       onCheckedChange={() => toggleOne(r.id)}
                       aria-label="Chọn"

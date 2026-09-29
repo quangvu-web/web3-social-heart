@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Copy, KeyRound, RefreshCcw, ShieldAlert, Eye, EyeOff } from "lucide-react";
+import { canMutateVerifiedAdminData, getAdminLoadState } from "@/lib/adminLoadState";
 
 interface AppKeyRow {
   id: string;
@@ -59,6 +60,8 @@ function formatTime(ts: string | null) {
 export default function SecurityAppKeysTab() {
   const [keys, setKeys] = useState<AppKeyRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [working, setWorking] = useState(false);
   const [notes, setNotes] = useState("");
   const [confirmOpen, setConfirmOpen] = useState<null | "generate" | "rotate">(null);
@@ -66,18 +69,29 @@ export default function SecurityAppKeysTab() {
   const [reveal, setReveal] = useState(false);
 
   const active = keys.find((k) => k.status === "active") ?? null;
+  const loadState = getAdminLoadState({ loading, error: loadError, loaded, hasRows: keys.length > 0 });
+  const canManageKeys = canMutateVerifiedAdminData(loadState) && !loading && !working;
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke("admin-app-keys", {
-      body: { action: "list" },
-    });
-    if (error) {
-      toast.error(`Không tải được danh sách: ${error.message}`);
-    } else {
-      setKeys((data as { keys: AppKeyRow[] })?.keys ?? []);
+    setLoadError(false);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-app-keys", {
+        body: { action: "list" },
+      });
+      if (error || !Array.isArray((data as { keys?: unknown[] } | null)?.keys)) {
+        setLoadError(true);
+        toast.error("Không xác minh được danh sách key. Không thể thao tác cho đến khi tải thành công.");
+        return;
+      }
+      setKeys((data as { keys: AppKeyRow[] }).keys);
+      setLoaded(true);
+    } catch {
+      setLoadError(true);
+      toast.error("Không kết nối được dịch vụ quản lý key. Hãy thử lại.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -85,35 +99,52 @@ export default function SecurityAppKeysTab() {
   }, []);
 
   const runAction = async (action: "generate" | "rotate") => {
+    if (!canManageKeys) return;
     setWorking(true);
-    const { data, error } = await supabase.functions.invoke("admin-app-keys", {
-      body: { action, notes: notes || undefined },
-    });
-    setWorking(false);
-    setConfirmOpen(null);
-    setNotes("");
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    const key = (data as { key?: string }).key;
-    if (key) {
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-app-keys", {
+        body: { action, notes: notes || undefined },
+      });
+      setConfirmOpen(null);
+      if (error) {
+        toast.error("Thao tác key thất bại. Hãy kiểm tra quyền quản trị và thử lại.");
+        return;
+      }
+      const key = (data as { key?: string } | null)?.key;
+      if (!key) {
+        toast.error("Dịch vụ không trả về key mới; trạng thái chưa được xác minh.");
+        return;
+      }
       setGeneratedKey(key);
       setReveal(false);
       toast.success(action === "generate" ? "Đã tạo key mới" : "Đã xoay key");
-      load();
+      void load();
+    } catch {
+      toast.error("Không kết nối được dịch vụ quản lý key. Hãy thử lại.");
+    } finally {
+      setWorking(false);
+      setNotes("");
     }
   };
 
   const revoke = async (id: string) => {
+    if (!canManageKeys) return;
     if (!confirm("Thu hồi key này? Các service đang dùng sẽ ngừng hoạt động.")) return;
-    const { error } = await supabase.functions.invoke("admin-app-keys", {
-      body: { action: "revoke", id },
-    });
-    if (error) toast.error(error.message);
-    else {
+    setWorking(true);
+    try {
+      const { error } = await supabase.functions.invoke("admin-app-keys", {
+        body: { action: "revoke", id },
+      });
+      if (error) {
+        toast.error("Không thu hồi được key. Kiểm tra quyền quản trị rồi thử lại.");
+        return;
+      }
       toast.success("Đã thu hồi");
-      load();
+      void load();
+    } catch {
+      toast.error("Không kết nối được dịch vụ quản lý key. Hãy thử lại.");
+    } finally {
+      setWorking(false);
     }
   };
 
@@ -143,7 +174,14 @@ export default function SecurityAppKeysTab() {
             <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
               Key đang hoạt động
             </div>
-            {active ? (
+            {loading && !loaded ? (
+              <div role="status" className="text-sm text-muted-foreground">Đang xác minh trạng thái key…</div>
+            ) : loadError && !loaded ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+                Chưa thể xác nhận trạng thái key.
+                <Button size="sm" variant="outline" onClick={() => void load()} disabled={loading}>Thử tải lại</Button>
+              </div>
+            ) : active ? (
               <div className="flex flex-wrap items-center gap-3">
                 <code className="font-mono text-sm">
                   {mask(active.key_prefix, active.key_last4)}
@@ -162,24 +200,27 @@ export default function SecurityAppKeysTab() {
                   <Copy className="h-3.5 w-3.5 mr-1" /> Copy prefix
                 </Button>
               </div>
-            ) : (
+            ) : loadState === "empty" ? (
               <div className="text-sm text-muted-foreground">
                 Chưa có key. Bấm "Generate" để tạo key đầu tiên.
               </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Đang xác minh trạng thái key…</div>
             )}
+            {loadError && loaded && <p role="status" className="mt-2 text-xs text-destructive">Không tải lại được. Thông tin bên dưới là lần đọc thành công gần nhất; thao tác đang bị khóa. <Button size="sm" variant="outline" onClick={() => void load()}>Thử lại</Button></p>}
           </div>
 
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={() => setConfirmOpen("generate")}
-              disabled={!!active || working}
+              disabled={!canManageKeys || !!active}
             >
               <KeyRound className="h-4 w-4 mr-2" /> Generate
             </Button>
             <Button
               variant="secondary"
               onClick={() => setConfirmOpen("rotate")}
-              disabled={!active || working}
+              disabled={!canManageKeys || !active}
             >
               <RefreshCcw className="h-4 w-4 mr-2" /> Rotate
             </Button>
@@ -201,8 +242,12 @@ export default function SecurityAppKeysTab() {
           <CardTitle>Rotation history</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {loading && !loaded ? (
             <div className="text-sm text-muted-foreground">Đang tải…</div>
+          ) : loadError && !loaded ? (
+            <div className="flex items-center gap-2 text-sm text-destructive">Không tải được lịch sử; chưa thể xác nhận danh sách key.<Button size="sm" variant="outline" onClick={() => void load()}>Thử lại</Button></div>
+          ) : loadError ? (
+            <div className="space-y-2"><p role="status" className="text-sm text-destructive">Lịch sử có thể đã cũ; các thao tác bị khóa đến khi tải thành công.</p><Button size="sm" variant="outline" onClick={() => void load()}>Thử lại</Button></div>
           ) : keys.length === 0 ? (
             <div className="text-sm text-muted-foreground">Chưa có lịch sử.</div>
           ) : (
@@ -241,7 +286,8 @@ export default function SecurityAppKeysTab() {
                           size="sm"
                           variant="ghost"
                           className="text-rose-700 hover:text-rose-800"
-                          onClick={() => revoke(k.id)}
+                          onClick={() => void revoke(k.id)}
+                          disabled={!canManageKeys}
                         >
                           Revoke
                         </Button>

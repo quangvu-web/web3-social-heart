@@ -11,6 +11,14 @@ verify_jwt = false
 [functions.telegram-webhook]
 verify_jwt = false
 
+# Community updates authenticate with COMMUNITY_GUARD_WEBHOOK_SECRET.
+[functions.telegram-community-webhook]
+verify_jwt = false
+
+# The handler validates the user JWT and checks the admin role itself.
+[functions.telegram-community-admin]
+verify_jwt = false
+
 # Google sessions can be signed with the current signing key rather than the
 # legacy JWT secret. The function validates the supplied bearer token itself.
 [functions.telegram-oauth-start]

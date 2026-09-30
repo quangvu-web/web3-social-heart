@@ -6,6 +6,7 @@
 
 import { assert, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { buildSystemPromptText } from "../index.ts";
+import { WIT_AND_CHARM_RULE } from "../blocks.ts";
 
 Deno.test("core discipline blocks luôn có mặt cho channel=dm", () => {
   const text = buildSystemPromptText({ channel: "dm", userText: "Angel ơi" });
@@ -17,7 +18,7 @@ Deno.test("core discipline blocks luôn có mặt cho channel=dm", () => {
 
 Deno.test("factual mode bỏ qua wit/charm block", () => {
   const t = buildSystemPromptText({ channel: "web", mode: "factual", userText: "Ví bé Ly" });
-  assert(!/wit|charm/i.test(t), "factual mode không được kèm wit/charm");
+  assert(!t.includes(WIT_AND_CHARM_RULE), "factual mode không được kèm WIT_AND_CHARM_RULE");
 });
 
 Deno.test("unlimitedLength=true không kèm RESPONSE LENGTH rule", () => {

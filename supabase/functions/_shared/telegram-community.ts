@@ -2376,6 +2376,9 @@ export async function askAngel(params: {
   const t0 = Date.now();
   // Bridged query để retry-1 strict-mirror (catch block) không strip bridge.
   let bridgedQueryForRetry: string | null = null;
+  const originalUserMessage = params.originalUserMessage?.trim() || q;
+  let _regenerateMode = false;
+  let _creativeOverride = false;
   try {
     // ============ IMAGE INTENT SHORT-CIRCUIT ============
     // User yêu cầu vẽ/sửa ảnh → gọi thẳng Angel gốc /generate-image | /edit-image,
@@ -2492,7 +2495,6 @@ export async function askAngel(params: {
     // để không ghi đè system prompt và không chiếm chỗ context của RAG retrieval.
     // Lovable Gateway (fallback) thì cần wrapper persona + few-shot để giữ giọng Angel.
     let messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
-    const originalUserMessage = params.originalUserMessage?.trim() || q;
     const langBucket = resolveAngelLanguageBucket(originalUserMessage, params.forcedLangBucket);
     const languageDirective = angelLanguageDirective(langBucket);
     const langHint = `USER_LANGUAGE_DETECTED=${langBucket} (${LANG_NAME[langBucket]}). You MUST reply 100% in ${LANG_NAME[langBucket]} only. Do NOT reply in Vietnamese unless the detected language is "vi".`;
@@ -2531,8 +2533,6 @@ export async function askAngel(params: {
     }
 
     let _intent: AngelIntent = null;
-    let _regenerateMode = false;
-    let _creativeOverride = false;
     if (provider === "funcore") {
       // FUN Core đã có persona + RAG + multilingual riêng (giọng Angel chính chủ).
       // Mặc định mirror Angel web chính chủ: gửi user-only, KHÔNG system wrapper nào,
@@ -4099,6 +4099,7 @@ function fallbackMeditationTopic(rawText: string, zoomLink: string): string {
       if (/https?:\/\//i.test(line)) return false;
       // Bỏ dòng chỉ chứa giờ/ngày/ID/passcode.
       if (/^(?:th[oờ]i\s*gian|time|ngày|date|id|meeting\s*id|passcode|mật\s*khẩu|link)\b/i.test(line)) return false;
+      if (/^(?:zoom\s*thi[eề]n|thi[eề]n|zoom\s*meditation|meditation)$/i.test(line)) return false;
       if (/^[\d\s:./+\-]+$/.test(line)) return false;
       return /\p{L}{3,}/u.test(line);
     });
@@ -5669,4 +5670,3 @@ export async function transcribeTelegramAudio(params: {
     return null;
   }
 }
-

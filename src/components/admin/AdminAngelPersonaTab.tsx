@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { canMutateVerifiedAdminData, getAdminLoadState } from "@/lib/adminLoadState";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -215,8 +214,6 @@ type PersonaRow = {
 
 export default function AdminAngelPersonaTab() {
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [row, setRow] = useState<PersonaRow | null>(null);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
@@ -231,8 +228,6 @@ export default function AdminAngelPersonaTab() {
   const [dmUnlimitedLength, setDmUnlimitedLength] = useState<boolean>(true);
   const [dmHistoryEnabled, setDmHistoryEnabled] = useState<boolean>(true);
   const [dmHistoryLimit, setDmHistoryLimit] = useState<number>(6);
-  const loadState = getAdminLoadState({ loading, error: loadError, loaded, hasRows: !!row });
-  const canSavePersona = canMutateVerifiedAdminData(loadState) && !loading && !saving && !!row;
 
   useEffect(() => {
     void load();
@@ -240,14 +235,12 @@ export default function AdminAngelPersonaTab() {
 
   async function load() {
     setLoading(true);
-    setLoadError(false);
     const { data, error } = await supabase
       .from("angel_persona_settings" as never)
       .select("id, persona_prompt, notes, rule_overrides, updated_at")
       .eq("singleton", true)
       .maybeSingle();
     if (error) {
-      setLoadError(true);
       toast.error("Không đọc được persona: " + error.message);
       setLoading(false);
       return;
@@ -279,13 +272,11 @@ export default function AdminAngelPersonaTab() {
     setDmHistoryEnabled(dmHistRaw ? !/^(false|0|off|no|n)$/i.test(dmHistRaw.trim()) : true);
     const dmHistLimitRaw = parseInt(cleaned["telegram_dm_history_limit"] ?? "6", 10);
     setDmHistoryLimit(Number.isFinite(dmHistLimitRaw) ? Math.max(2, Math.min(12, dmHistLimitRaw)) : 6);
-    setLoaded(true);
-    setLoadError(false);
     setLoading(false);
   }
 
   async function save() {
-    if (!row || !canSavePersona) return;
+    if (!row) return;
     setSaving(true);
     const cleanOverrides: Record<string, string> = {};
     for (const rule of RULES) {
@@ -344,7 +335,7 @@ export default function AdminAngelPersonaTab() {
           <CardTitle>System prompt của Angel AI</CardTitle>
           <div className="flex items-center gap-2">
             <Badge variant="secondary">{overridesCount} rule đang custom</Badge>
-            <Button onClick={save} disabled={!canSavePersona} size="sm" className="gap-2">
+            <Button onClick={save} disabled={saving || loading} size="sm" className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Lưu tất cả
             </Button>
@@ -359,16 +350,12 @@ export default function AdminAngelPersonaTab() {
             nhật kế tiếp.
           </p>
 
-          {loading && !loaded ? (
+          {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin" /> Đang tải…
             </div>
-          ) : loadError && !loaded ? (
-            <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">Không tải được persona; các giá trị mặc định chưa được xác minh.<Button size="sm" variant="outline" onClick={() => void load()}>Thử lại</Button></div>
           ) : (
             <div className="space-y-4">
-              {loadError && <div role="status" className="flex flex-wrap items-center gap-2 text-sm text-destructive">Tải lại thất bại. Bản nháp hiện tại được giữ nguyên; thao tác lưu/reset bị khóa đến khi xác minh lại.<Button size="sm" variant="outline" onClick={() => void load()}>Thử lại</Button></div>}
-              {!row && !loadError && <p className="text-sm text-muted-foreground">Chưa có bản ghi persona riêng; nội dung dưới đây là mặc định ứng dụng và chưa thể lưu cho đến khi có bản ghi cấu hình.</p>}
               {RULES.map((rule) => {
                 const value = overrides[rule.key] ?? "";
                 const isCustom = value.trim().length > 0 && value.trim() !== rule.defaultValue.trim();
@@ -399,7 +386,6 @@ export default function AdminAngelPersonaTab() {
                         variant="ghost"
                         size="sm"
                         className="gap-1"
-                        disabled={!canSavePersona}
                         onClick={() =>
                           setOverrides((prev) => {
                             const next = { ...prev };
@@ -587,10 +573,8 @@ export default function AdminAngelPersonaTab() {
             <b> chưa </b>set persona riêng. Group đã set persona riêng (tab AI Triggers)
             vẫn ưu tiên bản của group đó. Để trống = không cộng gì.
           </p>
-          {(loading || loadError || !loaded) && <p role="status" className="text-sm text-muted-foreground">{loading ? "Đang tải cấu hình…" : "Chưa xác minh được cấu hình; ô trống không xác nhận đang dùng mặc định."}</p>}
           <Textarea
             rows={10}
-            disabled={!canSavePersona}
             value={globalPersona}
             onChange={(e) => setGlobalPersona(e.target.value)}
             placeholder="Để trống = dùng persona mặc định ở trên."
@@ -601,7 +585,6 @@ export default function AdminAngelPersonaTab() {
             <label className="text-sm font-medium mb-1 block">Ghi chú nội bộ (không gửi bot)</label>
             <Textarea
               rows={3}
-              disabled={!canSavePersona}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="VD: đã nới 'mình' phản thân ngày 2026-07-04…"
@@ -765,20 +748,17 @@ const COST_FLAGS: Array<{ key: string; title: string; desc: string; def: boolean
 
 function CostSavingCard() {
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [flags, setFlags] = useState<Record<string, boolean>>({});
 
-  async function load() {
+  useEffect(() => {
+    void (async () => {
       setLoading(true);
-      setLoadError(false);
       const { data, error } = await supabase
         .from("angel_feature_flags" as never)
         .select("key, enabled")
         .in("key", COST_FLAGS.map((f) => f.key));
       if (error) {
-        setLoadError(true);
         toast.error("Không đọc được feature flags: " + error.message);
         setLoading(false);
         return;
@@ -789,14 +769,11 @@ function CostSavingCard() {
         map[row.key] = !!row.enabled;
       }
       setFlags(map);
-      setLoaded(true);
       setLoading(false);
-  }
-
-  useEffect(() => { void load(); }, []);
+    })();
+  }, []);
 
   async function toggle(key: string, value: boolean) {
-    if (!loaded || loadError || loading || saving) return;
     setSaving(true);
     setFlags((prev) => ({ ...prev, [key]: value }));
     const { error } = await (supabase.from("angel_feature_flags" as never) as unknown as {
@@ -825,8 +802,6 @@ function CostSavingCard() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" /> Đang tải…
           </div>
-        ) : loadError ? (
-          <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">Không tải được cấu hình; chưa xác nhận các công tắc.<Button size="sm" variant="outline" onClick={() => void load()}>Thử lại</Button></div>
         ) : (
           COST_FLAGS.map((f) => (
             <div key={f.key} className="flex items-start justify-between gap-4 rounded-md border p-3">
@@ -837,7 +812,7 @@ function CostSavingCard() {
               </div>
               <Switch
                 checked={!!flags[f.key]}
-                disabled={saving || !loaded || loadError}
+                disabled={saving}
                 onCheckedChange={(v) => toggle(f.key, v)}
               />
             </div>
@@ -850,20 +825,17 @@ function CostSavingCard() {
 
 function ImageQualityCard() {
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [flags, setFlags] = useState<Record<string, boolean>>({});
 
-  async function load() {
+  useEffect(() => {
+    void (async () => {
       setLoading(true);
-      setLoadError(false);
       const { data, error } = await supabase
         .from("angel_feature_flags" as never)
         .select("key, enabled")
         .in("key", IMAGE_FLAGS.map((f) => f.key));
       if (error) {
-        setLoadError(true);
         toast.error("Không đọc được feature flags: " + error.message);
         setLoading(false);
         return;
@@ -874,14 +846,11 @@ function ImageQualityCard() {
         map[row.key] = !!row.enabled;
       }
       setFlags(map);
-      setLoaded(true);
       setLoading(false);
-  }
-
-  useEffect(() => { void load(); }, []);
+    })();
+  }, []);
 
   async function toggle(key: string, value: boolean) {
-    if (!loaded || loadError || loading || saving) return;
     setSaving(true);
     setFlags((prev) => ({ ...prev, [key]: value }));
     const { error } = await (supabase.from("angel_feature_flags" as never) as unknown as {
@@ -910,8 +879,6 @@ function ImageQualityCard() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" /> Đang tải…
           </div>
-        ) : loadError ? (
-          <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">Không tải được cấu hình; chưa xác nhận các công tắc.<Button size="sm" variant="outline" onClick={() => void load()}>Thử lại</Button></div>
         ) : (
           IMAGE_FLAGS.map((f) => (
             <div key={f.key} className="flex items-start justify-between gap-4 rounded-md border p-3">
@@ -922,7 +889,7 @@ function ImageQualityCard() {
               </div>
               <Switch
                 checked={!!flags[f.key]}
-                disabled={saving || !loaded || loadError}
+                disabled={saving}
                 onCheckedChange={(v) => toggle(f.key, v)}
               />
             </div>
@@ -940,8 +907,6 @@ const DISCUSSION_FLAG_KEY = "discussion.auto_comment";
 
 function DiscussionCommentCard() {
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [channelIds, setChannelIds] = useState("");
@@ -949,20 +914,14 @@ function DiscussionCommentCard() {
   const [minGap, setMinGap] = useState("120");
   const [replyMembers, setReplyMembers] = useState(true);
 
-  async function load() {
+  useEffect(() => {
+    void (async () => {
       setLoading(true);
-      setLoadError(false);
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("angel_feature_flags" as never)
         .select("key, enabled, meta")
         .eq("key", DISCUSSION_FLAG_KEY)
         .maybeSingle();
-      if (error) {
-        setLoadError(true);
-        setLoading(false);
-        toast.error("Không tải được cấu hình Discussion Group: " + error.message);
-        return;
-      }
       const row = data as { enabled?: boolean; meta?: Record<string, unknown> } | null;
       if (row) {
         setEnabled(!!row.enabled);
@@ -973,14 +932,11 @@ function DiscussionCommentCard() {
         if (meta.min_gap_seconds != null) setMinGap(String(meta.min_gap_seconds));
         setReplyMembers(meta.reply_to_members !== false);
       }
-      setLoaded(true);
       setLoading(false);
-  }
-
-  useEffect(() => { void load(); }, []);
+    })();
+  }, []);
 
   async function save() {
-    if (!loaded || loadError || loading || saving) return;
     const ids = channelIds
       .split(/[\s,]+/)
       .map((v) => Number(v.trim()))
@@ -1026,8 +982,6 @@ function DiscussionCommentCard() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" /> Đang tải…
           </div>
-        ) : loadError ? (
-          <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">Không tải được cấu hình; các giá trị mặc định chưa được xác minh.<Button size="sm" variant="outline" onClick={() => void load()}>Thử lại</Button></div>
         ) : (
           <>
             <div className="flex items-start justify-between gap-4 rounded-md border p-3">
@@ -1116,13 +1070,10 @@ interface PipelineRow {
 
 function ImagePipelineStatsCard() {
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const [rows, setRows] = useState<PipelineRow[]>([]);
 
   async function load() {
     setLoading(true);
-    setLoadError(false);
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const { data, error } = await supabase
       .from("angel_image_pipeline_logs" as never)
@@ -1131,13 +1082,11 @@ function ImagePipelineStatsCard() {
       .order("created_at", { ascending: false })
       .limit(500);
     if (error) {
-      setLoadError(true);
       toast.error("Không đọc được telemetry: " + error.message);
       setLoading(false);
       return;
     }
     setRows((data as unknown as PipelineRow[]) ?? []);
-    setLoaded(true);
     setLoading(false);
   }
 
@@ -1174,10 +1123,6 @@ function ImagePipelineStatsCard() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" /> Đang tải…
           </div>
-        ) : loadError ? (
-          <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">Không tải được telemetry; không thể xác nhận số liệu rỗng.<Button size="sm" variant="outline" onClick={() => void load()}>Thử lại</Button></div>
-        ) : !loaded ? (
-          <p className="text-sm text-muted-foreground">Chưa xác minh dữ liệu.</p>
         ) : summary.total === 0 ? (
           <p className="text-xs text-muted-foreground">Chưa có lần vẽ nào trong 24h qua.</p>
         ) : (

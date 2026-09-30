@@ -29,10 +29,6 @@ Deno.test("enforceVietnamesePronouns rewrites bot self-reference 'mình' → 'An
     enforceVietnamesePronouns("mình sẽ kể cho bé nghe"),
     "Angel sẽ kể cho bé nghe",
   );
-  assertEquals(
-    enforceVietnamesePronouns("Angel nói: “Mình sẽ kể cho bé nghe”"),
-    "Angel nói: “Mình sẽ kể cho bé nghe”",
-  );
 });
 
 Deno.test("enforceVietnamesePronouns still converts 'chúng mình' → 'chúng ta'", () => {

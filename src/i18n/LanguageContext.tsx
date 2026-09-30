@@ -11,7 +11,19 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 const STORAGE_KEY = 'fun_profile_language';
 
-// Preserve an explicit choice; FUN Profile defaults to Vietnamese.
+// Detect browser language
+const detectBrowserLanguage = (): Language => {
+  if (typeof navigator === 'undefined') return 'en';
+  
+  const browserLang = navigator.language.toLowerCase();
+  // Check for supported languages
+  for (const lang of SUPPORTED_LANGUAGES) {
+    if (browserLang.startsWith(lang)) return lang;
+  }
+  return 'en'; // Default to English
+};
+
+// Get saved language or detect
 const getInitialLanguage = (): Language => {
   if (typeof localStorage !== 'undefined') {
     const saved = localStorage.getItem(STORAGE_KEY) as Language | null;
@@ -19,7 +31,7 @@ const getInitialLanguage = (): Language => {
       return saved;
     }
   }
-  return 'vi';
+  return detectBrowserLanguage();
 };
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

@@ -10,33 +10,3 @@ verify_jwt = false
 # than a Supabase user JWT. The function validates that secret itself.
 [functions.telegram-webhook]
 verify_jwt = false
-
-# Community updates authenticate with COMMUNITY_GUARD_WEBHOOK_SECRET.
-[functions.telegram-community-webhook]
-verify_jwt = false
-
-# The handler validates the user JWT and checks the admin role itself.
-[functions.telegram-community-admin]
-verify_jwt = false
-
-# The handler validates the user JWT and checks the admin role itself.
-[functions.angel-channel-manage]
-verify_jwt = false
-
-# Google sessions can be signed with the current signing key rather than the
-# legacy JWT secret. The function validates the supplied bearer token itself.
-[functions.telegram-oauth-start]
-verify_jwt = false
-
-# This step begins without a browser session after the first factor is removed;
-# the function validates the one-time challenge and code itself.
-[functions.telegram-2fa-verify]
-verify_jwt = false
-
-# Email OTP begins before a browser session exists. Each function validates
-# the identifier and one-time code itself.
-[functions.sso-otp-request]
-verify_jwt = false
-
-[functions.sso-otp-verify]
-verify_jwt = false

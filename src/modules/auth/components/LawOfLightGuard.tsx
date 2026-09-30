@@ -31,9 +31,7 @@ export const LawOfLightGuard = ({ children }: LawOfLightGuardProps) => {
       // Auth page - require Law of Light acceptance first
       if (location.pathname.startsWith('/auth')) {
         const pending = localStorage.getItem('law_of_light_accepted_pending');
-        if (pending === 'true'
-          || new URLSearchParams(location.search).get('oauth_callback') === 'google'
-          || sessionStorage.getItem('google_oauth_2fa_pending') === 'true') {
+        if (pending === 'true') {
           setIsAllowed(true);
           return;
         }
@@ -72,7 +70,7 @@ export const LawOfLightGuard = ({ children }: LawOfLightGuardProps) => {
     };
 
     checkAccess();
-  }, [navigate, location.pathname, location.search, session, profile, isLoading, bootstrapError]);
+  }, [navigate, location.pathname, session, profile, isLoading, bootstrapError]);
 
   if (bootstrapError) {
     return (

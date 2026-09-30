@@ -100,9 +100,7 @@ function csvEscape(v: unknown): string {
 
 export default function FeedbackTab() {
   const [rows, setRows] = useState<FeedbackRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [source, setSource] = useState<SourceFilter>("all");
   const [range, setRange] = useState<RangeFilter>("7");
@@ -144,14 +142,11 @@ export default function FeedbackTab() {
 
     const { data, error } = await query;
     if (error) {
-      setLoadError(true);
-      toast.error("Không tải được danh sách feedback.");
+      toast.error(`Không tải được feedback: ${error.message}`);
       setLoading(false);
       return;
     }
     setRows((data ?? []) as FeedbackRow[]);
-    setLoaded(true);
-    setLoadError(false);
     setLoading(false);
   }, [status, source, range, singleDate, fromDate, toDate]);
 
@@ -187,7 +182,7 @@ export default function FeedbackTab() {
   };
 
   const saveDetail = async () => {
-    if (!selected || !loaded || loadError || loading) return;
+    if (!selected) return;
     setSaving(true);
     const patch: Partial<FeedbackRow> = {
       admin_note: note.trim() || null,
@@ -255,7 +250,7 @@ export default function FeedbackTab() {
           <CardTitle className="flex items-center gap-2">
             <MessageCircle className="h-5 w-5" />
             Feedback từ /feedback
-            <Badge variant="outline">{loading ? "Đang tải…" : loadError || !loaded ? "Chưa xác minh" : filtered.length}</Badge>
+            <Badge variant="outline">{filtered.length}</Badge>
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <Select value={range} onValueChange={(v) => setRange(v as RangeFilter)}>
@@ -318,14 +313,13 @@ export default function FeedbackTab() {
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             </Button>
-            <Button variant="outline" size="sm" onClick={exportCsv} disabled={!loaded || loadError || loading}>
+            <Button variant="outline" size="sm" onClick={exportCsv}>
               <Download className="h-4 w-4 mr-1" /> CSV
             </Button>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        {loadError && <div className="mb-3 flex items-center justify-between rounded border border-destructive/30 p-3 text-sm text-destructive"><span>Không xác minh được dữ liệu feedback; bản ghi đã tải trước đó được giữ lại.</span><Button variant="outline" size="sm" onClick={() => void load()}><RefreshCw className="mr-1 h-4 w-4"/>Thử lại</Button></div>}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-muted-foreground">
@@ -339,9 +333,9 @@ export default function FeedbackTab() {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Đang tải…</td></tr>}
-              {!loading && loadError && <tr><td colSpan={6} className="p-6 text-center text-destructive">Tải lỗi; hãy thử lại để xác minh dữ liệu.</td></tr>}
-              {!loading && loaded && !loadError && filtered.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Không có feedback trong bộ lọc hiện tại.</td></tr>}
+              {filtered.length === 0 && !loading && (
+                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Chưa có feedback nào trong khoảng đã chọn.</td></tr>
+              )}
               {filtered.map((r) => (
                 <tr key={r.id} className="border-t hover:bg-muted/40 cursor-pointer" onClick={() => openDetail(r)}>
                   <td className="p-2 whitespace-nowrap">{fmtMyt(r.created_at)}</td>

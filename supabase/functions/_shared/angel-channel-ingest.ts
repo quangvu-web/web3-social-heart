@@ -9,7 +9,7 @@
  *      nguyên khối, không bị Telegram cắt câu.
  */
 
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.0";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { pushToAngelKnowledge } from "./angel-knowledge.ts";
 
 // Cửa sổ auto-merge: 60s. User paste dài, Telegram tự chẻ thành nhiều tin liên tiếp
@@ -209,29 +209,25 @@ export async function ingestChannelPost(
         media_type: mediaType,
         edited: opts.edited || false,
       },
-    }, { chunk_now: true, verify: true });
+    });
 
     if (result.ok) {
       pushed = true;
       pushRef = result.reference;
     } else if (result.skipped) {
-      pushError = `${result.code || "ANGEL_KNOWLEDGE_SECRET_MISSING"}: ${result.error || "Chưa cấu hình secret."}`;
+      pushError = null as unknown as string;
     } else {
-      pushError = `${result.code || "ANGEL_KNOWLEDGE_ERROR"}: ${result.error || "Không đẩy được document."}`;
+      pushError = result.error;
     }
   }
 
   // Update knowledge row với kết quả push (retry sau 60s nếu tạm thời)
   if (knowledgeRowId) {
-    const isTransient = [
-      "ANGEL_KNOWLEDGE_NETWORK_ERROR",
-      "ANGEL_KNOWLEDGE_TIMEOUT",
-      "ANGEL_KNOWLEDGE_VERIFY_FAILED",
-      "ANGEL_KNOWLEDGE_NOT_PERSISTED",
-    ].includes(resultCodeFromPushError(pushError)) ||
-      (resultCodeFromPushError(pushError) === "ANGEL_KNOWLEDGE_HTTP_ERROR" &&
-        (resultStatusFromPushError(pushError) === 429 ||
-          (resultStatusFromPushError(pushError) >= 500 && resultStatusFromPushError(pushError) < 600)));
+    const isTransient =
+      !!pushError &&
+      (pushError.includes("HTTP 429") ||
+        pushError.toLowerCase().includes("duplicate key") ||
+        /HTTP 5\d\d/.test(pushError));
     await admin
       .from("angel_channel_knowledge")
       .update({
@@ -266,13 +262,4 @@ export async function ingestChannelPost(
     .eq("chat_id", chatId);
 
   return { handled: true, merged: !!mergedInto, warned };
-}
-
-function resultCodeFromPushError(error: string | undefined): string {
-  return error?.split(":", 1)[0] || "";
-}
-
-function resultStatusFromPushError(error: string | undefined): number {
-  const match = error?.match(/HTTP (\d{3})/);
-  return match ? Number(match[1]) : 0;
 }

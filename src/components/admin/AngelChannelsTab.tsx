@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Plus, RefreshCw, Trash2, Eye, RotateCw, PlugZap } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Trash2, Eye, RotateCw } from "lucide-react";
 
 interface WatchedChannel {
   id: string;
@@ -34,12 +34,7 @@ interface KnowledgeRow {
   push_error: string | null;
   core_reference: string | null;
   merged_message_ids: number[] | null;
-  next_retry_at: string | null;
-  persisted_on_core: boolean | null;
-  verification_code: string | null;
 }
-
-type PushSummary = { sent: number; persisted: number; lastPushAt: string | null; reference?: string | null };
 
 
 function formatMY(dt: string | null) {
@@ -49,11 +44,6 @@ function formatMY(dt: string | null) {
   } catch {
     return dt;
   }
-}
-
-function maskReference(reference: string | null | undefined): string {
-  if (!reference) return "mã kết quả đã che";
-  return `••••${reference.slice(-4)}`;
 }
 
 export default function AngelChannelsTab() {
@@ -67,22 +57,13 @@ export default function AngelChannelsTab() {
   const [recent, setRecent] = useState<KnowledgeRow[]>([]);
   const [recentLoading, setRecentLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [connectionChecking, setConnectionChecking] = useState(false);
-  const [pushSummaries, setPushSummaries] = useState<Record<number, PushSummary>>({});
 
   async function call(action: string, payload: Record<string, unknown> = {}) {
     const { data, error } = await supabase.functions.invoke("angel-channel-manage", {
       body: { action, ...payload },
     });
-    if (error) {
-      const context = (error as { context?: unknown }).context;
-      if (context instanceof Response) {
-        const payload = await context.clone().json().catch(() => null) as { code?: string; error?: string } | null;
-        if (payload?.error) throw new Error(`${payload.code ? `${payload.code}: ` : ""}${payload.error}`);
-      }
-      throw new Error("Không gọi được chức năng quản lý Angel Channels. Kiểm tra đăng nhập/quyền admin và thử lại.");
-    }
-    if (data?.error) throw new Error(`${data.code ? `${data.code}: ` : ""}${data.error}`);
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
     return data;
   }
 
@@ -167,10 +148,8 @@ export default function AngelChannelsTab() {
     setBusy(ch.id + (force ? "fp" : "rp"));
     try {
       const data = await call("repush", { chat_id: ch.chat_id, force });
-      const summary: PushSummary = { sent: data.sent ?? 0, persisted: data.persisted ?? 0, lastPushAt: data.lastPushAt ?? null };
-      setPushSummaries((current) => ({ ...current, [ch.chat_id]: summary }));
-      const errMsg = data.errors?.length ? `\nMã lỗi: ${data.errors[0].code}` : "";
-      const msg = `Đã gửi ${summary.sent} document, Angel AI gốc xác nhận lưu ${summary.persisted}. ${data.success} thành công / ${data.failed} lỗi / ${data.skipped} chưa cấu hình${errMsg}`;
+      const errMsg = data.errors?.length ? `\nLỗi mẫu: ${data.errors.slice(0, 3).map((e: { message_id: number; error: string }) => `#${e.message_id}: ${e.error.slice(0, 80)}`).join(" | ")}` : "";
+      const msg = `Đã đẩy lại (${force ? "force" : "chỉ chưa push"}): ${data.success} OK / ${data.failed} lỗi / ${data.skipped} bỏ qua${errMsg}`;
       if (data.failed > 0) toast.error(msg, { duration: 8000 });
       else toast.success(msg);
       if (viewingChatId === ch.chat_id) await handleView(ch);
@@ -188,12 +167,10 @@ export default function AngelChannelsTab() {
     try {
       const data = await call("force_repush_row", { knowledge_id: row.id, delete_first: deleteFirst });
       if (data.ok) {
-        const summary = { sent: data.sent ?? 1, persisted: data.persisted ?? 1, lastPushAt: data.lastPushAt ?? new Date().toISOString(), reference: data.reference };
-        setPushSummaries((current) => ({ ...current, [ch.chat_id]: summary }));
-        toast.success(`#${row.message_id}: đã gửi ${summary.sent}, đã lưu ${summary.persisted}${data.deleted ? " (đã xoá trước)" : ""} — ${maskReference(data.reference)}`);
+        toast.success(`#${row.message_id}: verify OK${data.deleted ? " (đã xoá trước)" : ""} — reference: ${data.reference || "verified"}`);
       } else {
         const hint = data.hint ? `\n💡 ${data.hint}` : "";
-        toast.error(`#${row.message_id}: ${data.code || "ANGEL_KNOWLEDGE_ERROR"}: ${data.error || "Không đẩy được document."}${hint}`, { duration: 10000 });
+        toast.error(`#${row.message_id}: ${data.error || "push failed"}${hint}`, { duration: 10000 });
       }
       await handleView(ch);
     } catch (e) {
@@ -201,27 +178,6 @@ export default function AngelChannelsTab() {
     } finally {
       setBusy(null);
     }
-  }
-
-  async function handleTestConnection() {
-    setConnectionChecking(true);
-    try {
-      const result = await call("test_connection");
-      if (result.ok) toast.success("Kết nối Angel AI gốc hoạt động. Kiểm tra chỉ đọc, không ghi dữ liệu.");
-      else toast.error(`${result.code || "ANGEL_CONNECTION_FAILED"}: ${result.error || "Không kết nối được Angel AI gốc."}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Không kiểm tra được kết nối.");
-    } finally {
-      setConnectionChecking(false);
-    }
-  }
-
-  function pushState(message: KnowledgeRow): { label: string; variant: "default" | "secondary" | "destructive" } {
-    if (message.push_error?.includes("ANGEL_KNOWLEDGE_SECRET_MISSING") || message.verification_code === "ANGEL_KNOWLEDGE_SECRET_MISSING") return { label: "Chưa cấu hình secret", variant: "secondary" };
-    if (message.next_retry_at) return { label: "Đang thử lại", variant: "secondary" };
-    if (message.persisted_on_core === true) return { label: "Đã đẩy thành công", variant: "default" };
-    if (message.push_error || message.verification_code === "ANGEL_KNOWLEDGE_NOT_PERSISTED" || (message.pushed_to_core && message.verification_code)) return { label: "Bị lỗi", variant: "destructive" };
-    return { label: "Chưa đẩy", variant: "secondary" };
   }
 
   async function handleView(ch: WatchedChannel) {
@@ -278,20 +234,14 @@ export default function AngelChannelsTab() {
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle>📡 Angel theo dõi Telegram Channel</CardTitle>
+        <CardHeader>
+          <CardTitle>📡 Angel theo dõi Telegram Channel</CardTitle>
           <CardDescription>
             Bot Angel sẽ tự đọc mọi bài viết mới trong các channel dưới đây và đẩy vào knowledge của Angel AI gốc.
             <br />
             <strong>Yêu cầu:</strong> Bot Angel phải được add làm <em>admin</em> trong channel (bot chỉ nhận được channel_post khi là admin).
             Lịch sử cũ trước khi add bot KHÔNG đọc được — Telegram Bot API giới hạn.
           </CardDescription>
-          </div>
-          <Button variant="outline" onClick={handleTestConnection} disabled={connectionChecking}>
-            {connectionChecking ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlugZap className="w-4 h-4 mr-2" />}
-            Kiểm tra kết nối Angel AI gốc
-          </Button>
         </CardHeader>
 
 
@@ -481,18 +431,14 @@ export default function AngelChannelsTab() {
                                     gộp {mergedCount + 1} tin
                                   </Badge>
                                 )}
-                                <Badge variant={pushState(m).variant} className="text-[10px] h-4">{pushState(m).label}</Badge>
-                                <span className="text-muted-foreground">Đăng: {formatMY(m.posted_at)}</span>
-                                {m.persisted_on_core && (
-                                  <span className="text-muted-foreground">
-                                    Gửi 1 · lưu 1 · {formatMY(m.pushed_at)} · ref {maskReference(m.core_reference)}
-                                  </span>
+                                {m.pushed_to_core ? (
+                                  <Badge variant="default" className="text-[10px] h-4 bg-green-600">✓ pushed</Badge>
+                                ) : m.push_error ? (
+                                  <Badge variant="destructive" className="text-[10px] h-4" title={m.push_error}>lỗi</Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-[10px] h-4">chờ push</Badge>
                                 )}
-                                {pushSummaries[ch.chat_id] && (
-                                  <span className="text-muted-foreground">
-                                    Lần gần nhất: gửi {pushSummaries[ch.chat_id].sent} · lưu {pushSummaries[ch.chat_id].persisted} · {formatMY(pushSummaries[ch.chat_id].lastPushAt)}
-                                  </span>
-                                )}
+                                <span className="text-muted-foreground">{formatMY(m.posted_at)}</span>
                                 {m.content && (
                                   <div className="ml-auto flex items-center gap-1">
                                     <Button

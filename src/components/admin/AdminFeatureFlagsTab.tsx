@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Flag, RefreshCw, Plus } from "lucide-react";
-import { canMutateVerifiedAdminData, getAdminLoadState } from "@/lib/adminLoadState";
 
 /**
  * Sprint 4 — Admin UI cho `angel_feature_flags`.
@@ -27,32 +26,23 @@ interface FeatureFlag {
 
 export default function AdminFeatureFlagsTab() {
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [newKey, setNewKey] = useState("");
   const [newDesc, setNewDesc] = useState("");
-  const loadState = getAdminLoadState({ loading, error: loadError, loaded, hasRows: flags.length > 0 });
-  const canManageFlags = canMutateVerifiedAdminData(loadState) && !loading && !busyKey;
 
   const load = useCallback(async () => {
     setLoading(true);
-    setLoadError(false);
     const { data, error } = await supabase
       .from("angel_feature_flags")
       .select("*")
       .order("key", { ascending: true });
     setLoading(false);
     if (error) {
-      setLoadError(true);
       toast.error("Không tải được flags: " + error.message);
       return;
     }
     setFlags((data ?? []) as FeatureFlag[]);
-    setLoaded(true);
-    setLoadError(false);
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -60,7 +50,6 @@ export default function AdminFeatureFlagsTab() {
   }, [load]);
 
   const toggle = async (flag: FeatureFlag, next: boolean) => {
-    if (!canManageFlags) return;
     setBusyKey(flag.key);
     const { error } = await supabase
       .from("angel_feature_flags")
@@ -76,7 +65,6 @@ export default function AdminFeatureFlagsTab() {
   };
 
   const createFlag = async () => {
-    if (!canManageFlags) return;
     const k = newKey.trim();
     if (!k) return;
     const { error } = await supabase.from("angel_feature_flags").insert({
@@ -100,7 +88,7 @@ export default function AdminFeatureFlagsTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Flag className="h-4 w-4" /> Feature Flags (Sprint 4)
-            <Button size="sm" variant="ghost" onClick={() => void load()} disabled={loading} className="ml-auto">
+            <Button size="sm" variant="ghost" onClick={() => void load()} className="ml-auto">
               <RefreshCw className="h-3 w-3 mr-1" /> Reload
             </Button>
           </CardTitle>
@@ -114,8 +102,6 @@ export default function AdminFeatureFlagsTab() {
             <div className="flex items-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Đang tải...
             </div>
-          ) : loadError ? (
-            <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">Không tải được cấu hình; danh sách trống chưa được xác nhận.<Button size="sm" variant="outline" onClick={() => void load()}>Thử lại</Button></div>
           ) : flags.length === 0 ? (
             <div className="text-sm text-muted-foreground">Chưa có flag nào.</div>
           ) : (
@@ -146,7 +132,7 @@ export default function AdminFeatureFlagsTab() {
                     <Switch
                       checked={f.enabled}
                       onCheckedChange={(v) => toggle(f, v)}
-                      disabled={!canManageFlags || busyKey === f.key}
+                      disabled={busyKey === f.key}
                     />
                   </div>
                 </div>
@@ -173,8 +159,7 @@ export default function AdminFeatureFlagsTab() {
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
           />
-          {loadError && <p role="status" className="text-sm text-destructive">Tải lại thành công trước khi tạo flag hoặc thay đổi giá trị.</p>}
-          <Button size="sm" onClick={createFlag} disabled={!canManageFlags || !newKey.trim()}>
+          <Button size="sm" onClick={createFlag} disabled={!newKey.trim()}>
             <Plus className="h-4 w-4 mr-1" /> Tạo (mặc định TẮT)
           </Button>
         </CardContent>

@@ -120,12 +120,11 @@ Deno.serve(async (req) => {
     if (!Number.isFinite(newGroupId) || newGroupId === 0) {
       return json({ success: false, error: "Group ID phải là số (thường là số âm cho supergroup)" }, 400);
     }
-    const { data: existing, error: lookupError } = await adminClient
+    const { data: existing } = await adminClient
       .from("telegram_community_settings")
       .select("id")
       .eq("group_id", newGroupId)
       .maybeSingle();
-    if (lookupError) return json({ success: false, error: lookupError.message }, 500);
     if (existing) return json({ success: false, error: "Group này đã được quản lý rồi" }, 409);
     const { data, error } = await adminClient
       .from("telegram_community_settings")
@@ -782,3 +781,4 @@ Deno.serve(async (req) => {
 
   return json({ success: false, error: `Unknown action: ${action}` }, 400);
 });
+

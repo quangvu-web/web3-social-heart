@@ -1,14 +1,14 @@
 // Canonical Vietnamese Pronoun Contract for every Angel Telegram output.
 // Keep this deterministic: it must run even when all optional AI style passes are off.
-// v4: Angel uses its name for clear self-reference; "mình" stays valid for reflexive/user references.
+// v3: "Angel/bé" is the primary convention; "mình" stays allowed where it reads naturally.
 
 export const ANGEL_PRONOUN_CONTRACT = `VIETNAMESE PRONOUN CONTRACT — HIGHEST PRIORITY:
 - Mặc định, bot tự xưng "Angel" và gọi người dùng là "bé". Ví dụ: "Angel nghĩ bé có thể…", "Angel chia sẻ với bé nhé".
-- Dùng "Angel" khi bot tự xưng; nếu tên bị lặp, hãy viết lại câu thay vì đổi sang "mình".
-- Vẫn ĐƯỢC dùng "mình" khi quy chiếu phản thân hoặc chủ thể khác:
+- Vẫn ĐƯỢC dùng "mình" khi câu văn tự nhiên hơn, đặc biệt trong các trường hợp sau:
   • Cụm phản thân/thành ngữ: "hòa mình", "chính mình", "tự mình", "của mình", "một mình", "bản thân mình", "quay về với mình".
   • Chủ thể KHÔNG phải bot: "Sách không tự nhận mình là một tôn giáo mới", "bé hãy tin vào chính mình".
   • Khi đang phản chiếu trải nghiệm của bé: "gánh nặng đè lên vai mình", "cuộc đời mình", "những người mình yêu thương".
+  • Khi tên "Angel" bị lặp quá dày trong một đoạn (3 lần trở lên) — thay bớt bằng "mình" cho mượt.
 - TUYỆT ĐỐI KHÔNG chèn "Angel" vào vị trí phản thân hoặc vào chủ thể khác: SAI "hòa Angel", "chính Angel", "vai Angel", "Sách không tự nhận Angel là…".
 - Không viết dạng lai "Angel (mình)" hay "mình (Angel)". Chọn một từ duy nhất.
 - Trong lời thoại nhân vật, giữ đại từ tự nhiên của nhân vật. Không đổi nội dung trong URL, code, địa chỉ ví, handle hoặc trích dẫn nguyên văn.`;
@@ -71,10 +71,10 @@ const REFLEXIVE_PREFIX_RE = new RegExp(
 /**
  * Final Vietnamese output guard (Pronoun Contract v3).
  *
- * "Angel/bé" is the primary convention. This layer rewrites clear sentence-initial
- * bot self-reference while preserving reflexive references, quoted speech, and
- * proper names. It also fixes hybrid forms and standalone second-person "bạn".
- * Idempotent by construction.
+ * "Angel/bé" is the primary convention, so this layer keeps every "Angel" the
+ * model produced and never rewrites a natural "mình". It only fixes shapes that
+ * are always wrong: hybrid "Angel (mình)" forms, "Angel" sitting in a reflexive
+ * slot, and a standalone second-person "bạn". Idempotent by construction.
  */
 export function enforceAngelVietnamesePronounContract(input: string): string {
   if (!input) return input;
@@ -91,14 +91,6 @@ export function enforceAngelVietnamesePronounContract(input: string): string {
   text = text.replace(/\b(?:bot|trợ\s+lý|tên|thương\s+hiệu)\s+Angel\b/giu, keepName);
   text = text.replace(/\b(?:gọi|được\s+gọi)\s+là\s+Angel\b/giu, keepName);
   text = text.replace(/\b(?:mình|tôi)\s+là\s+Angel\b/giu, keepName);
-
-  // A bare sentence-initial "mình" with a bot action predicate is self-reference.
-  // Quotes and reflexive/user-reference constructions are protected above or do
-  // not match this predicate list.
-  text = text.replace(
-    /(^|[.!?…]\s*|\n\s*)mình(?=\s+(?:là|đang|sẽ|đã|vẫn|luôn|có thể|muốn|nghĩ|thấy|tin|hy vọng|mong|chia sẻ|kể|giúp|hướng dẫn|gợi ý|mời|ở đây|sẵn sàng|cảm thấy|biết)(?:\s|[,.!?…]|$))/gimu,
-    (_match, prefix: string) => `${prefix}Angel`,
-  );
 
   // Collapse the mixed forms emitted by upstream/editor passes → keep "Angel".
   text = text.replace(/\bAngel\s*\(\s*(?:mình|tôi)\s*\)/giu, "Angel");

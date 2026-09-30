@@ -418,7 +418,7 @@ const Profile = () => {
                       <Avatar 
                         className="w-28 h-28 sm:w-32 sm:h-32 md:w-40 md:h-40 border-4 border-white"
                       >
-                        <AvatarImage src={profile?.avatar_url} sizeHint="lg" />
+                        {profile?.avatar_url && <AvatarImage src={profile.avatar_url} sizeHint="lg" />}
                         <AvatarFallback className="text-3xl md:text-4xl bg-primary text-primary-foreground">
                           {profile?.username?.[0]?.toUpperCase() || 'U'}
                         </AvatarFallback>

@@ -1,2 +1,0 @@
-ALTER TABLE public.live_sessions
-ADD COLUMN IF NOT EXISTS rtmp_started_at TIMESTAMP WITH TIME ZONE;;

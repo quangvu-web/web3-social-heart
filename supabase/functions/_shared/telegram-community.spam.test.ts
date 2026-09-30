@@ -15,7 +15,7 @@ Deno.test("mention_bait: 3 foreign bots, no real text → detected", () => {
 
 Deno.test("mention_bait: 2 foreign bots with only emoji/punct → detected", () => {
   assertEquals(
-    looksLikeMentionBait("@fakeonebot @faketwobot 👀!!", "myofficialbot"),
+    looksLikeMentionBait("@fakebot1 @fakebot2 👀!!", "myofficialbot"),
     true,
   );
 });

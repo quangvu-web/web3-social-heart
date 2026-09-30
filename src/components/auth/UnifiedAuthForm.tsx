@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -8,20 +8,14 @@ import { Loader2, Sparkles } from 'lucide-react';
 import { AuthTabs } from '@/features/auth/AuthTabs';
 import { EmailVerifyGate } from '@/features/auth/wallet/EmailVerifyGate';
 
-interface UnifiedAuthFormProps {
-  verifiedSocialUser?: { userId: string; isNewUser: boolean } | null;
-  onCompleted?: () => void;
-}
-
-export const UnifiedAuthForm = ({ verifiedSocialUser, onCompleted }: UnifiedAuthFormProps = {}) => {
-  const completedSocialUser = useRef<string | null>(null);
+export const UnifiedAuthForm = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [setupStep, setSetupStep] = useState<'wallet' | 'complete' | null>(null);
   const [emailGateOpen, setEmailGateOpen] = useState(false);
 
-  const maybeShowWalletLinkCta = useCallback(async (userId: string) => {
+  const maybeShowWalletLinkCta = async (userId: string) => {
     if (!userId) return;
 
     const { count, error } = await supabase
@@ -32,9 +26,9 @@ export const UnifiedAuthForm = ({ verifiedSocialUser, onCompleted }: UnifiedAuth
     if (!error && (count ?? 0) === 0) {
       toast.info('Liên kết ví để nhận Camly/BNB', { duration: 4500 });
     }
-  }, []);
+  };
 
-  const applyLawOfLightIfPending = useCallback(async (userId: string) => {
+  const applyLawOfLightIfPending = async (userId: string) => {
     const lawOfLightPending = localStorage.getItem('law_of_light_accepted_pending');
     if (lawOfLightPending !== 'true') return;
 
@@ -47,9 +41,9 @@ export const UnifiedAuthForm = ({ verifiedSocialUser, onCompleted }: UnifiedAuth
       .eq('id', userId);
 
     localStorage.removeItem('law_of_light_accepted_pending');
-  }, []);
+  };
 
-  const handleNewUserSetup = useCallback(async (userId: string, hasExternalWallet: boolean) => {
+  const handleNewUserSetup = async (userId: string, hasExternalWallet: boolean) => {
     setIsSettingUp(true);
 
     try {
@@ -71,18 +65,16 @@ export const UnifiedAuthForm = ({ verifiedSocialUser, onCompleted }: UnifiedAuth
       toast.success(t('accountSetupComplete'));
       await maybeShowWalletLinkCta(userId);
       await new Promise((resolve) => setTimeout(resolve, 800));
-      if (onCompleted) onCompleted();
-      else navigate('/');
+      navigate('/');
     } catch (error) {
       console.error('[Setup] Setup error:', error);
-      if (onCompleted) onCompleted();
-      else navigate('/');
+      navigate('/');
     } finally {
       setIsSettingUp(false);
     }
-  }, [applyLawOfLightIfPending, maybeShowWalletLinkCta, navigate, onCompleted, t]);
+  };
 
-  const handleAuthSuccess = useCallback(async (userId: string, isNewUser: boolean, hasExternalWallet = false) => {
+  const handleAuthSuccess = async (userId: string, isNewUser: boolean, hasExternalWallet = false) => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -99,9 +91,8 @@ export const UnifiedAuthForm = ({ verifiedSocialUser, onCompleted }: UnifiedAuth
 
     toast.success(t('welcomeBack'));
     await maybeShowWalletLinkCta(userId);
-    if (onCompleted) onCompleted();
-    else navigate('/');
-  }, [handleNewUserSetup, maybeShowWalletLinkCta, navigate, onCompleted, t]);
+    navigate('/');
+  };
 
   const handleOtpSuccess = (userId: string, isNewUser: boolean) => {
     void handleAuthSuccess(userId, isNewUser, false);
@@ -129,13 +120,6 @@ export const UnifiedAuthForm = ({ verifiedSocialUser, onCompleted }: UnifiedAuth
   const handleClassicSuccess = (userId: string, isNewUser: boolean) => {
     void handleAuthSuccess(userId, isNewUser, false);
   };
-
-  // OAuth callbacks finish through the same setup as the interactive login methods.
-  useEffect(() => {
-    if (!verifiedSocialUser || completedSocialUser.current === verifiedSocialUser.userId) return;
-    completedSocialUser.current = verifiedSocialUser.userId;
-    void handleAuthSuccess(verifiedSocialUser.userId, verifiedSocialUser.isNewUser, false);
-  }, [verifiedSocialUser, handleAuthSuccess]);
 
   if (isSettingUp) {
     return (
@@ -206,8 +190,7 @@ export const UnifiedAuthForm = ({ verifiedSocialUser, onCompleted }: UnifiedAuth
                 if (data.user?.id) {
                   await maybeShowWalletLinkCta(data.user.id);
                 }
-                if (onCompleted) onCompleted();
-      else navigate('/');
+                navigate('/');
               }}
             />
           </CardContent>

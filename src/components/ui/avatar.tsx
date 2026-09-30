@@ -4,27 +4,6 @@ import * as AvatarPrimitive from "@radix-ui/react-avatar";
 import { cn } from "@/lib/utils";
 import { getAvatarUrl } from "@/lib/imageTransform";
 
-export const DEFAULT_AVATAR_SRC = "/fun-profile-logo-128.webp";
-
-/** Resolve an avatar source without persisting a default value to user data. */
-export function resolveAvatarImageSource(src: string | null | undefined): string {
-  const candidate = src?.trim();
-  if (!candidate) return DEFAULT_AVATAR_SRC;
-
-  if (candidate.startsWith('/') || candidate.startsWith('data:') || candidate.startsWith('blob:')) {
-    return candidate;
-  }
-
-  try {
-    const url = new URL(candidate);
-    return url.protocol === 'https:' || url.protocol === 'http:'
-      ? candidate
-      : DEFAULT_AVATAR_SRC;
-  } catch {
-    return DEFAULT_AVATAR_SRC;
-  }
-}
-
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>
@@ -47,31 +26,17 @@ interface AvatarImageProps extends React.ComponentPropsWithoutRef<typeof AvatarP
 const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
   AvatarImageProps
->(({ className, src, sizeHint = 'md', skipTransform = false, onError, ...props }, ref) => {
-  const resolvedSrc = resolveAvatarImageSource(src);
-  const [failedToLoad, setFailedToLoad] = React.useState(false);
-  const effectiveSrc = failedToLoad ? DEFAULT_AVATAR_SRC : resolvedSrc;
-
-  React.useEffect(() => {
-    setFailedToLoad(false);
-  }, [resolvedSrc]);
-
+>(({ className, src, sizeHint = 'md', skipTransform = false, ...props }, ref) => {
   // Transform URL via Cloudflare Image Resizing for optimization
   const optimizedSrc = React.useMemo(() => {
-    if (skipTransform || effectiveSrc === DEFAULT_AVATAR_SRC) return effectiveSrc;
-    return getAvatarUrl(effectiveSrc, sizeHint);
-  }, [effectiveSrc, sizeHint, skipTransform]);
-
-  const handleError = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    if (effectiveSrc !== DEFAULT_AVATAR_SRC) setFailedToLoad(true);
-    onError?.(event);
-  };
+    if (!src || skipTransform) return src;
+    return getAvatarUrl(src, sizeHint);
+  }, [src, sizeHint, skipTransform]);
 
   return (
     <AvatarPrimitive.Image 
       ref={ref} 
       src={optimizedSrc}
-      onError={handleError}
       className={cn("aspect-square h-full w-full", className)} 
       {...props} 
     />

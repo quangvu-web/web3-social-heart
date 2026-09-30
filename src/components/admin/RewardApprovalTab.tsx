@@ -37,8 +37,6 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
   const [sortBy, setSortBy] = useState<"claimable_desc" | "claimable_asc" | "total_desc">("claimable_desc");
   const [loading, setLoading] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
-  const [dataError, setDataError] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
   const [users, setUsers] = useState<UserWithReward[]>([]);
   
   // Reject dialog
@@ -96,11 +94,8 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
       });
 
       setUsers(combinedUsers);
-      setDataLoaded(true);
-      setDataError(false);
     } catch (error) {
       console.error("Error loading reward data:", error);
-      setDataError(true);
       toast.error("Lỗi khi tải dữ liệu thưởng");
     } finally {
       setDataLoading(false);
@@ -129,7 +124,6 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
     });
 
   const handleApprove = async (user: UserWithReward) => {
-    if (!dataLoaded || dataError || dataLoading) return;
     setLoading(user.id);
     try {
       // Update profile with approved amount
@@ -175,7 +169,6 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
   };
 
   const openRejectDialog = (user: UserWithReward) => {
-    if (!dataLoaded || dataError || dataLoading) return;
     setSelectedUser(user);
     setRejectReason("");
     setRejectDialogOpen(true);
@@ -244,7 +237,7 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
               <Coins className="w-8 h-8 text-yellow-600" />
               <div>
                 <p className="text-sm text-muted-foreground">Tổng Claimable</p>
-                <p className="text-xl font-bold text-yellow-700">{dataError || !dataLoaded ? "Chưa xác minh" : `${formatNumber(totalClaimable)} CAMLY`}</p>
+                <p className="text-xl font-bold text-yellow-700">{formatNumber(totalClaimable)} CAMLY</p>
               </div>
             </div>
           </CardContent>
@@ -255,7 +248,7 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
               <TrendingUp className="w-8 h-8 text-green-600" />
               <div>
                 <p className="text-sm text-muted-foreground">Tổng Reward (All Users)</p>
-                <p className="text-xl font-bold text-green-700">{dataError || !dataLoaded ? "Chưa xác minh" : `${formatNumber(totalRewardAll)} CAMLY`}</p>
+                <p className="text-xl font-bold text-green-700">{formatNumber(totalRewardAll)} CAMLY</p>
               </div>
             </div>
           </CardContent>
@@ -266,7 +259,7 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
               <Wallet className="w-8 h-8 text-blue-600" />
               <div>
                 <p className="text-sm text-muted-foreground">Đang chờ duyệt</p>
-                <p className="text-xl font-bold text-blue-700">{dataError || !dataLoaded ? "Chưa xác minh" : `${pendingUsers.length} users`}</p>
+                <p className="text-xl font-bold text-blue-700">{pendingUsers.length} users</p>
               </div>
             </div>
           </CardContent>
@@ -278,7 +271,7 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Coins className="w-5 h-5 text-yellow-500" />
-              Duyệt thưởng V2 ({dataLoading ? "Đang tải…" : dataError || !dataLoaded ? "Chưa xác minh" : `${filteredUsers.length} users`})
+              Duyệt thưởng V2 ({filteredUsers.length} users)
             </CardTitle>
             <Button 
               variant="outline" 
@@ -293,7 +286,6 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {dataError && <div className="flex items-center justify-between rounded border border-destructive/30 p-3 text-sm text-destructive"><span>Không tải được dữ liệu thưởng; số liệu trước đó được giữ lại và thao tác duyệt đang khóa.</span><Button variant="outline" size="sm" onClick={() => void loadRewardData()}><RefreshCw className="mr-1 h-4 w-4"/>Thử lại</Button></div>}
           {/* Search and Sort */}
           <div className="flex gap-2 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
@@ -326,7 +318,7 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
             <div className="flex items-center justify-center py-12">
               <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>
-          ) : dataError || !dataLoaded ? null : (
+          ) : (
             <div className="max-h-[500px] overflow-y-auto space-y-3">
               {filteredUsers.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
@@ -380,7 +372,7 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
                         size="sm"
                         className="bg-green-500 hover:bg-green-600 text-white gap-1"
                         onClick={() => handleApprove(user)}
-                        disabled={!dataLoaded || dataError || dataLoading || loading === user.id}
+                        disabled={loading === user.id}
                       >
                         <CheckCircle className="w-4 h-4" />
                         Duyệt
@@ -390,7 +382,7 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
                         variant="destructive"
                         className="gap-1"
                         onClick={() => openRejectDialog(user)}
-                        disabled={!dataLoaded || dataError || dataLoading || loading === user.id}
+                        disabled={loading === user.id}
                       >
                         <XCircle className="w-4 h-4" />
                         Từ chối
@@ -425,7 +417,7 @@ const RewardApprovalTab = ({ adminId, onRefresh }: RewardApprovalTabProps) => {
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
               Hủy
             </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={!dataLoaded || dataError || dataLoading || loading !== null}>
+            <Button variant="destructive" onClick={handleReject} disabled={loading !== null}>
               Xác nhận từ chối
             </Button>
           </DialogFooter>

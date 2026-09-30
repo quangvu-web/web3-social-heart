@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { formatMyt } from "@/lib/formatMyt";
 import { RefreshCw, VolumeX, Volume2, Search, Trash2 } from "lucide-react";
 
 interface MuteRow {
@@ -17,6 +16,16 @@ interface MuteRow {
   muted_until: string;
   reason: string | null;
   created_at: string;
+}
+
+const MS_TZ = "Asia/Kuala_Lumpur";
+
+function formatMY(iso: string) {
+  try {
+    return new Date(iso).toLocaleString("vi-VN", { timeZone: MS_TZ, hour12: false });
+  } catch {
+    return iso;
+  }
 }
 
 function remaining(untilIso: string, nowMs: number) {
@@ -38,7 +47,6 @@ function remaining(untilIso: string, nowMs: number) {
 export default function TelegramMutesTab() {
   const [rows, setRows] = useState<MuteRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [search, setSearch] = useState("");
   const [showExpired, setShowExpired] = useState(false);
@@ -83,14 +91,12 @@ export default function TelegramMutesTab() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    setLoadError(false);
     const { data, error } = await supabase
       .from("telegram_group_mutes")
       .select("*")
       .order("muted_until", { ascending: false })
       .limit(500);
     if (error) {
-      setLoadError(true);
       toast.error("Không tải được danh sách mute: " + error.message);
     } else {
       setRows((data as MuteRow[]) || []);
@@ -171,7 +177,7 @@ export default function TelegramMutesTab() {
               Danh sách User bị Mute
             </CardTitle>
             <CardDescription>
-              {activeCount} user đang bị mute · {rows.length} bản ghi trong tối đa 500 bản ghi gần nhất · MYT (UTC+8)
+              {activeCount} user đang bị mute · Tổng {rows.length} bản ghi · Thời gian (UTC+8)
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -197,11 +203,6 @@ export default function TelegramMutesTab() {
       <CardContent>
         {loading ? (
           <p className="text-center text-muted-foreground py-8">Đang tải...</p>
-        ) : loadError ? (
-          <div className="flex items-center justify-center gap-3 py-8 text-sm text-destructive">
-            Không tải được dữ liệu; danh sách trống chưa được xác nhận.
-            <Button variant="outline" size="sm" onClick={() => void load()}>Thử lại</Button>
-          </div>
         ) : filtered.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">Không có user nào bị mute.</p>
         ) : (
@@ -213,9 +214,9 @@ export default function TelegramMutesTab() {
                   <TableHead>User ID</TableHead>
                   <TableHead>Group ID</TableHead>
                   <TableHead>Còn lại</TableHead>
-                  <TableHead>Hết hạn lúc (MYT, UTC+8)</TableHead>
+                  <TableHead>Hết hạn lúc</TableHead>
                   <TableHead>Lý do</TableHead>
-                  <TableHead>Bắt đầu (MYT, UTC+8)</TableHead>
+                  <TableHead>Bắt đầu</TableHead>
                   <TableHead className="text-right">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
@@ -236,9 +237,9 @@ export default function TelegramMutesTab() {
                           <Badge variant="destructive">{rem.label}</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-xs">{formatMyt(row.muted_until)}</TableCell>
+                      <TableCell className="text-xs">{formatMY(row.muted_until)}</TableCell>
                       <TableCell className="text-xs">{row.reason || "—"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{formatMyt(row.created_at)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{formatMY(row.created_at)}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" onClick={() => handleUnmute(row)}>
                           <Trash2 className="w-4 h-4" />

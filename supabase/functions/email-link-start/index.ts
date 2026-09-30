@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
 
     const resend = new Resend(resendApiKey);
     const { error: sendError } = await resend.emails.send({
-      from: "FUN Profile <noreply@funprofile.funecosystem.org>",
+      from: "FUN Ecosystem <noreply@profile.funecosystem.org>",
       to: [email],
       subject: "Your FUN Profile email verification OTP",
       html: `

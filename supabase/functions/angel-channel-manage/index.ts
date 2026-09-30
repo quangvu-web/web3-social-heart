@@ -14,12 +14,8 @@
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import {
-  pushToAngelKnowledge,
-  deleteFromAngelKnowledge,
-  getAngelKnowledgeStatus,
-  testAngelKnowledgeConnection,
-} from "../_shared/angel-knowledge.ts";
+import { pushToAngelKnowledge, deleteFromAngelKnowledge } from "../_shared/angel-knowledge.ts";
+import { checkIsAdmin, type HasRoleRpcClient } from "./adminCheck.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,32 +28,6 @@ function json(payload: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function retryAtForAngelError(code?: string, status?: number): string | null {
-  const transient = [
-    "ANGEL_KNOWLEDGE_NETWORK_ERROR",
-    "ANGEL_KNOWLEDGE_TIMEOUT",
-    "ANGEL_KNOWLEDGE_VERIFY_FAILED",
-    "ANGEL_KNOWLEDGE_NOT_PERSISTED",
-  ].includes(code || "") || (code === "ANGEL_KNOWLEDGE_HTTP_ERROR" && (status === 429 || (status !== undefined && status >= 500)));
-  return transient ? new Date(Date.now() + 60_000).toISOString() : null;
-}
-
-function safeKnowledgeError(error: string | null): string | null {
-  if (!error) return null;
-  const code = error.match(/\bANGEL_KNOWLEDGE_[A-Z_]+\b/)?.[0];
-  const status = error.match(/HTTP (\d{3})/)?.[1];
-  if (code === "ANGEL_KNOWLEDGE_SECRET_MISSING") return `${code}: Chưa cấu hình secret.`;
-  if (code === "ANGEL_KNOWLEDGE_TIMEOUT") return `${code}: Quá thời gian chờ.`;
-  if (code === "ANGEL_KNOWLEDGE_NETWORK_ERROR") return `${code}: Lỗi mạng.`;
-  if (code === "ANGEL_KNOWLEDGE_NOT_PERSISTED") return `${code}: HTTP 2xx nhưng document chưa được xác nhận lưu.`;
-  if (code === "ANGEL_KNOWLEDGE_HTTP_ERROR") return `${code}${status ? ` (HTTP ${status})` : ""}.`;
-  return `${code || "ANGEL_KNOWLEDGE_ERROR"}: Push chưa thành công.`;
-}
-
-function maskedReference(reference: string | null): string | null {
-  return reference ? `••••${reference.slice(-4)}` : null;
 }
 
 Deno.serve(async (req) => {
@@ -75,19 +45,15 @@ Deno.serve(async (req) => {
   });
   const { data: userData, error: userErr } = await userClient.auth.getUser();
   if (userErr || !userData?.user) {
-    return json({ ok: false, code: "AUTH_REQUIRED", error: "Bé cần đăng nhập lại để tiếp tục." }, 401);
+    return json({ error: "Unauthorized" }, 401);
   }
   const uid = userData.user.id;
 
   const admin = createClient(supabaseUrl, serviceKey);
-  const { data: roleRow, error: roleError } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", uid)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (roleError) return json({ ok: false, code: "ADMIN_CHECK_FAILED", error: "Không kiểm tra được quyền quản trị." }, 500);
-  if (!roleRow) return json({ ok: false, code: "ADMIN_REQUIRED", error: "Chỉ admin mới được quản lý Angel Channels." }, 403);
+  const adminCheck = await checkIsAdmin(admin as unknown as HasRoleRpcClient, uid);
+  if (!adminCheck.ok) {
+    return json({ error: adminCheck.error, code: adminCheck.code }, adminCheck.status);
+  }
 
   let body: Record<string, unknown>;
   try {
@@ -172,44 +138,12 @@ Deno.serve(async (req) => {
         if (!Number.isFinite(chatId)) return json({ error: "chat_id required" }, 400);
         const { data, error } = await admin
           .from("angel_channel_knowledge")
-          .select("id, message_id, content, media_type, posted_at, pushed_to_core, pushed_at, push_error, core_reference, merged_message_ids, next_retry_at")
+          .select("id, message_id, content, media_type, posted_at, pushed_to_core, pushed_at, push_error, core_reference, merged_message_ids")
           .eq("chat_id", chatId)
           .order("message_id", { ascending: false })
           .limit(50);
         if (error) throw error;
-        const messages = data || [];
-        const refs = messages.map((row) => `${chatId}:${row.message_id}`);
-        const remoteStatus = refs.length
-          ? await getAngelKnowledgeStatus("telegram_channel", refs)
-          : { ok: true, items: [] as unknown[], code: undefined as string | undefined };
-        const persistedRefs = new Set((remoteStatus.items || []).flatMap((item) => {
-          if (!item || typeof item !== "object") return [];
-          const ref = (item as Record<string, unknown>).source_ref ?? (item as Record<string, unknown>).sourceRef;
-          return typeof ref === "string" ? [ref] : [];
-        }));
-        return json({
-          messages: messages.map((row) => ({
-            ...row,
-            push_error: safeKnowledgeError(row.push_error),
-            core_reference: maskedReference(row.core_reference),
-            persisted_on_core: remoteStatus.ok ? persistedRefs.has(`${chatId}:${row.message_id}`) : null,
-            verification_code: !remoteStatus.ok
-              ? remoteStatus.code || "ANGEL_KNOWLEDGE_VERIFY_FAILED"
-              : row.pushed_to_core && !persistedRefs.has(`${chatId}:${row.message_id}`)
-              ? "ANGEL_KNOWLEDGE_NOT_PERSISTED"
-              : null,
-          })),
-        });
-      }
-
-      case "test_connection": {
-        const result = await testAngelKnowledgeConnection();
-        return json({
-          ok: result.ok,
-          code: result.code,
-          status: result.status,
-          error: result.error,
-        });
+        return json({ messages: data || [] });
       }
 
       case "toggle_warn_long": {
@@ -253,10 +187,7 @@ Deno.serve(async (req) => {
         let success = 0;
         let failed = 0;
         let skipped = 0;
-        let sentCount = 0;
-        let persistedCount = 0;
-        let lastPushAt: string | null = null;
-        const errors: Array<{ message_id: number; code: string; error: string }> = [];
+        const errors: Array<{ message_id: number; error: string }> = [];
         for (const row of rows || []) {
           const postUrl = channel?.username
             ? `https://t.me/${String(channel.username).replace(/^@/, "")}/${row.message_id}`
@@ -283,9 +214,6 @@ Deno.serve(async (req) => {
           );
           if (result.ok) {
             success++;
-            sentCount += result.sentCount ?? 1;
-            persistedCount += result.persistedCount ?? 0;
-            lastPushAt = new Date().toISOString();
             await admin
               .from("angel_channel_knowledge")
               .update({
@@ -298,24 +226,11 @@ Deno.serve(async (req) => {
               .eq("id", row.id);
           } else if (result.skipped) {
             skipped++;
-            await admin
-              .from("angel_channel_knowledge")
-              .update({
-                pushed_to_core: false,
-                pushed_at: null,
-                push_error: `${result.code || "ANGEL_KNOWLEDGE_SECRET_MISSING"}: ${result.error || "Chưa cấu hình secret."}`,
-                core_reference: null,
-                next_retry_at: null,
-              })
-              .eq("id", row.id);
           } else {
             // Duplicate key = server gốc đã có doc này rồi → coi như success idempotent.
             const isDuplicate = (result.error || "").toLowerCase().includes("duplicate key");
             if (isDuplicate) {
               success++;
-              sentCount += result.sentCount ?? 1;
-              persistedCount += result.persistedCount ?? 1;
-              lastPushAt = new Date().toISOString();
               await admin
                 .from("angel_channel_knowledge")
                 .update({
@@ -328,35 +243,20 @@ Deno.serve(async (req) => {
                 .eq("id", row.id);
             } else {
               failed++;
-              sentCount += result.sentCount ?? 1;
-              persistedCount += result.persistedCount ?? 0;
-              const safeError = result.error || "Không đẩy được document.";
-              errors.push({ message_id: row.message_id, code: result.code || "ANGEL_KNOWLEDGE_ERROR", error: safeError });
+              errors.push({ message_id: row.message_id, error: result.error || "unknown" });
               await admin
                 .from("angel_channel_knowledge")
                 .update({
                   pushed_to_core: false,
-                  pushed_at: null,
-                  push_error: `${result.code || "ANGEL_KNOWLEDGE_ERROR"}: ${safeError}`,
+                  push_error: result.error || "unknown",
                   core_reference: null,
-                  retry_count: 0,
-                  next_retry_at: retryAtForAngelError(result.code, result.status),
                 })
                 .eq("id", row.id);
             }
           }
 
         }
-        return json({
-          total: rows?.length ?? 0,
-          sent: sentCount,
-          persisted: persistedCount,
-          success,
-          failed,
-          skipped,
-          lastPushAt,
-          errors: errors.slice(0, 10),
-        });
+        return json({ total: rows?.length ?? 0, success, failed, skipped, errors: errors.slice(0, 10) });
       }
 
       case "force_repush_row": {
@@ -430,28 +330,17 @@ Deno.serve(async (req) => {
               retry_count: 0,
             })
             .eq("id", row.id);
-          return json({
-            ok: true,
-            deleted,
-            verified: true,
-            sent: push.sentCount ?? 1,
-            persisted: push.persistedCount ?? 1,
-            lastPushAt: new Date().toISOString(),
-            reference: maskedReference(push.reference || null),
-          });
+          return json({ ok: true, deleted, verified: true, reference: push.reference || null });
         }
 
         // Ghi lỗi rõ ràng (không âm thầm báo thành công)
-        const errMsg = `${push.code || "ANGEL_KNOWLEDGE_ERROR"}: ${push.error || "Không đẩy được document."}`;
+        const errMsg = push.error || `HTTP ${push.status || "?"}`;
         await admin
           .from("angel_channel_knowledge")
           .update({
             pushed_to_core: false,
-            pushed_at: null,
             push_error: errMsg,
             core_reference: null,
-            retry_count: 0,
-            next_retry_at: retryAtForAngelError(push.code, push.status),
           })
           .eq("id", row.id);
 
@@ -459,9 +348,9 @@ Deno.serve(async (req) => {
           ok: false,
           deleted,
           verified: false,
-          code: push.code || "ANGEL_KNOWLEDGE_ERROR",
-          error: push.error || "Không đẩy được document.",
-          hint: push.code === "ANGEL_KNOWLEDGE_NOT_PERSISTED"
+          code: push.code || null,
+          error: errMsg,
+          hint: push.code === "not_persisted"
             ? "Server gốc nhận HTTP 200 nhưng không lưu. Thử lại với delete_first=true để xoá tombstone trước."
             : undefined,
         });
@@ -471,7 +360,7 @@ Deno.serve(async (req) => {
         return json({ error: `Unknown action: ${action}` }, 400);
     }
   } catch (err) {
-    console.error("[angel-channel-manage] action failed", action, err instanceof Error ? err.name : "unknown");
-    return json({ ok: false, code: "CHANNEL_MANAGE_FAILED", error: "Không hoàn tất được thao tác quản lý channel." }, 500);
+    console.error("[angel-channel-manage]", action, err);
+    return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
 });

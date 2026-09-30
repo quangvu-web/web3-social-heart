@@ -70,11 +70,10 @@ export default function MemberAnalyticsTab() {
   const [range, setRange] = useState<Range>("7d");
   const [events, setEvents] = useState<EventRow[]>([]);
   const [stats, setStats] = useState<DailyStat[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [eventsError, setEventsError] = useState(false);
-  const [statsError, setStatsError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const load = async () => {
+  useEffect(() => {
+    const load = async () => {
       setLoading(true);
       const since = rangeStartIso(range);
       const [eventsRes, statsRes] = await Promise.all([
@@ -90,16 +89,13 @@ export default function MemberAnalyticsTab() {
           .gte("stat_date", since.slice(0, 10))
           .order("stat_date"),
       ]);
-      setEventsError(Boolean(eventsRes.error));
-      setStatsError(Boolean(statsRes.error));
-      if (!eventsRes.error) setEvents((eventsRes.data ?? []) as EventRow[]);
-      if (!statsRes.error) setStats((statsRes.data ?? []) as DailyStat[]);
-      if (eventsRes.error || statsRes.error) toast.error("Không tải được một phần dữ liệu member analytics.");
+      if (eventsRes.error) toast.error(eventsRes.error.message);
+      else setEvents((eventsRes.data ?? []) as EventRow[]);
+      if (statsRes.error) toast.error(statsRes.error.message);
+      else setStats((statsRes.data ?? []) as DailyStat[]);
       setLoading(false);
-  };
-
-  useEffect(() => {
-    void load();
+    };
+    load();
   }, [range]);
 
   const kpis = useMemo(() => {
@@ -159,24 +155,22 @@ export default function MemberAnalyticsTab() {
               <SelectItem value="30d">30 Days</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={exportEventsCsv} disabled={loading || eventsError}><Download className="w-4 h-4 mr-1" />Events CSV</Button>
-          <Button variant="outline" size="sm" onClick={exportStatsCsv} disabled={loading || statsError}><Download className="w-4 h-4 mr-1" />Stats CSV</Button>
-          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>Thử tải lại</Button>
+          <Button variant="outline" size="sm" onClick={exportEventsCsv}><Download className="w-4 h-4 mr-1" />Events CSV</Button>
+          <Button variant="outline" size="sm" onClick={exportStatsCsv}><Download className="w-4 h-4 mr-1" />Stats CSV</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <Card><CardContent className="p-4"><div className="flex items-center gap-2 text-muted-foreground text-xs"><Users className="w-4 h-4" />Total Members</div><div className="text-2xl font-bold mt-1">{statsError ? "Lỗi tải" : kpis.totalMembers ?? (loading ? "Đang tải…" : "—")}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="flex items-center gap-2 text-muted-foreground text-xs"><UserPlus className="w-4 h-4" />Joined</div><div className="text-2xl font-bold mt-1 text-green-600">{eventsError ? "Lỗi tải" : loading ? "Đang tải…" : `+${kpis.joined}`}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="flex items-center gap-2 text-muted-foreground text-xs"><UserMinus className="w-4 h-4" />Left</div><div className="text-2xl font-bold mt-1 text-orange-600">{eventsError ? "Lỗi tải" : loading ? "Đang tải…" : `-${kpis.left}`}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="flex items-center gap-2 text-muted-foreground text-xs">🚫 Kick / ⛔ Ban</div><div className="text-2xl font-bold mt-1 text-red-600">{eventsError ? "Lỗi tải" : loading ? "Đang tải…" : `-${kpis.kicked + kpis.banned}`}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="flex items-center gap-2 text-muted-foreground text-xs"><TrendingUp className="w-4 h-4" />Net Growth</div><div className={`text-2xl font-bold mt-1 ${kpis.net >= 0 ? "text-green-600" : "text-red-600"}`}>{eventsError ? "Lỗi tải" : loading ? "Đang tải…" : `${kpis.net >= 0 ? "+" : ""}${kpis.net}`}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-2 text-muted-foreground text-xs"><Users className="w-4 h-4" />Total Members</div><div className="text-2xl font-bold mt-1">{kpis.totalMembers ?? "—"}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-2 text-muted-foreground text-xs"><UserPlus className="w-4 h-4" />Joined</div><div className="text-2xl font-bold mt-1 text-green-600">+{kpis.joined}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-2 text-muted-foreground text-xs"><UserMinus className="w-4 h-4" />Left</div><div className="text-2xl font-bold mt-1 text-orange-600">-{kpis.left}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-2 text-muted-foreground text-xs">🚫 Kick / ⛔ Ban</div><div className="text-2xl font-bold mt-1 text-red-600">-{kpis.kicked + kpis.banned}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-2 text-muted-foreground text-xs"><TrendingUp className="w-4 h-4" />Net Growth</div><div className={`text-2xl font-bold mt-1 ${kpis.net >= 0 ? "text-green-600" : "text-red-600"}`}>{kpis.net >= 0 ? "+" : ""}{kpis.net}</div></CardContent></Card>
       </div>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Joins vs Leaves</CardTitle></CardHeader>
         <CardContent className="h-72">
-          {loading ? <p className="text-sm text-muted-foreground">Đang tải…</p> : statsError ? <p className="text-sm text-destructive">Không tải được thống kê; hãy dùng Thử tải lại.</p> : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -189,7 +183,6 @@ export default function MemberAnalyticsTab() {
               <Line type="monotone" dataKey="Net" stroke="#2563eb" />
             </LineChart>
           </ResponsiveContainer>
-          )}
         </CardContent>
       </Card>
 
@@ -197,7 +190,6 @@ export default function MemberAnalyticsTab() {
         <Card>
           <CardHeader><CardTitle className="text-base">Top Invite Links</CardTitle></CardHeader>
           <CardContent className="h-72">
-            {loading ? <p className="text-sm text-muted-foreground">Đang tải…</p> : eventsError ? <p className="text-sm text-destructive">Không tải được event; hãy dùng Thử tải lại.</p> : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={inviteData} layout="vertical" margin={{ left: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -207,14 +199,13 @@ export default function MemberAnalyticsTab() {
                 <Bar dataKey="joins" fill="#eab308" />
               </BarChart>
             </ResponsiveContainer>
-            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader><CardTitle className="text-base">Top Recruiters (admin actor on add)</CardTitle></CardHeader>
           <CardContent>
-            {eventsError ? <p className="text-sm text-destructive">Không tải được event; hãy dùng Thử tải lại.</p> : recruiters.length === 0 && !loading ? (
+            {recruiters.length === 0 ? (
               <p className="text-sm text-muted-foreground">No recruiter data yet for this range.</p>
             ) : (
               <table className="w-full text-sm">
@@ -237,10 +228,8 @@ export default function MemberAnalyticsTab() {
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-background"><tr className="text-left text-muted-foreground"><th>Time (KL)</th><th>Event</th><th>User</th><th>Invite / Actor</th></tr></thead>
               <tbody>
-                {loading && <tr><td colSpan={4} className="text-center py-4 text-muted-foreground">Đang tải…</td></tr>}
-                {!loading && eventsError && <tr><td colSpan={4} className="text-center py-4 text-destructive">Không tải được event trong khoảng này.</td></tr>}
-                {!loading && !eventsError && events.length === 0 && <tr><td colSpan={4} className="text-center py-4 text-muted-foreground">Không có event trong khoảng đã chọn.</td></tr>}
-                {!loading && !eventsError && events.slice(0, 200).map((e) => (
+                {loading && <tr><td colSpan={4} className="text-center py-4 text-muted-foreground">Loading…</td></tr>}
+                {events.slice(0, 200).map((e) => (
                   <tr key={e.id} className="border-t">
                     <td className="py-1">{new Date(e.occurred_at).toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur" })}</td>
                     <td>{e.event_type}</td>
@@ -258,3 +247,4 @@ export default function MemberAnalyticsTab() {
     </div>
   );
 }
+

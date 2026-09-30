@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { canMutateVerifiedAdminData, getAdminLoadState } from "@/lib/adminLoadState";
 import { Loader2, GitBranch, Send, RotateCcw, Save } from "lucide-react";
 
 /**
@@ -59,24 +58,12 @@ export default function AdminPromptVersionsTab() {
   const [ruleKey, setRuleKey] = useState<string>(KNOWN_RULE_KEYS[0]);
   const [versions, setVersions] = useState<PromptVersion[]>([]);
   const [loading, setLoading] = useState(false);
-  const [versionsLoadError, setVersionsLoadError] = useState(false);
-  const [versionsLoaded, setVersionsLoaded] = useState(false);
-  const [currentLoadError, setCurrentLoadError] = useState(false);
-  const [currentLoaded, setCurrentLoaded] = useState(false);
   const [snapshotContent, setSnapshotContent] = useState("");
   const [snapshotNotes, setSnapshotNotes] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
-  const promptLoadState = getAdminLoadState({
-    loading: loading || (!currentLoaded && !currentLoadError),
-    error: versionsLoadError || currentLoadError,
-    loaded: versionsLoaded && currentLoaded,
-    hasRows: versions.length > 0,
-  });
-  const canManageVersions = canMutateVerifiedAdminData(promptLoadState) && !busyId;
 
   const load = useCallback(async () => {
     setLoading(true);
-    setVersionsLoadError(false);
     const { data, error } = await supabase
       .from("angel_prompt_versions")
       .select("*")
@@ -85,39 +72,22 @@ export default function AdminPromptVersionsTab() {
       .limit(50);
     setLoading(false);
     if (error) {
-      setVersionsLoadError(true);
       toast.error("Không tải được versions: " + error.message);
-      setLoading(false);
       return;
     }
     setVersions((data ?? []) as PromptVersion[]);
-    setVersionsLoaded(true);
-    setLoading(false);
   }, [ruleKey]);
 
   const loadCurrentOverride = useCallback(async () => {
-    setCurrentLoadError(false);
     const { data, error } = await supabase
       .from("angel_persona_settings")
       .select("rule_overrides")
       .eq("singleton", true)
       .maybeSingle();
-    if (error) {
-      setCurrentLoadError(true);
-      toast.error("Không xác minh được prompt hiện tại: " + error.message);
-      return;
-    }
+    if (error) return;
     const overrides = (data?.rule_overrides ?? {}) as Record<string, string>;
     if (overrides[ruleKey]) setSnapshotContent(overrides[ruleKey]);
-    setCurrentLoaded(true);
   }, [ruleKey]);
-
-  const retryLoad = () => {
-    setVersionsLoaded(false);
-    setCurrentLoaded(false);
-    void load();
-    void loadCurrentOverride();
-  };
 
   useEffect(() => {
     void load();
@@ -127,7 +97,6 @@ export default function AdminPromptVersionsTab() {
   const published = useMemo(() => versions.find((v) => v.is_published) ?? null, [versions]);
 
   const handleSnapshot = async () => {
-    if (!canManageVersions) return;
     if (!snapshotContent.trim()) {
       toast.error("Nội dung snapshot không được rỗng");
       return;
@@ -161,7 +130,6 @@ export default function AdminPromptVersionsTab() {
   };
 
   const handlePublish = async (v: PromptVersion) => {
-    if (!canManageVersions) return;
     setBusyId(v.id);
     try {
       // 1. Bỏ published cũ.
@@ -246,7 +214,7 @@ export default function AdminPromptVersionsTab() {
               value={snapshotNotes}
               onChange={(e) => setSnapshotNotes(e.target.value)}
             />
-            <Button onClick={handleSnapshot} size="sm" disabled={!canManageVersions}>
+            <Button onClick={handleSnapshot} size="sm">
               <Save className="h-4 w-4 mr-1" /> Snapshot version mới
             </Button>
           </div>
@@ -265,12 +233,10 @@ export default function AdminPromptVersionsTab() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {promptLoadState === "loading" ? (
+          {loading ? (
             <div className="flex items-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Đang tải...
             </div>
-          ) : promptLoadState === "error" ? (
-            <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">Không thể xác minh lịch sử và cấu hình prompt hiện tại; các thao tác snapshot/publish bị khóa.<Button size="sm" variant="outline" onClick={retryLoad}>Thử lại</Button></div>
           ) : versions.length === 0 ? (
             <div className="text-sm text-muted-foreground">Chưa có version nào.</div>
           ) : (
@@ -295,7 +261,7 @@ export default function AdminPromptVersionsTab() {
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={!canManageVersions || busyId === v.id}
+                        disabled={busyId === v.id}
                         onClick={() => handlePublish(v)}
                       >
                         {busyId === v.id ? (

@@ -154,7 +154,7 @@ async function sendWelcomeEmail(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'FUN Profile <noreply@funprofile.funecosystem.org>',
+        from: 'FUN Ecosystem <noreply@profile.funecosystem.org>',
         to: [email],
         subject: '🎉 Chào mừng đến FUN Ecosystem! Tạo mật khẩu để bắt đầu',
         html: emailHtml,

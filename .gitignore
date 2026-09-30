@@ -26,7 +26,3 @@ dist-ssr
 # Codex CLI local env
 .env.codex
 .codex/auth.json
-
-# Supabase CLI runtime metadata
-supabase/.temp/
-supabase/temp/

@@ -250,10 +250,14 @@ const Admin = () => {
         <aside className="hidden w-72 shrink-0 border-r bg-background lg:flex xl:w-80">
           <div className="flex w-full flex-col gap-7 px-4 py-6">
             <div className="flex items-center gap-3 px-2">
-              <div className="rounded-md bg-primary/10 p-2 text-primary"><Shield className="h-5 w-5" /></div>
+              <img
+                src="/fun-rich-bot-logo.png"
+                alt="FUN RICH BOT"
+                className="h-10 w-10 rounded-md object-cover ring-1 ring-border"
+              />
               <div>
-                <p className="font-semibold">Telegram Operations</p>
-                <p className="text-xs text-muted-foreground">FUN Profile</p>
+                <p className="font-semibold">FUN RICH BOT</p>
+                <p className="text-xs text-muted-foreground">Telegram Operations</p>
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
@@ -273,7 +277,7 @@ const Admin = () => {
                 </SheetTrigger>
                 <SheetContent side="left" className="w-[min(20rem,85vw)] overflow-y-auto">
                   <SheetHeader className="mb-6 pr-8 text-left">
-                    <SheetTitle>Telegram Operations</SheetTitle>
+                    <SheetTitle>FUN RICH BOT</SheetTitle>
                     <SheetDescription>Điều hướng vận hành bot Telegram.</SheetDescription>
                   </SheetHeader>
                   <AdminNavigation activeTab={activeTab} onSelect={selectTab} />

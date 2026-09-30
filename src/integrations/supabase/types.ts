@@ -7381,6 +7381,10 @@ export type Database = {
       }
       claim_red_envelope: { Args: { p_envelope_id: string }; Returns: number }
       cleanup_expired_oauth_data: { Args: never; Returns: undefined }
+      consume_otp_code: {
+        Args: { p_code: string; p_identifier: string; p_otp_id: string }
+        Returns: string
+      }
       decrement_live_viewer_count: {
         Args: { session_id: string }
         Returns: undefined

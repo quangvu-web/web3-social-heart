@@ -15,6 +15,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { pushToAngelKnowledge, deleteFromAngelKnowledge } from "../_shared/angel-knowledge.ts";
+import { checkIsAdmin, type HasRoleRpcClient } from "./adminCheck.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,13 +50,10 @@ Deno.serve(async (req) => {
   const uid = userData.user.id;
 
   const admin = createClient(supabaseUrl, serviceKey);
-  const { data: roleRow } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", uid)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (!roleRow) return json({ error: "Admin only" }, 403);
+  const adminCheck = await checkIsAdmin(admin as unknown as HasRoleRpcClient, uid);
+  if (!adminCheck.ok) {
+    return json({ error: adminCheck.error, code: adminCheck.code }, adminCheck.status);
+  }
 
   let body: Record<string, unknown>;
   try {

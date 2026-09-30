@@ -75,3 +75,13 @@
 ---
 
 **Khi nghi ngờ → để Angel quyết định trong Lovable chat. KHÔNG đoán.**
+
+## 13. Admin = Telegram Operations (bối cảnh bắt buộc)
+- FUN Profile vẫn là sản phẩm chính; Telegram Operations chỉ là khu vận hành bot trong `/admin`, không thay thế/xóa FUN Profile.
+- `/admin` (`src/pages/Admin.tsx` + `src/components/admin/telegramOperationsConfig.ts`) là shell Telegram Operations: sidebar nhóm menu, tab qua `?tab=`, menu mobile dạng Sheet. KHÔNG khôi phục "Ultimate Admin Dashboard"/thanh tab ngang cũ nếu không được yêu cầu rõ. Giữ đủ mọi tab và phân quyền khi sửa shell.
+- Phân quyền: `has_role` trả `false` = không có quyền admin; RPC lỗi = chưa xác minh được quyền. Hai trường hợp phải báo khác nhau; không nới lỏng/bỏ guard để ép mở trang.
+- Không sửa auth/role/RLS, schema, migration, webhook, bot logic, secrets hay dữ liệu production chỉ để UI "chạy" — báo bằng chứng và xin chỉ dẫn.
+- Không biến lỗi tải dữ liệu thành danh sách rỗng/số 0 giả: tách rõ đang tải / rỗng / lỗi.
+- Không để lộ secret, token, JWT (kể cả URL git remote) trong log, ảnh chụp, báo cáo.
+- Trước mọi thay đổi: kiểm tra `git status`, bảo toàn thay đổi sẵn có, chỉ sửa trong phạm vi yêu cầu.
+- Báo cáo kiểm thử: tách frontend (`bun test`) và Edge Function (`deno test`); chỉ gọi "pass" khi đã thật sự chạy thành công.

@@ -21,11 +21,7 @@ const INGEST_URL =
   "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/knowledge-external-ingest";
 
 function getKey(): string | null {
-  return (
-    Deno.env.get("ANGEL_KNOWLEDGE_INGEST_KEY") ||
-    Deno.env.get("ANGEL_AI_API_KEY") || // fallback tương thích ngược 1 nhịp
-    null
-  );
+  return Deno.env.get("ANGEL_KNOWLEDGE_INGEST_KEY") || null;
 }
 
 export type AngelDoc = {
@@ -50,6 +46,8 @@ export type AngelKnowledgeResult = {
   duplicate?: boolean;
   /** Chi tiết per-doc từ Angel gốc (dedup/persisted/…) để caller log/hiển thị. */
   itemStatuses?: Array<{ source_ref?: string; status?: string; error?: string }>;
+  sentCount?: number;
+  persistedCount?: number;
 };
 
 type AngelKnowledgeUpsertResponse = {
@@ -101,27 +99,60 @@ function normalizeSourceUrl(raw: string | undefined, source: string, sourceRef: 
 
 async function postAction<T = unknown>(
   body: Record<string, unknown>,
-): Promise<{ ok: boolean; status: number; data: T | null; text: string }> {
+): Promise<{ ok: boolean; status: number; data: T | null; code?: string }> {
   const key = getKey();
   if (!key) {
-    return { ok: false, status: 0, data: null, text: "no_key" };
+    return { ok: false, status: 0, data: null, code: "ANGEL_KNOWLEDGE_SECRET_MISSING" };
   }
-  const res = await fetch(INGEST_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": key,
-    },
-    body: JSON.stringify(body),
-  });
-  const text = await res.text().catch(() => "");
-  let data: T | null = null;
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 15_000);
   try {
-    data = text ? (JSON.parse(text) as T) : null;
+    const res = await fetch(INGEST_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": key,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    let text: string;
+    try {
+      text = await res.text();
+    } catch {
+      return {
+        ok: false,
+        status: 0,
+        data: null,
+        code: timedOut ? "ANGEL_KNOWLEDGE_TIMEOUT" : "ANGEL_KNOWLEDGE_NETWORK_ERROR",
+      };
+    }
+    if (timedOut) {
+      return { ok: false, status: 0, data: null, code: "ANGEL_KNOWLEDGE_TIMEOUT" };
+    }
+    let data: T | null = null;
+    try {
+      data = text ? (JSON.parse(text) as T) : null;
+    } catch {
+      data = null;
+    }
+    return res.ok
+      ? { ok: true, status: res.status, data }
+      : { ok: false, status: res.status, data, code: "ANGEL_KNOWLEDGE_HTTP_ERROR" };
   } catch {
-    data = null;
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      code: timedOut ? "ANGEL_KNOWLEDGE_TIMEOUT" : "ANGEL_KNOWLEDGE_NETWORK_ERROR",
+    };
+  } finally {
+    clearTimeout(timer);
   }
-  return { ok: res.ok, status: res.status, data, text };
 }
 
 /**
@@ -132,9 +163,14 @@ export async function pushToAngelKnowledge(
   input: AngelKnowledgePayload | AngelDoc | Array<AngelKnowledgePayload | AngelDoc>,
   options: { chunk_now?: boolean; verify?: boolean } = {},
 ): Promise<AngelKnowledgeResult> {
+  const verifyPersistence = options.verify ?? true;
   if (!getKey()) {
-    console.log("[angel-knowledge] ANGEL_KNOWLEDGE_INGEST_KEY chưa cấu hình — skip push");
-    return { ok: false, skipped: true, error: "ANGEL_KNOWLEDGE_INGEST_KEY not configured" };
+    return {
+      ok: false,
+      skipped: true,
+      code: "ANGEL_KNOWLEDGE_SECRET_MISSING",
+      error: "Chưa cấu hình secret kết nối Angel AI gốc.",
+    };
   }
 
   const list = Array.isArray(input) ? input : [input];
@@ -172,24 +208,17 @@ export async function pushToAngelKnowledge(
 
   const chunkNow = options.chunk_now ?? false;
   const totalChars = documents.reduce((s, d) => s + d.content.length, 0);
-  console.log(
-    `[angel-knowledge] POST upsert docs=${documents.length} chars=${totalChars} chunk_now=${chunkNow} refs=${documents
-      .map((d) => `${d.source}:${d.source_ref}`)
-      .join(",")
-      .slice(0, 300)}`,
-  );
+  console.log(`[angel-knowledge] POST upsert docs=${documents.length} chars=${totalChars} chunk_now=${chunkNow}`);
 
   const t0 = Date.now();
-  const { ok, status, data, text } = await postAction<AngelKnowledgeUpsertResponse>({
+  const { ok, status, data, code: transportCode } = await postAction<AngelKnowledgeUpsertResponse>({
     action: "upsert",
     chunk_now: chunkNow,
     documents,
   });
   const duration_ms = Date.now() - t0;
 
-  console.log(
-    `[angel-knowledge] response status=${status} ok=${ok} body=${text.slice(0, 300)}`,
-  );
+  console.log(`[angel-knowledge] response status=${status} ok=${ok}`);
 
   // Telemetry: log ingest attempt (fire-and-forget).
   logAiEvent({
@@ -208,12 +237,15 @@ export async function pushToAngelKnowledge(
   });
 
   if (!ok) {
-    const code = (data && typeof data === "object" && (data as { code?: string }).code) || undefined;
     return {
       ok: false,
-      status,
-      code,
-      error: `HTTP ${status}${code ? ` (${code})` : ""}: ${text.slice(0, 300)}`,
+      status: status || undefined,
+      code: transportCode || "ANGEL_KNOWLEDGE_HTTP_ERROR",
+      error: transportCode === "ANGEL_KNOWLEDGE_TIMEOUT"
+        ? "Kết nối Angel AI gốc quá thời gian chờ. Có thể thử lại."
+        : transportCode === "ANGEL_KNOWLEDGE_NETWORK_ERROR"
+        ? "Không thể kết nối tới Angel AI gốc do lỗi mạng. Có thể thử lại."
+        : `Angel AI gốc từ chối yêu cầu (HTTP ${status}).`,
     };
   }
 
@@ -242,16 +274,12 @@ export async function pushToAngelKnowledge(
     return s === "error" || s === "failed" || !!r.error;
   });
   if (resultErrors.length > 0) {
-    const sample = resultErrors
-      .slice(0, 5)
-      .map((r) => `${r.source_ref || "unknown"}: ${r.error || r.status || "error"}`)
-      .join(" | ");
     return {
       ok: false,
       status,
-      code: "remote_item_error",
-      error: `Angel AI gốc nhận request nhưng từ chối ${resultErrors.length}/${documents.length} document: ${sample}`,
-      itemStatuses,
+      code: "ANGEL_KNOWLEDGE_DOCUMENT_REJECTED",
+      error: `Angel AI gốc nhận ${documents.length} document nhưng từ chối ${resultErrors.length}.`,
+      itemStatuses: itemStatuses.map(({ source_ref, status: itemStatus }) => ({ source_ref, status: itemStatus })),
     };
   }
   if (duplicateCount > 0) {
@@ -272,7 +300,7 @@ export async function pushToAngelKnowledge(
   // Angel AI gốc đã lưu — đã có bằng chứng "pushed" false-positive
   // (status trả về items=[] cho các ref đã HTTP 200). Với verify=true, ép
   // check thêm để đánh dấu thất bại thật khi server không persist.
-  if (options.verify) {
+  if (verifyPersistence) {
     const bySource = new Map<string, string[]>();
     for (const d of documents) {
       const arr = bySource.get(d.source) ?? [];
@@ -281,12 +309,14 @@ export async function pushToAngelKnowledge(
     }
     const missing: string[] = [];
     let verifyOk = true;
-    let verifyErr: string | undefined;
+    let verifyErr = "";
+    let verifyCode = "ANGEL_KNOWLEDGE_VERIFY_FAILED";
     for (const [src, refs] of bySource) {
       const st = await getAngelKnowledgeStatus(src, refs);
       if (!st.ok) {
         verifyOk = false;
-        verifyErr = `verify_status_failed: ${st.error || "unknown"}`;
+        verifyErr = st.error || "Không xác minh được trạng thái lưu trên Angel AI gốc.";
+        verifyCode = st.code || "ANGEL_KNOWLEDGE_VERIFY_FAILED";
         break;
       }
       const items = (st.items || []) as Array<Record<string, unknown>>;
@@ -298,13 +328,26 @@ export async function pushToAngelKnowledge(
       for (const r of refs) if (!seen.has(r)) missing.push(`${src}:${r}`);
     }
     if (!verifyOk) {
-      console.log(`[angel-knowledge] verify failed: ${verifyErr}`);
-      return { ok: false, status, error: verifyErr };
+      console.log(`[angel-knowledge] verify failed code=${verifyCode}`);
+      return {
+        ok: false,
+        status,
+        code: verifyCode,
+        error: verifyErr,
+        sentCount: documents.length,
+        persistedCount: 0,
+      };
     }
     if (missing.length > 0) {
-      const err = `not_persisted: server accepted upsert (HTTP ${status}) but status returned no items for ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? ` (+${missing.length - 5} more)` : ""}`;
-      console.log(`[angel-knowledge] ${err}`);
-      return { ok: false, status, code: "not_persisted", error: err };
+      console.log(`[angel-knowledge] persistence verify missing docs=${missing.length}`);
+      return {
+        ok: false,
+        status,
+        code: "ANGEL_KNOWLEDGE_NOT_PERSISTED",
+        error: `Angel AI gốc nhận HTTP ${status} nhưng chưa xác nhận lưu ${missing.length}/${documents.length} document.`,
+        sentCount: documents.length,
+        persistedCount: documents.length - missing.length,
+      };
     }
     console.log(`[angel-knowledge] verify OK — ${documents.length} doc(s) persisted`);
   }
@@ -315,6 +358,8 @@ export async function pushToAngelKnowledge(
     reference: reference ? String(reference) : undefined,
     duplicate: duplicateCount > 0 && duplicateCount === documents.length,
     itemStatuses,
+    sentCount: documents.length,
+    persistedCount: verifyPersistence ? documents.length : undefined,
   };
 }
 
@@ -328,23 +373,50 @@ export async function deleteFromAngelKnowledge(
   }
   const body: Record<string, unknown> = { action: "delete", source };
   if (source_ref) body.source_ref = source_ref;
-  const { ok, status, text } = await postAction(body);
-  return ok ? { ok: true, status } : { ok: false, status, error: `HTTP ${status}: ${text.slice(0, 300)}` };
+  const { ok, status, code } = await postAction(body);
+  return ok
+    ? { ok: true, status }
+    : { ok: false, status: status || undefined, code, error: safeTransportError(code, status) };
 }
 
 /** Tra cứu ingest_status của nhiều source_refs. */
 export async function getAngelKnowledgeStatus(
   source: string,
   source_refs: string[],
-): Promise<{ ok: boolean; items?: unknown[]; error?: string; skipped?: boolean }> {
+): Promise<{ ok: boolean; items?: unknown[]; error?: string; skipped?: boolean; status?: number; code?: string }> {
   if (!getKey()) {
-    return { ok: false, skipped: true, error: "ANGEL_KNOWLEDGE_INGEST_KEY not configured" };
+    return { ok: false, skipped: true, code: "ANGEL_KNOWLEDGE_SECRET_MISSING", error: "Chưa cấu hình secret kết nối Angel AI gốc." };
   }
-  const { ok, status, data, text } = await postAction<{ items?: unknown[] }>({
+  const { ok, status, data, code } = await postAction<{ items?: unknown[] }>({
     action: "status",
     source,
     source_refs,
   });
-  if (!ok) return { ok: false, error: `HTTP ${status}: ${text.slice(0, 300)}` };
-  return { ok: true, items: data?.items || [] };
+  if (!ok) return { ok: false, status: status || undefined, code, error: safeTransportError(code, status) };
+  if (!Array.isArray(data?.items)) {
+    return { ok: false, status, code: "ANGEL_KNOWLEDGE_INVALID_RESPONSE", error: "Angel AI gốc trả phản hồi không đúng định dạng." };
+  }
+  return { ok: true, status, items: data.items };
+}
+
+function safeTransportError(code: string | undefined, status: number): string {
+  if (code === "ANGEL_KNOWLEDGE_SECRET_MISSING") return "Chưa cấu hình secret kết nối Angel AI gốc.";
+  if (code === "ANGEL_KNOWLEDGE_TIMEOUT") return "Kết nối Angel AI gốc quá thời gian chờ.";
+  if (code === "ANGEL_KNOWLEDGE_NETWORK_ERROR") return "Không thể kết nối tới Angel AI gốc do lỗi mạng.";
+  if (code === "ANGEL_KNOWLEDGE_INVALID_RESPONSE") return "Angel AI gốc trả phản hồi không đúng định dạng.";
+  return `Angel AI gốc từ chối yêu cầu (HTTP ${status}).`;
+}
+
+/** Read-only connection check against a synthetic reference. Never upserts or deletes data. */
+export async function testAngelKnowledgeConnection(): Promise<{
+  ok: boolean;
+  code?: string;
+  status?: number;
+  error?: string;
+}> {
+  const result = await getAngelKnowledgeStatus("telegram_channel", ["__connection_check__"]);
+  if (!result.ok) {
+    return { ok: false, code: result.code, status: result.status, error: result.error };
+  }
+  return { ok: true, status: result.status };
 }

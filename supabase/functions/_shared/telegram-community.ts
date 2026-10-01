@@ -4866,8 +4866,8 @@ export async function logModeration(adminClient: SupabaseClient, params: {
   reason: string;
   messageText?: string | null;
   messageId?: number | null;
-}) {
-  await adminClient.from("telegram_community_moderation_logs").insert({
+}): Promise<{ ok: boolean; errorCode?: string }> {
+  const { error } = await adminClient.from("telegram_community_moderation_logs").insert({
     group_id: params.groupId,
     telegram_user_id: params.userId ?? null,
     username: params.username ?? null,
@@ -4876,6 +4876,15 @@ export async function logModeration(adminClient: SupabaseClient, params: {
     message_text: params.messageText?.slice(0, 500) ?? null,
     message_id: params.messageId ?? null,
   });
+  if (error) {
+    console.error("[telegram-community] moderation log insert failed", {
+      action: params.action,
+      group_id: params.groupId,
+      code: error.code ?? null,
+    });
+    return { ok: false, errorCode: error.code ?? "unknown" };
+  }
+  return { ok: true };
 }
 
 // ─── Bilingual moderation notice ─────────────────────────────────────────────

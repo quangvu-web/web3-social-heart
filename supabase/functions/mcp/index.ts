@@ -11,7 +11,7 @@ import { defineTool } from "npm:@lovable.dev/mcp-js@0.20.0";
 function supabaseForUser(ctx) {
   return createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_PUBLISHABLE_KEY,
+    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY,
     {
       global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
       auth: { persistSession: false, autoRefreshToken: false }
@@ -46,7 +46,7 @@ import { z } from "npm:zod@^4.4.3";
 function supabaseForUser2(ctx) {
   return createClient2(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_PUBLISHABLE_KEY,
+    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY,
     {
       global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
       auth: { persistSession: false, autoRefreshToken: false }
@@ -83,7 +83,7 @@ import { z as z2 } from "npm:zod@^4.4.3";
 function supabaseForUser3(ctx) {
   return createClient3(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_PUBLISHABLE_KEY,
+    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY,
     {
       global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
       auth: { persistSession: false, autoRefreshToken: false }

@@ -3904,7 +3904,37 @@ function telegramForwardOriginLabel(message: TelegramMessage): string | null {
   return null;
 }
 
-export function detectTelegramScam(message: TelegramMessage): TelegramScamDetection {
+function isTrustedReferralPromoUrl(rawUrl: string, trustedDomains: string[]): boolean {
+  try {
+    const url = new URL(rawUrl.replace(/[),.;!?]+$/, ""));
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    return trustedDomains.some((entry) => {
+      const domain = entry.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/:?#]/)[0];
+      return Boolean(domain) && (host === domain || host.endsWith(`.${domain}`));
+    });
+  } catch {
+    return false;
+  }
+}
+
+function isReferralCashbackPromotion(message: TelegramMessage, trustedDomains: string[]): boolean {
+  const text = extractText(message);
+  if (!/(?:hoàn\s*(?:trả|tiền)|cash\s*back|cashback|rebate|commission|chiết\s*khấu|hoa\s*hồng)/i.test(text)) return false;
+  if (!/\b\d{1,3}\s*%/.test(text)) return false;
+  return extractUrls(message).some((rawUrl) => {
+    if (isTrustedReferralPromoUrl(rawUrl, trustedDomains)) return false;
+    try {
+      const url = new URL(rawUrl.startsWith("www.") ? `https://${rawUrl}` : rawUrl);
+      return [...url.searchParams.keys()].some((key) =>
+        /^(?:ref|ref_id|referral|affiliate|aff|invite|partner|promo|campaign)$/i.test(key)
+      );
+    } catch {
+      return false;
+    }
+  });
+}
+
+export function detectTelegramScam(message: TelegramMessage, trustedDomains: string[] = []): TelegramScamDetection {
   const inlineKeyboard = message.reply_markup?.inline_keyboard ?? [];
   const buttonTexts = inlineKeyboard.flatMap((row) => row.map((button) => button.text ?? "").filter(Boolean));
   const hasInlineKeyboard = inlineKeyboard.length > 0;
@@ -3930,6 +3960,7 @@ export function detectTelegramScam(message: TelegramMessage): TelegramScamDetect
 
   const combined = parts.join("\n");
   const normalized = normalizeScamToken(combined);
+  const referralCashbackPromo = isReferralCashbackPromotion(message, trustedDomains);
   const matchedKeywords = TELEGRAM_QR_PHISHING_STRONG_KEYWORDS.filter((keyword) =>
     normalized.includes(normalizeScamToken(keyword))
   );
@@ -3972,10 +4003,12 @@ export function detectTelegramScam(message: TelegramMessage): TelegramScamDetect
       if (normalized.includes(normalizeScamToken(keyword))) matchedKeywords.push(keyword);
     }
   }
-  const isScam = matchedKeywords.length > 0 || suspiciousButton || forwardedScam || cryptoMiningScam;
+  const isScam = matchedKeywords.length > 0 || suspiciousButton || forwardedScam || cryptoMiningScam || referralCashbackPromo;
 
   const severity: TelegramScamDetection["severity"] =
-    cryptoMiningScam
+    referralCashbackPromo
+      ? "high"
+      : cryptoMiningScam
       ? "high"
       : matchedKeywords.some((keyword) => /qr|groupauc|desktop|phone|install|restricted/i.test(keyword)) || suspiciousButton
       ? "high"
@@ -3985,7 +4018,9 @@ export function detectTelegramScam(message: TelegramMessage): TelegramScamDetect
           ? "medium"
           : "low";
 
-  const reason = cryptoMiningScam
+  const reason = referralCashbackPromo
+    ? "referral_cashback_promo"
+    : cryptoMiningScam
     ? "crypto_cloud_mining_scam"
     : suspiciousButton
     ? "fake_verification_button"
@@ -3999,7 +4034,7 @@ export function detectTelegramScam(message: TelegramMessage): TelegramScamDetect
     isScam,
     severity,
     reason,
-    matchedKeywords,
+    matchedKeywords: referralCashbackPromo ? [...matchedKeywords, "referral_cashback_percentage"] : matchedKeywords,
     hasInlineKeyboard,
     hasUrlButton,
     forwardOrigin,
@@ -5669,4 +5704,3 @@ export async function transcribeTelegramAudio(params: {
     return null;
   }
 }
-

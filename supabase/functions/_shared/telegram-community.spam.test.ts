@@ -1,10 +1,32 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   detectAutomatedCjkScam,
+  detectTelegramScam,
   looksLikeMentionBait,
   looksLikeCjkPromo,
   looksLikeVietnameseAbuse,
 } from "./telegram-community.ts";
+
+Deno.test("referral cashback promotion: screenshot pattern is detected", () => {
+  const detection = detectTelegramScam({
+    text: "Hãy kiểm tra công ty thanh toán uy tín này 👇👇👇\nhttps://xezopoint.com/register?ref=19\nHọ cung cấp tỷ lệ hoàn trả 10%, 30%, 50%, và thậm chí 100%, tùy thuộc vào gói bạn chọn.",
+  });
+  assertEquals(detection.isScam, true);
+  assertEquals(detection.reason, "referral_cashback_promo");
+  assertEquals(detection.severity, "high");
+});
+
+Deno.test("referral cashback promotion: approved trusted destination is exempt", () => {
+  const detection = detectTelegramScam({
+    text: "Hoàn trả 100% theo chương trình: https://offers.fun.rich/register?ref=19",
+  }, ["fun.rich"]);
+  assertEquals(detection.isScam, false);
+});
+
+Deno.test("referral cashback promotion: link or cashback claims alone are not enough", () => {
+  assertEquals(detectTelegramScam({ text: "https://example.com/register?ref=19" }).isScam, false);
+  assertEquals(detectTelegramScam({ text: "Tỷ lệ hoàn trả 100% theo chính sách của nhóm." }).isScam, false);
+});
 
 Deno.test("mention_bait: 3 foreign bots, no real text → detected", () => {
   assertEquals(

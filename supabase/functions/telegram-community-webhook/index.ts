@@ -1568,7 +1568,12 @@ async function handleTelegramScamDetection(params: {
   const messageId = params.message.message_id;
   if (!chatId || !messageId || params.settings.scam_protection_enabled === false) return false;
 
-  const detection = detectTelegramScam(params.message);
+  let detection = detectTelegramScam(params.message);
+  if (detection.reason === "referral_cashback_promo") {
+    // Only fetch the configured domain allowlist for messages that match this
+    // narrow pattern; ordinary group messages do not incur another DB query.
+    detection = detectTelegramScam(params.message, await activeDomains(params.adminClient));
+  }
   if (!detection.isScam) return false;
 
   const user = params.message.from;
@@ -1616,7 +1621,9 @@ async function handleTelegramScamDetection(params: {
     userId: user?.id ?? params.message.sender_chat?.id ?? null,
     username: user?.username ?? params.message.sender_chat?.username ?? null,
     action: deleted ? "scam_deleted" : "scam_detected_delete_failed",
-    reason: `FAKE_TELEGRAM_VERIFICATION:${detection.reason}`,
+    reason: detection.reason === "referral_cashback_promo"
+      ? "REFERRAL_CASHBACK_PROMO"
+      : `FAKE_TELEGRAM_VERIFICATION:${detection.reason}`,
     messageText: JSON.stringify({
       matched_keywords: detection.matchedKeywords,
       has_inline_keyboard: detection.hasInlineKeyboard,
@@ -1629,7 +1636,9 @@ async function handleTelegramScamDetection(params: {
     messageId,
   });
 
-  await sendScamWarningIfAllowed(chatId, params.settings);
+  if (detection.reason !== "referral_cashback_promo") {
+    await sendScamWarningIfAllowed(chatId, params.settings);
+  }
   return true;
 }
 

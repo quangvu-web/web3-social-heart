@@ -1390,46 +1390,6 @@ async function handleCallback(update: TelegramUpdate) {
   }
 }
 
-async function handleWelcome(message: TelegramMessage, settings: NonNullable<Awaited<ReturnType<typeof getSettingsForGroup>>>) {
-  const chatId = message.chat?.id;
-  if (!chatId || !message.new_chat_members?.length) return;
-
-  const { adminClient } = getClients();
-  for (const member of message.new_chat_members) {
-    if (member.is_bot) continue;
-    const blocked = await runJoinGate(adminClient, {
-      groupId: chatId,
-      member: member as NonNullable<TelegramMessage["from"]>,
-      settings: settings as CommunitySettings & Record<string, unknown>,
-      reason: "new_chat_members",
-      messageId: message.message_id ?? null,
-    });
-    if (blocked) continue;
-    if (!settings.welcome_enabled) {
-      await logModeration(adminClient, {
-        groupId: chatId,
-        userId: member.id ?? null,
-        username: member.username ?? null,
-        action: "welcome_skipped_disabled",
-        reason: "new_chat_members",
-        messageId: message.message_id ?? null,
-      });
-      continue;
-    }
-    await startVerificationForMember(adminClient, {
-      groupId: chatId,
-      member,
-      settings,
-      reason: "new_chat_members",
-    });
-  }
-
-  // XoÃ¡ tin há»‡ thá»‘ng "X joined the group" Ä‘á»ƒ group Ä‘á»¡ rá»‘i.
-  if (message.message_id) {
-    await deleteMessage(chatId, message.message_id).catch(() => undefined);
-  }
-}
-
 function buildWelcomeText(
   settings: CommunitySettings,
   name: string,
@@ -4948,13 +4908,9 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
 
 
     if (message.new_chat_members?.length) {
-      await handleWelcome(message, settings);
-      return;
-    }
-
-    if (message.new_chat_members?.length) {
-      // Dedup: welcome Ä‘Æ°á»£c gá»­i qua nhÃ¡nh `chat_member` (Ä‘Ã¡ng tin hÆ¡n, báº¯t cáº£ invite-link).
-      // á»ž Ä‘Ã¢y chá»‰ log Ä‘á»ƒ xÃ¡c nháº­n, KHÃ”NG gá»­i welcome trÃ¡nh láº·p 2 láº§n.
+      // Telegram thường gửi cả `chat_member` và `message.new_chat_members` cho
+      // cùng lượt vào nhóm. `chat_member` là luồng gửi welcome/captcha chính;
+      // message chỉ ghi nhận để tránh gửi trùng, nhất là khi captcha đang tắt.
       for (const member of message.new_chat_members) {
         if (member.is_bot) continue;
         await logModeration(adminClient, {
@@ -4966,8 +4922,9 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
           messageId: message.message_id ?? null,
         });
       }
-      // Giá»¯ láº¡i reference Ä‘á»ƒ TS khÃ´ng bÃ¡o unused: handleWelcome váº«n export cho /welcome test ná»™i bá»™.
-      void handleWelcome;
+      if (message.message_id) {
+        await deleteMessage(message.chat.id, message.message_id).catch(() => undefined);
+      }
       return;
     }
 

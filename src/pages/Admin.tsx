@@ -48,6 +48,7 @@ import {
   resolveAdminTab,
   type AdminTab,
 } from "@/components/admin/telegramOperationsConfig";
+import { resolveAdminAccess } from "@/components/admin/adminAccess";
 
 const adminTabIcons = {
   overview: BarChart3,
@@ -144,40 +145,49 @@ const Admin = () => {
     setMobileMenuOpen(false);
   };
 
+  const [accessError, setAccessError] = useState<string | null>(null);
+
   useEffect(() => {
     checkAdminStatus();
   }, []);
 
   const checkAdminStatus = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        navigate("/feed");
-        return;
-      }
+    setLoading(true);
+    setAccessError(null);
+    const result = await resolveAdminAccess({
+      // getSession chờ khôi phục phiên xong (kể cả refresh token) trước khi trả kết quả.
+      getUserId: async () => {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        return session?.user.id ?? null;
+      },
+      hasRole: async (userId) => {
+        const { data, error } = await supabase.rpc('has_role', { _user_id: userId, _role: 'admin' });
+        return { data, error };
+      },
+      refreshSession: async () => { await supabase.auth.refreshSession(); },
+    });
 
-      setCurrentUserId(session.user.id);
-
-      const { data: hasRole, error } = await supabase.rpc('has_role', {
-        _user_id: session.user.id,
-        _role: 'admin'
-      });
-
-      if (error || !hasRole) {
-        toast.error("Bạn không có quyền truy cập trang này");
-        navigate("/feed");
-        return;
-      }
-
-      await loadAllUsers();
-      setIsAdmin(true);
-    } catch (error) {
-      console.error("Error checking admin status:", error);
-      navigate("/feed");
-    } finally {
-      setLoading(false);
+    if (result.status === "no-session") {
+      navigate(`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`, { replace: true });
+      return;
     }
+    if (result.status === "denied") {
+      toast.error("Tài khoản này không có quyền admin");
+      navigate("/feed", { replace: true });
+      return;
+    }
+    if (result.status === "error") {
+      console.error("[Admin] Không xác minh được quyền admin:", result.reason);
+      setAccessError(result.reason);
+      setLoading(false);
+      return;
+    }
+
+    setCurrentUserId(result.userId);
+    setIsAdmin(true);
+    setLoading(false);
+    void loadAllUsers();
   };
 
   const loadAllUsers = useCallback(async () => {
@@ -236,6 +246,25 @@ const Admin = () => {
         <div className="flex flex-col items-center gap-4" role="status" aria-live="polite">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           <p className="text-sm text-muted-foreground">Đang kiểm tra quyền truy cập…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (accessError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="max-w-md space-y-4 text-center" role="alert">
+          <ShieldAlert className="mx-auto h-10 w-10 text-destructive" aria-hidden="true" />
+          <h1 className="text-lg font-semibold text-foreground">Chưa xác minh được quyền truy cập</h1>
+          <p className="text-sm text-muted-foreground">
+            Không kiểm tra được quyền admin do lỗi kết nối hoặc phiên đăng nhập. Đây không phải kết luận rằng tài khoản không có quyền.
+          </p>
+          <p className="text-xs text-muted-foreground">Mã chẩn đoán: {accessError}</p>
+          <div className="flex justify-center gap-2">
+            <Button onClick={() => void checkAdminStatus()}>Thử lại</Button>
+            <Button variant="outline" onClick={() => navigate("/")}>Về trang chủ</Button>
+          </div>
         </div>
       </div>
     );

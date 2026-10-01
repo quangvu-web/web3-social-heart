@@ -3,7 +3,7 @@
  *
  * Endpoint contract: https://angel.fun.rich/docs/knowledge-ingest-api
  *   POST https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/knowledge-external-ingest
- *   Header: x-api-key: <ANGEL_KNOWLEDGE_INGEST_KEY>
+ *   Header: x-api-key: <khóa được chọn bởi getKey()>
  *
  * 3 action:
  *   - upsert (documents[])  → pushToAngelKnowledge()
@@ -22,6 +22,9 @@ const INGEST_URL =
 
 function getKey(): string | null {
   return (
+    // Thứ tự ưu tiên áp dụng cho mọi caller của adapter, không phân theo source.
+    // Chỉ dùng khóa cũ khi khóa ưu tiên chưa cấu hình; không đổi khóa khi HTTP lỗi.
+    Deno.env.get("ANGEL_KNOWLEDGE_INGEST_KEY_FUNRICHBOT") ||
     Deno.env.get("ANGEL_KNOWLEDGE_INGEST_KEY") ||
     Deno.env.get("ANGEL_AI_API_KEY") || // fallback tương thích ngược 1 nhịp
     null
@@ -133,8 +136,8 @@ export async function pushToAngelKnowledge(
   options: { chunk_now?: boolean; verify?: boolean } = {},
 ): Promise<AngelKnowledgeResult> {
   if (!getKey()) {
-    console.log("[angel-knowledge] ANGEL_KNOWLEDGE_INGEST_KEY chưa cấu hình — skip push");
-    return { ok: false, skipped: true, error: "ANGEL_KNOWLEDGE_INGEST_KEY not configured" };
+    console.log("[angel-knowledge] Chưa cấu hình ingest credential — skip push");
+    return { ok: false, skipped: true, error: "Angel knowledge ingest key not configured" };
   }
 
   const list = Array.isArray(input) ? input : [input];
@@ -324,7 +327,7 @@ export async function deleteFromAngelKnowledge(
   source_ref?: string,
 ): Promise<AngelKnowledgeResult> {
   if (!getKey()) {
-    return { ok: false, skipped: true, error: "ANGEL_KNOWLEDGE_INGEST_KEY not configured" };
+    return { ok: false, skipped: true, error: "Angel knowledge ingest key not configured" };
   }
   const body: Record<string, unknown> = { action: "delete", source };
   if (source_ref) body.source_ref = source_ref;
@@ -338,7 +341,7 @@ export async function getAngelKnowledgeStatus(
   source_refs: string[],
 ): Promise<{ ok: boolean; items?: unknown[]; error?: string; skipped?: boolean }> {
   if (!getKey()) {
-    return { ok: false, skipped: true, error: "ANGEL_KNOWLEDGE_INGEST_KEY not configured" };
+    return { ok: false, skipped: true, error: "Angel knowledge ingest key not configured" };
   }
   const { ok, status, data, text } = await postAction<{ items?: unknown[] }>({
     action: "status",

@@ -280,6 +280,8 @@ export default function TelegramGroupPanel() {
   const [webhookInfo, setWebhookInfo] = useState<WebhookInfo | null>(null);
   const [showWebhookDiag, setShowWebhookDiag] = useState(false);
   const [checkingWebhook, setCheckingWebhook] = useState(false);
+  const [checkingDeletePermission, setCheckingDeletePermission] = useState(false);
+  const [deletePermission, setDeletePermission] = useState<{ status: string; can_delete_messages: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newDomain, setNewDomain] = useState("");
@@ -393,6 +395,10 @@ export default function TelegramGroupPanel() {
     loadWebhookInfo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setDeletePermission(null);
+  }, [selectedGroupId]);
 
   const updateSettings = async (patch: Partial<Settings>) => {
     if (!settings) return;
@@ -864,6 +870,29 @@ export default function TelegramGroupPanel() {
               {checkingWebhook ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
               Kiểm tra webhook
             </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!settings?.group_id) return;
+                setCheckingDeletePermission(true);
+                try {
+                  const data = await invokeAdmin("check_delete_permission", { group_id: settings.group_id });
+                  const result = { status: String(data.status ?? "unknown"), can_delete_messages: data.can_delete_messages === true };
+                  setDeletePermission(result);
+                  if (result.can_delete_messages) toast.success("Bot có quyền xóa tin nhắn trong group.");
+                  else toast.error("⚠️ Angel AI không có quyền Delete Messages trong group này.");
+                } catch (e: unknown) {
+                  setDeletePermission(null);
+                  toast.error(e instanceof Error ? e.message : "Kiểm tra quyền xóa thất bại");
+                } finally {
+                  setCheckingDeletePermission(false);
+                }
+              }}
+              disabled={checkingDeletePermission || !settings?.group_id}
+            >
+              {checkingDeletePermission ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
+              Kiểm tra quyền xóa
+            </Button>
             <Button variant="outline" onClick={sendTestMessage} disabled={loading || !settings?.group_id}>
               <Send className="w-4 h-4 mr-2" />
               Send test message
@@ -899,6 +928,14 @@ export default function TelegramGroupPanel() {
               🌐 Set Mini App Button
             </Button>
           </div>
+          {deletePermission && !deletePermission.can_delete_messages && (
+            <div role="alert" className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              ⚠️ Angel AI không có quyền Delete Messages trong group này. Trạng thái bot: {deletePermission.status}. Hãy cấp quyền quản trị viên có thể xóa tin nhắn trong Telegram.
+            </div>
+          )}
+          {deletePermission?.can_delete_messages && (
+            <p className="mt-3 text-sm text-muted-foreground">Bot có quyền Delete Messages (trạng thái: {deletePermission.status}).</p>
+          )}
         </CardContent>
       </Card>
 
@@ -1475,7 +1512,7 @@ export default function TelegramGroupPanel() {
                     checked={settings.scam_protection_enabled !== false}
                     onCheckedChange={(scam_protection_enabled) => updateSettings({ scam_protection_enabled })}
                   />
-                  <Label>Block fake verification / QR login scam</Label>
+                  <Label>Enable scam and phishing protection</Label>
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch
@@ -1489,7 +1526,10 @@ export default function TelegramGroupPanel() {
                     checked={settings.scam_strict_mode === true}
                     onCheckedChange={(scam_strict_mode) => updateSettings({ scam_strict_mode })}
                   />
-                  <Label>Strict mode: include admins</Label>
+                  <div>
+                    <Label>Strict scam detection</Label>
+                    <p className="text-xs text-muted-foreground">Use a lower risk threshold. All members, including admins, are checked either way.</p>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>New user restriction hours</Label>

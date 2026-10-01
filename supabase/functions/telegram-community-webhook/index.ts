@@ -85,6 +85,11 @@
   type TelegramUpdate,
   getCommunityUserAvatarPhoto,
 } from "../_shared/telegram-community.ts";
+import {
+  assessTelegramScamRisk,
+  enforceScamDeletion,
+  type ScamModerationContext,
+} from "../_shared/telegram-scam-protection.ts";
 import { tryFetchTelegramMedia } from "../_shared/telegram-media.ts";
 import { loadAngelRuleOverrides } from "../_shared/angel-facts.ts";
 import {
@@ -1552,7 +1557,7 @@ async function sendScamWarningIfAllowed(chatId: number, settings: CommunitySetti
   scamWarningLastSentAt.set(chatId, now);
   await sendMessage(
     chatId,
-    "⚠️ Cảnh báo: Tin nhắn xác minh/QR login đáng ngờ đã bị xoá. Vui lòng không bấm link, không quét QR, không nhập OTP, không cài app lạ.",
+    "⚠️ Cảnh báo: Tin nhắn có dấu hiệu scam/phishing đã bị xoá. Vui lòng không bấm link đáng ngờ, không nhập OTP, mật khẩu, seed phrase hoặc private key.",
     { skipAutoDelete: true },
   ).catch((err) => console.warn("[SCAM_DETECTED] warning_send_failed", err));
 }
@@ -1561,77 +1566,104 @@ async function handleTelegramScamDetection(params: {
   adminClient: ReturnType<typeof getClients>["adminClient"];
   message: TelegramMessage;
   settings: CommunitySettings;
-  isAdminSender: boolean;
   msgType: string;
 }): Promise<boolean> {
   const chatId = params.message.chat?.id;
   const messageId = params.message.message_id;
   if (!chatId || !messageId || params.settings.scam_protection_enabled === false) return false;
 
-  let detection = detectTelegramScam(params.message);
-  if (detection.reason === "referral_cashback_promo") {
-    // Only fetch the configured domain allowlist for messages that match this
-    // narrow pattern; ordinary group messages do not incur another DB query.
-    detection = detectTelegramScam(params.message, await activeDomains(params.adminClient));
-  }
-  if (!detection.isScam) return false;
+  const urls = extractUrls(params.message);
+  const trustedDomains = urls.length ? await activeDomains(params.adminClient) : [];
+  const detection = detectTelegramScam(params.message, trustedDomains);
+  const riskAssessment = assessTelegramScamRisk({
+    text: extractText(params.message),
+    urls,
+    trustedDomains,
+    strictMode: params.settings.scam_strict_mode === true,
+  });
+  if (!detection.isScam && !riskAssessment.shouldDelete) return false;
 
   const user = params.message.from;
-  const strictMode = params.settings.scam_strict_mode === true;
-  if (params.isAdminSender && !strictMode) {
-    console.log("[SCAM_DETECTED] skipped_admin", {
-      chat_id: chatId,
-      message_id: messageId,
-      user_id: user?.id ?? params.message.sender_chat?.id ?? null,
-      username: user?.username ?? params.message.sender_chat?.username ?? null,
-      detection_reason: detection.reason,
-      matched_keywords: detection.matchedKeywords,
-      strict_mode: false,
-    });
-    return false;
-  }
-
-  let deleted = false;
-  let deleteError: string | null = null;
-  try {
-    const result = await deleteMessage(chatId, messageId);
-    deleted = result.ok === true;
-    if (!deleted) deleteError = JSON.stringify(result.data ?? result).slice(0, 240);
-  } catch (err) {
-    deleteError = err instanceof Error ? err.message : String(err);
-  }
-
-  console.log("[SCAM_DETECTED]", {
-    chat_id: chatId,
-    message_id: messageId,
-    user_id: user?.id ?? params.message.sender_chat?.id ?? null,
+  const isAdminSender = Boolean(
+    (user?.id && await isTelegramAdmin(chatId, user.id)) ||
+      (params.message.sender_chat?.id && params.message.sender_chat.id === chatId)
+  );
+  const finalAssessment = detection.isScam
+    ? {
+      ...riskAssessment,
+      shouldDelete: true,
+      riskScore: Math.max(riskAssessment.riskScore, detection.severity === "high" ? 8 : 7),
+      matchedRules: [...new Set([...riskAssessment.matchedRules, `existing_detector:${detection.reason}`, ...detection.matchedKeywords])],
+    }
+    : riskAssessment;
+  const moderationContext: ScamModerationContext = {
+    chatId,
+    messageId,
+    userId: user?.id ?? null,
     username: user?.username ?? params.message.sender_chat?.username ?? null,
-    first_name: user?.first_name ?? params.message.sender_chat?.title ?? null,
-    detection_reason: detection.reason,
-    matched_keywords: detection.matchedKeywords,
-    has_inline_keyboard: detection.hasInlineKeyboard,
-    has_url_button: detection.hasUrlButton,
-    forward_origin: detection.forwardOrigin,
-    deleted,
-    delete_error: deleteError,
+    senderChatId: params.message.sender_chat?.id ?? null,
+    isAdmin: isAdminSender,
+    messageType: params.msgType,
+    scamStrictMode: params.settings.scam_strict_mode === true,
+    antiSpamEnabled: params.settings.anti_spam_enabled,
+    scamProtectionEnabled: true,
+  };
+  const deleteOutcome = await enforceScamDeletion({
+    context: moderationContext,
+    assessment: finalAssessment,
+    deleteMessage: async () => {
+      const result = await deleteMessage(chatId, messageId);
+      const data = result.data as { error_code?: number; description?: string; ok?: boolean } | undefined;
+      return {
+        ok: result.ok === true,
+        errorCode: data?.error_code,
+        errorDescription: data?.description ?? (result.ok ? undefined : JSON.stringify(data ?? result).slice(0, 240)),
+      };
+    },
+    checkDeletePermission: async () => {
+      const bot = await getBotInfo();
+      if (!bot) return { canDeleteMessages: null, status: "unknown", errorDescription: "getMe failed" };
+      const result = await getChatMember(chatId, bot.id);
+      if (!result.ok) {
+        const data = result.data as { description?: string } | undefined;
+        return { canDeleteMessages: null, status: "unknown", errorDescription: data?.description ?? "getChatMember failed" };
+      }
+      const member = result.data?.result as { status?: string; can_delete_messages?: boolean } | undefined;
+      const status = member?.status ?? "unknown";
+      const canDeleteMessages = status === "creator" || (status === "administrator" && member?.can_delete_messages === true);
+      return { canDeleteMessages, status };
+    },
+    log: (event) => console.log("[TELEGRAM_MODERATION]", event),
   });
 
+  const deletionError = deleteOutcome === "delete_failed" ? "See structured delete_failed event" : null;
+  const matchedRules = finalAssessment.matchedRules;
+  const redactedUrls = finalAssessment.urls.map((raw) => {
+    try {
+      const url = new URL(raw.startsWith("www.") ? `https://${raw}` : raw);
+      return `${url.protocol}//${url.hostname}${url.pathname}`.slice(0, 240);
+    } catch {
+      return raw.slice(0, 240);
+    }
+  });
   await logModeration(params.adminClient, {
     groupId: chatId,
     userId: user?.id ?? params.message.sender_chat?.id ?? null,
     username: user?.username ?? params.message.sender_chat?.username ?? null,
-    action: deleted ? "scam_deleted" : "scam_detected_delete_failed",
+    action: deleteOutcome === "deleted" ? "scam_deleted" : "scam_detected_delete_failed",
     reason: detection.reason === "referral_cashback_promo"
       ? "REFERRAL_CASHBACK_PROMO"
-      : `FAKE_TELEGRAM_VERIFICATION:${detection.reason}`,
+      : `SCAM_RISK:${matchedRules.slice(0, 8).join(",")}`,
     messageText: JSON.stringify({
-      matched_keywords: detection.matchedKeywords,
-      has_inline_keyboard: detection.hasInlineKeyboard,
-      has_url_button: detection.hasUrlButton,
-      forward_origin: detection.forwardOrigin,
+      matched_rules: matchedRules,
+      risk_score: finalAssessment.riskScore,
+      risk_threshold: finalAssessment.threshold,
+      urls: redactedUrls,
+      existing_detector_reason: detection.reason,
       severity: detection.severity,
-      delete_error: deleteError,
+      delete_error: deletionError,
       message_type: params.msgType,
+      is_admin: isAdminSender,
     }).slice(0, 500),
     messageId,
   });
@@ -1642,7 +1674,61 @@ async function handleTelegramScamDetection(params: {
   return true;
 }
 
-async function evaluateModeration(message: TelegramMessage, settings: NonNullable<Awaited<ReturnType<typeof getSettingsForGroup>>>): Promise<boolean> {
+function emitModerationPipelineEvent(
+  event: string,
+  message: TelegramMessage,
+  extra: Record<string, unknown> = {},
+) {
+  const urls = extractUrls(message).map((raw) => {
+    try {
+      const url = new URL(raw.startsWith("www.") ? `https://${raw}` : raw);
+      return `${url.protocol}//${url.hostname}${url.pathname}`.slice(0, 240);
+    } catch {
+      return raw.slice(0, 240);
+    }
+  });
+  console.log("[TELEGRAM_MODERATION]", {
+    event,
+    chat_id: message.chat?.id ?? null,
+    message_id: message.message_id ?? null,
+    user_id: message.from?.id ?? null,
+    username: message.from?.username ?? message.sender_chat?.username ?? null,
+    sender_chat_id: message.sender_chat?.id ?? null,
+    message_type: classifyMessageType(message),
+    urls,
+    ...extra,
+  });
+}
+
+async function evaluateModeration(
+  message: TelegramMessage,
+  settings: NonNullable<Awaited<ReturnType<typeof getSettingsForGroup>>>,
+): Promise<boolean> {
+  emitModerationPipelineEvent("moderation_started", message, {
+    phase: "anti_spam",
+    anti_spam_enabled: settings.anti_spam_enabled,
+    scam_protection_enabled: settings.scam_protection_enabled !== false,
+    scam_strict_mode: settings.scam_strict_mode === true,
+  });
+  try {
+    const actioned = await evaluateModerationCore(message, settings);
+    emitModerationPipelineEvent("moderation_result", message, {
+      action: actioned ? "moderated" : "kept",
+      anti_spam_enabled: settings.anti_spam_enabled,
+      scam_protection_enabled: settings.scam_protection_enabled !== false,
+      scam_strict_mode: settings.scam_strict_mode === true,
+    });
+    return actioned;
+  } catch (error) {
+    emitModerationPipelineEvent("moderation_result", message, {
+      action: "error",
+      error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+    });
+    throw error;
+  }
+}
+
+async function evaluateModerationCore(message: TelegramMessage, settings: NonNullable<Awaited<ReturnType<typeof getSettingsForGroup>>>): Promise<boolean> {
   const chatId = message.chat?.id;
   const messageId = message.message_id;
   const user = message.from;
@@ -1655,8 +1741,6 @@ async function evaluateModeration(message: TelegramMessage, settings: NonNullabl
   const text = extractText(message);
   const msgType = classifyMessageType(message);
   const userIsAdmin = Boolean(user?.id && await isTelegramAdmin(chatId, user.id));
-  const senderChatIsGroupAdmin = Boolean(message.sender_chat?.id && message.sender_chat.id === chatId);
-  const isAdminSender = userIsAdmin || senderChatIsGroupAdmin;
 
   // Foreign bots and inline bots previously bypassed the legacy CJK detector at
   // `user.is_bot`. Run this deterministic, no-AI check first. The official
@@ -1740,19 +1824,15 @@ async function evaluateModeration(message: TelegramMessage, settings: NonNullabl
     return true;
   }
 
-  const scamHandled = await handleTelegramScamDetection({
-    adminClient,
-    message,
-    settings,
-    isAdminSender,
-    msgType,
-  });
-  if (scamHandled) return true;
   if (!settings.anti_spam_enabled) return false;
 
-  if (user?.is_bot) return false;
+  if (user?.is_bot) {
+    emitModerationPipelineEvent("moderation_bypassed", message, { reason: "sender_is_bot", is_admin: userIsAdmin });
+    return false;
+  }
 
   if (userIsAdmin) {
+    emitModerationPipelineEvent("moderation_bypassed", message, { reason: "admin_anti_spam_exemption", is_admin: true });
     return false;
   }
   if (message.sender_chat?.id && (await isTrustedSenderChat(adminClient, chatId, message.sender_chat.id))) {
@@ -4676,7 +4756,17 @@ async function handleMyChatMemberUpdate(update: TelegramUpdate, req: Request): P
 }
 
 async function processUpdate(update: TelegramUpdate, req: Request): Promise<void> {
-  console.log("[webhook] update keys:", Object.keys(update).filter(k => k !== "update_id"));
+  const receivedMessage = update.message ?? update.edited_message;
+  if (receivedMessage && isGroup(receivedMessage.chat?.type)) {
+    console.log("[TELEGRAM_MODERATION]", {
+      event: "telegram_update_received",
+      update_id: update.update_id ?? null,
+      update_types: Object.keys(update).filter((key) => key !== "update_id"),
+      chat_id: receivedMessage.chat?.id ?? null,
+      message_id: receivedMessage.message_id ?? null,
+    });
+    emitModerationPipelineEvent("telegram_message_received", receivedMessage);
+  }
   try {
     const _adminForRules = getClients(req).adminClient;
     await loadAngelRuleOverrides(_adminForRules);
@@ -4762,6 +4852,12 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
 
     const { adminClient } = getClients(req);
     const settings = await getSettingsForGroup(adminClient, message.chat.id);
+    emitModerationPipelineEvent("group_moderation_config", message, {
+      configuration_found: Boolean(settings),
+      anti_spam_enabled: settings?.anti_spam_enabled ?? null,
+      scam_protection_enabled: settings?.scam_protection_enabled ?? null,
+      scam_strict_mode: settings?.scam_strict_mode ?? null,
+    });
     if (!settings) {
       const botJoinedThisMessage = message.new_chat_members?.some((member) => member.is_bot) ?? false;
       if (botJoinedThisMessage) {
@@ -4800,6 +4896,27 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
 
     // [SENDER CHAT] â€” log every message sent "as Channel" (sender_chat) so we can
     // see whether it is trusted. Never match on title/display name.
+    emitModerationPipelineEvent("moderation_started", message, {
+      phase: "scam_protection",
+      anti_spam_enabled: settings.anti_spam_enabled,
+      scam_protection_enabled: settings.scam_protection_enabled !== false,
+      scam_strict_mode: settings.scam_strict_mode === true,
+    });
+    const scamHandled = await handleTelegramScamDetection({
+      adminClient,
+      message,
+      settings,
+      msgType: classifyMessageType(message),
+    });
+    emitModerationPipelineEvent("moderation_result", message, {
+      phase: "scam_protection",
+      action: scamHandled ? "scam_actioned_stop" : "no_scam_continue",
+      anti_spam_enabled: settings.anti_spam_enabled,
+      scam_protection_enabled: settings.scam_protection_enabled !== false,
+      scam_strict_mode: settings.scam_strict_mode === true,
+    });
+    if (scamHandled) return;
+
     if (message.sender_chat?.id && message.chat?.id) {
       const trusted = await isTrustedSenderChat(
         adminClient,

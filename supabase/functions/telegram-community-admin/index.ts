@@ -5,6 +5,8 @@ import {
   ensureSettings,
   escapeHtml,
   getCommunityUserAvatarUrl,
+  getBotInfo,
+  getChatMember,
   getSettingsForGroup,
   json,
   logModeration,
@@ -157,6 +159,33 @@ Deno.serve(async (req) => {
     const result = await callCommunityTelegram("getChat", { chat_id: targetGroupId });
     if (!result.ok) return json({ success: false, error: "Bot chưa được add vào group này, hoặc Group ID sai", details: result.data }, 502);
     return json({ success: true, chat: result.data?.result ?? null });
+  }
+
+  if (action === "check_delete_permission") {
+    const targetGroupId = Number(payload.group_id);
+    if (!Number.isFinite(targetGroupId) || targetGroupId === 0) {
+      return json({ success: false, error: "Group ID is required" }, 400);
+    }
+    const bot = await getBotInfo();
+    if (!bot) return json({ success: false, error: "Telegram bot getMe check failed" }, 502);
+    const result = await getChatMember(targetGroupId, bot.id);
+    if (!result.ok) {
+      const details = result.data as { description?: string; error_code?: number } | undefined;
+      return json({
+        success: false,
+        error: details?.description ?? "Telegram getChatMember failed",
+        error_code: details?.error_code ?? null,
+      }, 502);
+    }
+    const member = result.data?.result as { status?: string; can_delete_messages?: boolean } | undefined;
+    const status = member?.status ?? "unknown";
+    const canDeleteMessages = status === "creator" || (status === "administrator" && member?.can_delete_messages === true);
+    return json({
+      success: true,
+      status,
+      can_delete_messages: canDeleteMessages,
+      warning: canDeleteMessages ? null : "Angel AI không có quyền Delete Messages trong group này.",
+    });
   }
 
   if (action === "send_test_message") {
@@ -781,4 +810,3 @@ Deno.serve(async (req) => {
 
   return json({ success: false, error: `Unknown action: ${action}` }, 400);
 });
-

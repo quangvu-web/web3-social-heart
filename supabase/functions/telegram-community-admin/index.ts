@@ -260,25 +260,47 @@ Deno.serve(async (req) => {
     }
 
     const description = String(result.data?.description ?? "");
-    await logModeration(adminClient, {
-      groupId: settings.group_id,
-      action: ok ? "welcome_sent" : "welcome_send_failed",
-      reason: usedFallback
-        ? `admin_welcome_test_fallback_no_buttons: ${buttonError ?? ""}`.slice(0, 240)
-        : `admin_welcome_test:${mode}${avatarUrl ? "" : ":no_avatar"}`,
-      messageText: ok ? null : JSON.stringify(result.data ?? result).slice(0, 500),
-      messageId: result.data?.result?.message_id ?? null,
-    });
+    let logRecorded = false;
+    let logErrorCode: string | null = null;
+    try {
+      const logResult = await logModeration(adminClient, {
+        groupId: settings.group_id,
+        action: ok ? "welcome_sent" : "welcome_send_failed",
+        reason: usedFallback
+          ? `admin_welcome_test_fallback_no_buttons: ${buttonError ?? ""}`.slice(0, 240)
+          : `admin_welcome_test:${mode}${avatarUrl ? "" : ":no_avatar"}`,
+        messageText: ok ? null : JSON.stringify(result.data ?? result).slice(0, 500),
+        messageId: result.data?.result?.message_id ?? null,
+      });
+      logRecorded = logResult.ok;
+      logErrorCode = logResult.errorCode ?? null;
+    } catch (error) {
+      logErrorCode = "exception";
+      console.error("[admin] welcome test moderation log threw", {
+        group_id: settings.group_id,
+        name: error instanceof Error ? error.name : "unknown",
+      });
+    }
 
     if (ok) {
+      const messageId = result.data?.result?.message_id ?? null;
+      const warning = [
+        usedFallback
+          ? `Mini App URL "${settings.mini_app_url}" bị Telegram từ chối (${buttonError}). Đã gửi welcome không kèm nút. Cha hãy đổi Mini App URL sang HTTPS hợp lệ trong Settings.`
+          : null,
+        !logRecorded
+          ? `Telegram đã nhận tin (message_id=${messageId ?? "không có"}), nhưng moderation log chưa ghi được (code=${logErrorCode}). Hãy kiểm tra log của Edge Function; chưa xác minh được bản ghi.`
+          : null,
+      ].filter(Boolean).join(" ") || null;
       return json({
         success: true,
         used_fallback: usedFallback,
         mode,
         avatar: Boolean(avatarUrl),
-        warning: usedFallback
-          ? `Mini App URL "${settings.mini_app_url}" bị Telegram từ chối (${buttonError}). Đã gửi welcome không kèm nút. Cha hãy đổi Mini App URL sang HTTPS hợp lệ trong Settings.`
-          : null,
+        log_recorded: logRecorded,
+        log_error_code: logErrorCode,
+        message_id: messageId,
+        warning,
         details: result.data,
       });
     }

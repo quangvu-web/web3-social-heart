@@ -10,3 +10,8 @@ verify_jwt = false
 # than a Supabase user JWT. The function validates that secret itself.
 [functions.telegram-webhook]
 verify_jwt = false
+
+# MCP server: OAuth discovery and the 401 challenge must reach the function
+# without a gateway JWT; @lovable.dev/mcp-js validates bearer tokens itself.
+[functions.mcp]
+verify_jwt = false

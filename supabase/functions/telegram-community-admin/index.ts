@@ -20,7 +20,10 @@ import {
 } from "../_shared/telegram-community.ts";
 import { loadManagedGroupTitles } from "../_shared/managed-groups.ts";
 import { managedGroupSettingsInsert } from "../_shared/telegram-welcome-defaults.ts";
-import { COMMUNITY_WEBHOOK_ALLOWED_UPDATES } from "../_shared/telegram-webhook-config.ts";
+import {
+  COMMUNITY_WEBHOOK_ALLOWED_UPDATES,
+  safeCommunityWebhookStatus,
+} from "../_shared/telegram-webhook-config.ts";
 
 
 
@@ -38,10 +41,6 @@ async function resolveSettings(
     return await getSettingsForGroup(adminClient as never, gid);
   }
   return await ensureSettings(adminClient as never);
-}
-
-function redactedWebhookUrl(projectUrl: string) {
-  return `${projectUrl}/functions/v1/telegram-community-webhook?secret=***`;
 }
 
 async function loadManagedGroups(adminClient: ReturnType<typeof requireAdmin> extends Promise<infer R> ? (R extends { adminClient: infer A } ? A : never) : never) {
@@ -90,11 +89,8 @@ Deno.serve(async (req) => {
 
   if (action === "get_webhook_info") {
     const info = await callCommunityTelegram("getWebhookInfo");
-    return json({
-      success: info.ok,
-      expected_url_prefix: `${supabaseUrl}/functions/v1/telegram-community-webhook`,
-      info: info.data,
-    });
+    const endpoint = `${supabaseUrl}/functions/v1/telegram-community-webhook`;
+    return json({ success: true, webhook: safeCommunityWebhookStatus(info, endpoint) });
   }
 
   if (action === "register_webhook") {
@@ -106,12 +102,11 @@ Deno.serve(async (req) => {
       secret_token: secret,
       drop_pending_updates: false,
     });
-    if (!result.ok) return json({ success: false, error: "setWebhook failed", details: result.data }, 502);
+    if (!result.ok) return json({ success: false, error: "Không thể đăng ký webhook Telegram." }, 502);
     const info = await callCommunityTelegram("getWebhookInfo");
     return json({
       success: true,
-      registered_url_redacted: redactedWebhookUrl(supabaseUrl),
-      info: info.data,
+      webhook: safeCommunityWebhookStatus(info, `${supabaseUrl}/functions/v1/telegram-community-webhook`),
     });
   }
 
@@ -126,9 +121,9 @@ Deno.serve(async (req) => {
       secret_token: secret,
       drop_pending_updates: false,
     });
-    if (!result.ok) return json({ success: false, error: "setWebhook failed", details: result.data }, 502);
+    if (!result.ok) return json({ success: false, error: "Không thể đăng ký lại webhook Telegram." }, 502);
     const info = await callCommunityTelegram("getWebhookInfo");
-    return json({ success: true, info: info.data });
+    return json({ success: true, webhook: safeCommunityWebhookStatus(info, `${supabaseUrl}/functions/v1/telegram-community-webhook`) });
   }
 
 

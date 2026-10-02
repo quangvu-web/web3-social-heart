@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { filterManagedGroups, hasManagedGroupId, managedGroupDisplayName } from "./managedGroups";
 import { createLatestGroupSettingsRequest } from "./telegramGroupSettingsLoad";
+import { REQUIRED_JOIN_WEBHOOK_UPDATES, resolveWebhookUpdatesStatus } from "./telegramWebhookStatus";
 import {
   AlertTriangle,
   Bot,
@@ -210,14 +211,14 @@ type GroupRow = {
 };
 
 type WebhookInfo = {
-  ok?: boolean;
-  result?: {
-    url?: string;
-    pending_update_count?: number;
-    last_error_date?: number;
-    last_error_message?: string;
-    allowed_updates?: string[];
-  };
+  verified: boolean;
+  endpoint_matches?: boolean;
+  pending_update_count?: number;
+  last_error_date?: number | null;
+  has_last_error?: boolean;
+  allowed_updates?: string[];
+  missing_updates?: string[] | null;
+  error_code?: string;
 };
 
 const fmtTime = (iso: string) =>
@@ -287,8 +288,8 @@ export default function TelegramGroupPanel() {
   const [savingQuickReply, setSavingQuickReply] = useState(false);
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [webhookInfo, setWebhookInfo] = useState<WebhookInfo | null>(null);
+  const [webhookLoadState, setWebhookLoadState] = useState<"loading" | "verified" | "unverified">("loading");
   const [showWebhookDiag, setShowWebhookDiag] = useState(false);
-  const [checkingWebhook, setCheckingWebhook] = useState(false);
   const [checkingDeletePermission, setCheckingDeletePermission] = useState(false);
   const [deletePermission, setDeletePermission] = useState<{ status: string; can_delete_messages: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -300,31 +301,62 @@ export default function TelegramGroupPanel() {
   const [logReason, setLogReason] = useState("");
   const [logUser, setLogUser] = useState("");
 
-  const webhookUrl = webhookInfo?.result?.url || "";
-  const lastError = webhookInfo?.result?.last_error_message;
-  const lastErrorDate = webhookInfo?.result?.last_error_date;
+  const lastError = webhookInfo?.has_last_error === true;
+  const lastErrorDate = webhookInfo?.last_error_date ?? undefined;
   const errorAgeMs = lastErrorDate ? Date.now() - lastErrorDate * 1000 : 0;
   const isStaleError = !!lastError && errorAgeMs > 10 * 60 * 1000;
-  const webhookUrlOk = webhookUrl.includes("/functions/v1/telegram-community-webhook");
-  const allowedUpdates = webhookInfo?.result?.allowed_updates ?? [];
-  const missingWelcomeUpdates = ["message", "chat_member"].filter((update) => !allowedUpdates.includes(update));
+  const allowedUpdates = webhookInfo?.allowed_updates;
+  const webhookUpdatesStatus = resolveWebhookUpdatesStatus({
+    loading: webhookLoadState === "loading",
+    verified: webhookLoadState === "verified" && webhookInfo?.verified === true,
+    allowedUpdates,
+  });
   const channelUpdates = ["channel_post", "edited_channel_post"];
-  const hasChannelPost = allowedUpdates.length === 0 || allowedUpdates.includes("channel_post");
-  const hasEditedChannelPost = allowedUpdates.length === 0 || allowedUpdates.includes("edited_channel_post");
-  const statusOk = Boolean(webhookUrl && webhookUrlOk && (!lastError || isStaleError));
+  const channelUpdateEnabled = (update: string) =>
+    Array.isArray(allowedUpdates) && allowedUpdates.length > 0
+      ? allowedUpdates.includes(update)
+      : true;
+  const hasChannelPost = channelUpdateEnabled("channel_post");
+  const hasEditedChannelPost = channelUpdateEnabled("edited_channel_post");
+  const statusOk = Boolean(
+    webhookInfo?.verified && webhookInfo.endpoint_matches && webhookUpdatesStatus.state === "ready" && (!lastError || isStaleError),
+  );
+  const requiredUpdateChecklist = REQUIRED_JOIN_WEBHOOK_UPDATES.map((update) => {
+    const missing = webhookUpdatesStatus.missing.includes(update);
+    const help = webhookUpdatesStatus.state === "loading"
+      ? "Đang tải trạng thái webhook…"
+      : webhookUpdatesStatus.state === "unverified"
+        ? "Không xác minh được từ Telegram. Hãy thử tải lại trạng thái."
+        : missing
+          ? `Thiếu ${update}. Hãy bấm Register webhook để đăng ký đủ update.`
+          : "Đã nhận theo cấu hình webhook hiện tại.";
+    return {
+      label: `Update ${update}`,
+      ok: webhookUpdatesStatus.state === "ready",
+      help,
+      statusLabel: webhookUpdatesStatus.state === "loading"
+        ? "Đang tải"
+        : webhookUpdatesStatus.state === "unverified"
+          ? "Chưa xác minh"
+          : missing
+            ? "Thiếu"
+            : "Đủ",
+    };
+  });
   const checklist = [
     {
-      label: "Webhook points to telegram-community-webhook",
-      ok: statusOk,
-      help: webhookUrl ? "Telegram is currently storing the Community Guard webhook URL." : "Click Refresh status or Register webhook.",
+      label: "Webhook trỏ đến Community Guard",
+      ok: Boolean(webhookInfo?.verified && webhookInfo.endpoint_matches),
+      help: webhookLoadState === "loading"
+        ? "Đang tải trạng thái webhook…"
+        : webhookLoadState === "unverified"
+          ? "Không xác minh được cấu hình webhook từ Telegram. Hãy bấm Kiểm tra webhook để thử lại."
+          : webhookInfo?.endpoint_matches
+            ? "Endpoint đã khớp với Community Guard."
+            : "Webhook đang trỏ đến endpoint khác. Hãy bấm Register webhook nếu cần cập nhật.",
+      statusLabel: webhookLoadState === "loading" ? "Đang tải" : webhookLoadState === "unverified" ? "Chưa xác minh" : webhookInfo?.endpoint_matches ? "Đúng" : "Sai",
     },
-    {
-      label: "Webhook receives welcome events",
-      ok: webhookInfo?.result ? missingWelcomeUpdates.length === 0 : false,
-      help: missingWelcomeUpdates.length
-        ? `Missing allowed updates: ${missingWelcomeUpdates.join(", ")}. Click Register webhook.`
-        : "Allowed updates include message and chat_member.",
-    },
+    ...requiredUpdateChecklist,
     {
       label: "At least 1 group is managed",
       ok: groups.length > 0,
@@ -398,11 +430,16 @@ export default function TelegramGroupPanel() {
   };
 
   const loadWebhookInfo = async () => {
+    setWebhookLoadState("loading");
     try {
       const data = await invokeAdmin("get_webhook_info");
-      setWebhookInfo(data.info ?? null);
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Failed to load webhook info");
+      const info = data.webhook as WebhookInfo | undefined;
+      setWebhookInfo(info ?? null);
+      setWebhookLoadState(info?.verified ? "verified" : "unverified");
+    } catch {
+      setWebhookInfo(null);
+      setWebhookLoadState("unverified");
+      toast.error("Không xác minh được trạng thái webhook. Hãy thử tải lại.");
     }
   };
 
@@ -438,10 +475,12 @@ export default function TelegramGroupPanel() {
     setLoading(true);
     try {
       const data = await invokeAdmin("register_webhook");
-      setWebhookInfo(data.info ?? null);
-      toast.success("Community Guard webhook registered");
+      const info = data.webhook as WebhookInfo | undefined;
+      setWebhookInfo(info ?? null);
+      setWebhookLoadState(info?.verified ? "verified" : "unverified");
+      toast.success("Đã gửi yêu cầu đăng ký webhook. Hãy kiểm tra trạng thái để xác nhận.");
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Failed to register webhook");
+      toast.error("Không thể đăng ký webhook. Hãy kiểm tra cấu hình rồi thử lại.");
     } finally {
       setLoading(false);
     }
@@ -756,29 +795,34 @@ export default function TelegramGroupPanel() {
               {statusOk ? "Webhook OK" : "Needs check"}
             </Badge>
           </CardTitle>
-          <CardDescription>Register and inspect the Community Guard webhook.</CardDescription>
+          <CardDescription>Kiểm tra hoặc chủ động đăng ký webhook Community Guard.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-3 text-sm">
             <div className="rounded-lg border p-3">
               <p className="text-muted-foreground">Group ID</p>
-              <p className="font-mono">{settings?.group_id || "Not configured"}</p>
+              <p className="font-mono">{settings?.group_id || "Chưa cấu hình"}</p>
             </div>
             <div className="rounded-lg border p-3">
-              <p className="text-muted-foreground">Pending updates</p>
-              <p className="font-mono">{webhookInfo?.result?.pending_update_count ?? "Unknown"}</p>
+              <p className="text-muted-foreground">Update đang chờ</p>
+              <p className="font-mono">{webhookInfo?.pending_update_count ?? "Chưa xác minh"}</p>
             </div>
           </div>
           <div className="rounded-lg border p-3 text-sm">
-            <p className="text-muted-foreground">Telegram webhook URL</p>
-            <p className="break-all font-mono">{webhookUrl || "Not registered or not loaded"}</p>
+            <p className="text-muted-foreground">Endpoint webhook</p>
+            <p>{webhookLoadState === "loading" ? "Đang tải trạng thái…" : webhookLoadState === "unverified" ? "Không xác minh được" : webhookInfo?.endpoint_matches ? "Đúng Community Guard" : "Không khớp Community Guard"}</p>
           </div>
-          {webhookInfo?.result && missingWelcomeUpdates.length > 0 && (
+          {webhookUpdatesStatus.state === "missing" && (
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
               <AlertTriangle className="inline h-4 w-4 mr-1" />
-              Telegram webhook is missing updates needed for welcome:
-              <code className="mx-1 rounded bg-white px-1">{missingWelcomeUpdates.join(", ")}</code>
-              Click Register webhook to refresh allowed updates.
+              Webhook thiếu update cần cho luồng join/CAPTCHA:
+              <code className="mx-1 rounded bg-white px-1">{webhookUpdatesStatus.missing.join(", ")}</code>
+              Hãy bấm Register webhook để cập nhật.
+            </div>
+          )}
+          {webhookUpdatesStatus.state === "unverified" && (
+            <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              Không xác minh được danh sách update từ Telegram. Kiểm tra API hoặc thử lại; hệ thống không tự thay đổi webhook.
             </div>
           )}
           {lastError && (
@@ -793,7 +837,7 @@ export default function TelegramGroupPanel() {
                 <AlertTriangle className="inline h-4 w-4 mr-1" />
                 {isStaleError ? (
                   <>
-                    <b>Lỗi cũ:</b> {lastError}
+                    <b>Lỗi giao webhook đã cũ.</b>
                     {lastErrorDate && (
                       <span className="ml-1 opacity-80">
                         — lúc {fmtTime(new Date(lastErrorDate * 1000).toISOString())}
@@ -804,7 +848,7 @@ export default function TelegramGroupPanel() {
                     </div>
                   </>
                 ) : (
-                  <>{lastError}</>
+                  <>Telegram đang báo lỗi giao update gần đây. Hãy kiểm tra lại sau khi xác nhận cấu hình.</>
                 )}
               </div>
               {isStaleError && (
@@ -814,7 +858,9 @@ export default function TelegramGroupPanel() {
                   onClick={async () => {
                     try {
                       const data = await invokeAdmin("clear_webhook_error");
-                      setWebhookInfo(data.info ?? null);
+                      const info = data.webhook as WebhookInfo | undefined;
+                      setWebhookInfo(info ?? null);
+                      setWebhookLoadState(info?.verified ? "verified" : "unverified");
                       toast.success("Đã xoá lỗi cũ — webhook đã được đăng ký lại");
                     } catch (e: unknown) {
                       toast.error(e instanceof Error ? e.message : "Clear error failed");
@@ -826,32 +872,32 @@ export default function TelegramGroupPanel() {
               )}
             </div>
           )}
-          {showWebhookDiag && webhookInfo?.result && (
+          {showWebhookDiag && webhookInfo && (
             <div className="rounded-lg border-2 border-primary/40 bg-primary/5 p-4 text-sm space-y-3">
               <div className="flex items-center justify-between">
-                <p className="font-semibold flex items-center gap-2">
-                  <Shield className="w-4 h-4" /> Kết quả getWebhookInfo
+                  <p className="font-semibold flex items-center gap-2">
+                    <Shield className="w-4 h-4" /> Kết quả getWebhookInfo
                 </p>
                 <Button size="sm" variant="ghost" onClick={() => setShowWebhookDiag(false)}>Đóng</Button>
               </div>
               <div className="grid sm:grid-cols-2 gap-2">
-                <div className={`rounded border p-2 ${webhookUrlOk ? "border-green-400 bg-green-50" : "border-destructive/40 bg-destructive/5"}`}>
+                <div className={`rounded border p-2 ${webhookInfo.endpoint_matches ? "border-green-400 bg-green-50" : "border-destructive/40 bg-destructive/5"}`}>
                   <div className="flex items-center gap-2 font-medium">
-                    {webhookUrlOk ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <AlertTriangle className="w-4 h-4 text-destructive" />}
-                    Webhook URL
+                    {webhookInfo.endpoint_matches ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <AlertTriangle className="w-4 h-4 text-destructive" />}
+                    Endpoint Community Guard
                   </div>
-                  <p className="mt-1 break-all font-mono text-xs">{webhookUrl || "(trống)"}</p>
+                  <p className="mt-1 text-xs">{webhookInfo.endpoint_matches ? "Đúng endpoint" : "Không khớp endpoint"}</p>
                 </div>
                 <div className="rounded border p-2">
-                  <p className="font-medium">Pending updates</p>
-                  <p className="mt-1 font-mono">{webhookInfo.result.pending_update_count ?? 0}</p>
+                  <p className="font-medium">Update đang chờ</p>
+                  <p className="mt-1 font-mono">{webhookInfo.pending_update_count ?? "Chưa có dữ liệu"}</p>
                 </div>
               </div>
               <div>
-                <p className="font-medium mb-1">allowed_updates</p>
+                <p className="font-medium mb-1">Các update đã đăng ký</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {allowedUpdates.length === 0 ? (
-                    <Badge variant="secondary">(mặc định — nhận tất cả trừ chat_member)</Badge>
+                  {!Array.isArray(allowedUpdates) || allowedUpdates.length === 0 ? (
+                    <Badge variant="secondary">Mặc định Telegram: message/callback_query có; chat_member thiếu</Badge>
                   ) : (
                     allowedUpdates.map((u) => (
                       <Badge key={u} variant="outline" className="font-mono">{u}</Badge>
@@ -861,7 +907,7 @@ export default function TelegramGroupPanel() {
               </div>
               <div className="grid sm:grid-cols-2 gap-2">
                 {channelUpdates.map((u) => {
-                  const enabled = allowedUpdates.length === 0 || allowedUpdates.includes(u);
+                  const enabled = channelUpdateEnabled(u);
                   return (
                     <div key={u} className={`rounded border p-2 flex items-center gap-2 ${enabled ? "border-green-400 bg-green-50" : "border-amber-400 bg-amber-50"}`}>
                       {enabled ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <AlertTriangle className="w-4 h-4 text-amber-600" />}
@@ -881,13 +927,9 @@ export default function TelegramGroupPanel() {
                 </div>
               ) : (
                 <div className="rounded border border-amber-400 bg-amber-50 p-2 text-amber-800 text-xs flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" /> Thiếu {channelUpdates.filter(u => !allowedUpdates.includes(u)).join(", ")} — bấm Register webhook để bật.
+                  <AlertTriangle className="w-4 h-4" /> Thiếu {channelUpdates.filter((update) => !channelUpdateEnabled(update)).join(", ")} — bấm Register webhook để bật.
                 </div>
               )}
-              <details className="text-xs">
-                <summary className="cursor-pointer text-muted-foreground">Raw JSON</summary>
-                <pre className="mt-2 rounded bg-muted p-2 overflow-auto max-h-60">{JSON.stringify(webhookInfo, null, 2)}</pre>
-              </details>
             </div>
           )}
           <div className="flex flex-col sm:flex-row gap-2">
@@ -895,28 +937,19 @@ export default function TelegramGroupPanel() {
               {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-2" />}
               Register webhook
             </Button>
-            <Button variant="outline" onClick={loadWebhookInfo}>
+            <Button variant="outline" onClick={loadWebhookInfo} disabled={webhookLoadState === "loading"}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh status
             </Button>
             <Button
               variant="outline"
               onClick={async () => {
-                setCheckingWebhook(true);
-                try {
-                  const data = await invokeAdmin("get_webhook_info");
-                  setWebhookInfo(data.info ?? null);
-                  setShowWebhookDiag(true);
-                  toast.success("Đã lấy getWebhookInfo mới nhất");
-                } catch (e: unknown) {
-                  toast.error(e instanceof Error ? e.message : "Kiểm tra webhook thất bại");
-                } finally {
-                  setCheckingWebhook(false);
-                }
+                await loadWebhookInfo();
+                setShowWebhookDiag(true);
               }}
-              disabled={checkingWebhook}
+              disabled={webhookLoadState === "loading"}
             >
-              {checkingWebhook ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
+              {webhookLoadState === "loading" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
               Kiểm tra webhook
             </Button>
             <Button
@@ -1013,7 +1046,7 @@ export default function TelegramGroupPanel() {
                   <p className="text-muted-foreground">{item.help}</p>
                 </div>
                 <Badge variant={item.ok ? "default" : "outline"} className={item.ok ? "bg-green-500/20 text-green-600 hover:bg-green-500/30" : ""}>
-                  {item.ok ? "OK" : item.manual ? "Manual" : "Check"}
+                  {"statusLabel" in item ? item.statusLabel : item.ok ? "Đủ" : item.manual ? "Cần kiểm tra" : "Chưa đủ"}
                 </Badge>
               </div>
             ))}

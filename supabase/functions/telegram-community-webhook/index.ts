@@ -113,10 +113,6 @@ import {
 import { loadAngelRuleOverrides } from "../_shared/angel-facts.ts";
 import { sanitizeTelegramTransportError, welcomeLogAction } from "../_shared/telegram-transport.ts";
 import {
-  COMMUNITY_WEBHOOK_ALLOWED_UPDATES,
-  missingCommunityWebhookUpdates,
-} from "../_shared/telegram-webhook-config.ts";
-import {
   scanJoinName,
   scanAvatarImage,
   avatarVerdictBlocks,
@@ -1714,44 +1710,6 @@ async function handleVerificationCallback(update: TelegramUpdate): Promise<boole
   return true;
 }
 
-async function ensureWebhookReceivesRequiredUpdates(): Promise<void> {
-  try {
-    const info = await callCommunityTelegram("getWebhookInfo");
-    const allowedUpdates = info?.data?.result?.allowed_updates;
-    const missingUpdates = missingCommunityWebhookUpdates(allowedUpdates);
-    if (!missingUpdates) {
-      console.warn("[webhook] cannot verify allowed_updates; leaving webhook unchanged", {
-        request_ok: info.ok,
-        status: info.status,
-      });
-      return;
-    }
-    if (missingUpdates.length === 0) return;
-
-    const secret = Deno.env.get("COMMUNITY_GUARD_WEBHOOK_SECRET");
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    if (!secret || !supabaseUrl) {
-      console.warn("[webhook] cannot repair allowed_updates: missing secret or SUPABASE_URL");
-      return;
-    }
-
-    const webhookUrl = `${supabaseUrl}/functions/v1/telegram-community-webhook?secret=${encodeURIComponent(secret)}`;
-    const result = await callCommunityTelegram("setWebhook", {
-      url: webhookUrl,
-      allowed_updates: [...COMMUNITY_WEBHOOK_ALLOWED_UPDATES],
-      secret_token: secret,
-      drop_pending_updates: false,
-    });
-    console.warn("[webhook] repaired allowed_updates for community handlers", {
-      missing: missingUpdates,
-      ok: result.ok,
-      status: result.status,
-    });
-  } catch (err) {
-    console.warn("[webhook] allowed_updates repair failed", err);
-  }
-}
-
 async function handleCallback(update: TelegramUpdate) {
   if (await handleVerificationCallback(update)) return;
   const callback = update.callback_query;
@@ -1762,7 +1720,6 @@ async function handleCallback(update: TelegramUpdate) {
   if (!chatId) return;
 
   if (callback.data === "ask_angel_hint") {
-    await ensureWebhookReceivesRequiredUpdates();
     await sendMessage(
       chatId,
       "💛 <b>Hi there</b>, type your question for Angel right here. For example:\n\n• What is FUN.RICH?\n• How do I create a Light Profile?\n• How do I connect my wallet?\n• What's in the Community Rules?\n\nAngel will reply right away 🌟",

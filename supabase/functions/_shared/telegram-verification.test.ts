@@ -3,11 +3,41 @@ import {
   completeVerifiedCallback,
   decideVerificationCallback,
   enforceVerificationFailure,
+  isRecoverableVerificationStatus,
+  resolveJoinFlow,
   releaseVerifiedMember,
+  verificationClaimOutcome,
+  welcomeLogMessageId,
   startVerificationDelivery,
   verificationRestrictionUntil,
   verificationTimeoutSeconds,
 } from "./telegram-verification.ts";
+
+Deno.test("verification remains active when welcome messages are disabled", () => {
+  assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: true, welcomeEnabled: false }), "verify");
+  assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: true, welcomeEnabled: true }), "verify");
+  assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: false, welcomeEnabled: true }), "welcome");
+  assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: false, welcomeEnabled: false }), "skip");
+});
+
+Deno.test("verification claim outcome prevents a duplicate callback from repeating completion", () => {
+  assert.deepStrictEqual(verificationClaimOutcome({ count: 1, hasError: false }), "claimed");
+  assert.deepStrictEqual(verificationClaimOutcome({ count: 0, hasError: false }), "already_claimed");
+  assert.deepStrictEqual(verificationClaimOutcome({ count: null, hasError: false }), "unavailable");
+  assert.deepStrictEqual(verificationClaimOutcome({ count: null, hasError: true }), "unavailable");
+});
+
+Deno.test("a failed permission restoration remains retryable after the original CAPTCHA expires", () => {
+  assert.deepStrictEqual(isRecoverableVerificationStatus("pending"), true);
+  assert.deepStrictEqual(isRecoverableVerificationStatus("release_failed"), true);
+  assert.deepStrictEqual(isRecoverableVerificationStatus("verified"), false);
+  assert.deepStrictEqual(isRecoverableVerificationStatus("failed"), false);
+});
+
+Deno.test("welcome log uses the Telegram welcome message ID, not the CAPTCHA message ID", () => {
+  assert.deepStrictEqual(welcomeLogMessageId(9001), 9001);
+  assert.deepStrictEqual(welcomeLogMessageId(undefined), null);
+});
 
 Deno.test("180-second CAPTCHA timeout restricts only through timeout plus grace", () => {
   assert.deepStrictEqual(verificationTimeoutSeconds(180), 180);
@@ -178,11 +208,30 @@ Deno.test("correct answer with unavailable settings releases permissions before 
     log: async (action) => { events.push(`log:${action}`); },
     continueWelcome: async () => {
       events.push("welcome");
-      return true;
+      return "welcome_sent";
     },
   });
   assert.deepStrictEqual(outcome, "settings_unavailable_released");
   assert.deepStrictEqual(events, ["unrestrict"]);
+});
+
+Deno.test("successful CAPTCHA reports welcome and permission failures separately", async () => {
+  const settings = { id: "group" };
+  const welcomeFailed = await completeVerifiedCallback({
+    settings,
+    restoreMemberPermissions: async () => ({ ok: true }),
+    log: async () => undefined,
+    continueWelcome: async () => "welcome_failed",
+  });
+  const permissionsFailed = await completeVerifiedCallback({
+    settings,
+    restoreMemberPermissions: async () => ({ ok: true }),
+    log: async () => undefined,
+    continueWelcome: async () => "permissions_restore_failed",
+  });
+
+  assert.deepStrictEqual(welcomeFailed, "welcome_failed");
+  assert.deepStrictEqual(permissionsFailed, "permissions_restore_failed");
 });
 
 Deno.test("Telegram exceptions during verified-member unrestrict are logged and retried", async () => {

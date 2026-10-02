@@ -95,10 +95,15 @@ import {
   completeVerifiedCallback,
   decideVerificationCallback,
   enforceVerificationFailure,
+  isRecoverableVerificationStatus,
   releaseVerifiedMember,
+  resolveJoinFlow,
   startVerificationDelivery,
+  verificationClaimOutcome,
   verificationRestrictionUntil,
   verificationTimeoutSeconds,
+  welcomeLogMessageId,
+  type VerifiedCallbackOutcome,
 } from "../_shared/telegram-verification.ts";
 import { loadAngelRuleOverrides } from "../_shared/angel-facts.ts";
 import {
@@ -319,7 +324,7 @@ type VerificationChallenge = {
   attempts: number;
   max_attempts: number;
   expires_at: string;
-  status: "pending" | "verified" | "failed" | "expired";
+  status: "pending" | "verified" | "failed" | "expired" | "release_failed";
 };
 
 function formatTemplate(template: string, params: Record<string, string | number>) {
@@ -454,7 +459,7 @@ async function sendFinalWelcome(
     settings: CommunitySettings;
     captchaMessageId?: number | null;
   },
-) {
+): Promise<Exclude<VerifiedCallbackOutcome, "settings_unavailable_released" | "settings_unavailable_release_failed">> {
   const permissionsRestored = await releaseVerifiedMember({
     restoreMemberPermissions: async () => {
       const result = await unrestrictChatMember(params.groupId, params.userId);
@@ -477,7 +482,7 @@ async function sendFinalWelcome(
       });
     },
   });
-  if (!permissionsRestored) return false;
+  if (!permissionsRestored) return "permissions_restore_failed";
   if (params.captchaMessageId) {
     await deleteMessage(params.groupId, params.captchaMessageId).catch(() => undefined);
   }
@@ -493,18 +498,38 @@ async function sendFinalWelcome(
     welcome_message: params.settings.welcome_message || params.settings.verification_success_message,
   };
 
-  await sendWelcomeToMember(adminClient, {
-    groupId: params.groupId,
-    member: {
-      id: params.userId,
-      first_name,
-      last_name,
-      username: params.username ?? undefined,
-    } as NonNullable<TelegramMessage["from"]>,
-    settings: effectiveSettings,
-    reason: "captcha_correct",
-    messageId: params.captchaMessageId ?? null,
-  });
+  let welcomeOutcome: "welcome_sent" | "welcome_skipped" | "welcome_failed" = "welcome_skipped";
+  if (params.settings.welcome_enabled) {
+    try {
+      const sent = await sendWelcomeToMember(adminClient, {
+        groupId: params.groupId,
+        member: {
+          id: params.userId,
+          first_name,
+          last_name,
+          username: params.username ?? undefined,
+        } as NonNullable<TelegramMessage["from"]>,
+        settings: effectiveSettings,
+        reason: "captcha_correct",
+      });
+      welcomeOutcome = sent ? "welcome_sent" : "welcome_failed";
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error("[verification] welcome send threw after successful CAPTCHA", {
+        chat_id: params.groupId,
+        user_id: params.userId,
+        error: reason,
+      });
+      await logModeration(adminClient, {
+        groupId: params.groupId,
+        userId: params.userId,
+        username: params.username ?? null,
+        action: "welcome_send_failed",
+        reason: `captcha_correct:exception:${reason}`.slice(0, 240),
+      });
+      welcomeOutcome = "welcome_failed";
+    }
+  }
 
   await logModeration(adminClient, {
     groupId: params.groupId,
@@ -514,7 +539,7 @@ async function sendFinalWelcome(
     reason: "captcha_correct",
     messageId: params.captchaMessageId ?? null,
   });
-  return true;
+  return welcomeOutcome;
 }
 
 // ─── Join Gate: chặn thành viên có tên / avatar nhạy cảm ─────────────────────
@@ -627,8 +652,8 @@ async function startVerificationForMember(
 ) {
   if (!params.member.id || params.member.is_bot) return;
   await upsertUserState({ adminClient, groupId: params.groupId, user: params.member });
-
   if (!params.settings.verification_enabled) {
+    if (!params.settings.welcome_enabled) return;
     await sendWelcomeToMember(adminClient, {
       groupId: params.groupId,
       member: params.member,
@@ -645,6 +670,8 @@ async function startVerificationForMember(
     .eq("telegram_user_id", params.member.id)
     .eq("status", "pending")
     .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (existing.error) {
     console.error("[verification] pending challenge lookup failed", {
@@ -1386,13 +1413,20 @@ async function handleVerificationCallback(update: TelegramUpdate): Promise<boole
   }
 
   const settings = challenge ? await getSettingsForGroup(adminClient, challenge.group_id) : null;
+  const isRecoverable = isRecoverableVerificationStatus(challenge?.status);
   const decision = decideVerificationCallback({
-    isPending: challenge?.status === "pending",
+    isPending: isRecoverable,
     ownerUserId: challenge?.telegram_user_id ?? -1,
     callbackUserId: userId,
     answer,
     correctAnswer: challenge?.correct_answer ?? Number.NaN,
-    expiresAtMilliseconds: challenge ? new Date(challenge.expires_at).getTime() : 0,
+    // A correct CAPTCHA whose Telegram permission restore failed must remain
+    // retryable even after the original challenge timeout.
+    expiresAtMilliseconds: challenge
+      ? challenge.status === "release_failed"
+        ? Number.POSITIVE_INFINITY
+        : new Date(challenge.expires_at).getTime()
+      : 0,
     nowMilliseconds: Date.now(),
     attempts: challenge?.attempts ?? 0,
     maxAttempts: challenge?.max_attempts ?? settings?.verification_max_attempts ?? 3,
@@ -1418,28 +1452,40 @@ async function handleVerificationCallback(update: TelegramUpdate): Promise<boole
   }
 
   if (decision.kind === "verified") {
-    let statusUpdate = await adminClient
+    const verifiedAt = new Date().toISOString();
+    const claimCompletion = () => adminClient
       .from("telegram_community_verification_challenges")
-      .update({ status: "verified", verified_at: new Date().toISOString() })
-      .eq("id", challenge.id);
+      .update({ status: "verified", verified_at: verifiedAt }, { count: "exact" })
+      .eq("id", challenge.id)
+      .in("status", ["pending", "release_failed"]);
+    let statusUpdate = await claimCompletion();
+    let claimOutcome = verificationClaimOutcome({
+      count: statusUpdate.count,
+      hasError: Boolean(statusUpdate.error),
+    });
     if (statusUpdate.error) {
       console.error("[verification] verified status update failed; retrying", {
         challenge_id: challenge.id,
         user_id: challenge.telegram_user_id,
         error: statusUpdate.error.message,
       });
-      statusUpdate = await adminClient
-        .from("telegram_community_verification_challenges")
-        .update({ status: "verified", verified_at: new Date().toISOString() })
-        .eq("id", challenge.id);
+      statusUpdate = await claimCompletion();
+      claimOutcome = verificationClaimOutcome({
+        count: statusUpdate.count,
+        hasError: Boolean(statusUpdate.error),
+      });
     }
-    if (statusUpdate.error) {
+    if (claimOutcome === "already_claimed") {
+      await answerCallbackQuery(callback.id, "This verification has already been processed.");
+      return true;
+    }
+    if (claimOutcome === "unavailable") {
       await logModeration(adminClient, {
         groupId: challenge.group_id,
         userId: challenge.telegram_user_id,
         username: challenge.username,
         action: "verification_verified_status_update_failed",
-        reason: statusUpdate.error.message,
+        reason: statusUpdate.error?.message ?? "The database did not confirm the verification status update",
         messageId: challenge.captcha_message_id,
       });
       await answerCallbackQuery(callback.id, "Could not save verification. Please try again.");
@@ -1476,6 +1522,20 @@ async function handleVerificationCallback(update: TelegramUpdate): Promise<boole
         captchaMessageId: challenge.captcha_message_id,
       }),
     });
+    if (callbackOutcome === "permissions_restore_failed" || callbackOutcome === "settings_unavailable_release_failed") {
+      const { error: retryStateError } = await adminClient
+        .from("telegram_community_verification_challenges")
+        .update({ status: "release_failed" })
+        .eq("id", challenge.id)
+        .eq("status", "verified");
+      if (retryStateError) {
+        console.error("[verification] could not persist retryable permission-restore state", {
+          challenge_id: challenge.id,
+          user_id: challenge.telegram_user_id,
+          error: retryStateError.message,
+        });
+      }
+    }
     if (callbackOutcome === "settings_unavailable_released") {
       await answerCallbackQuery(callback.id, "Verified, but group settings are unavailable. Your permissions were restored.");
       return true;
@@ -1484,26 +1544,41 @@ async function handleVerificationCallback(update: TelegramUpdate): Promise<boole
       await answerCallbackQuery(callback.id, "Verified, but permissions could not be restored. Please contact an admin.");
       return true;
     }
-    if (callbackOutcome === "welcome_failed") {
+    if (callbackOutcome === "permissions_restore_failed") {
       await answerCallbackQuery(callback.id, "Verified, but permissions could not be restored. Please contact an admin.");
       return true;
     }
-    await answerCallbackQuery(callback.id, "Verified. Welcome to FUN.RICH!");
+    if (callbackOutcome === "welcome_failed") {
+      await answerCallbackQuery(callback.id, "Verified and permissions restored, but the welcome message could not be sent. Please contact an admin.");
+      return true;
+    }
+    await answerCallbackQuery(callback.id, callbackOutcome === "welcome_skipped"
+      ? "Verified. You can chat now."
+      : "Verified. Welcome to FUN.RICH!");
     return true;
   }
 
   const attempts = decision.attempts;
-  const { error: attemptsError } = await adminClient
+  const attemptsUpdate = await adminClient
     .from("telegram_community_verification_challenges")
-    .update({ attempts })
-    .eq("id", challenge.id);
-  if (attemptsError) {
+    .update({ attempts }, { count: "exact" })
+    .eq("id", challenge.id)
+    .eq("status", "pending")
+    .eq("attempts", challenge.attempts ?? 0);
+  const attemptsClaim = verificationClaimOutcome({
+    count: attemptsUpdate.count,
+    hasError: Boolean(attemptsUpdate.error),
+  });
+  if (attemptsClaim !== "claimed") {
     console.error("[verification] wrong-answer attempt update failed", {
       challenge_id: challenge.id,
       user_id: challenge.telegram_user_id,
-      error: attemptsError.message,
+      outcome: attemptsClaim,
+      error: attemptsUpdate.error?.message ?? null,
     });
-    await answerCallbackQuery(callback.id, "Could not save your answer. Please try again.");
+    await answerCallbackQuery(callback.id, attemptsClaim === "already_claimed"
+      ? "This answer was already processed. Use the latest verification message."
+      : "Could not save your answer. Please try again.");
     return true;
   }
 
@@ -1613,7 +1688,6 @@ async function sendWelcomeToMember(
     member: NonNullable<TelegramMessage["from"]>;
     settings: CommunitySettings;
     reason: string;
-    messageId?: number | null;
   },
 ) {
   await upsertUserState({ adminClient, groupId: params.groupId, user: params.member });
@@ -1645,6 +1719,7 @@ async function sendWelcomeToMember(
   }
 
   const ok = (result as { ok?: boolean })?.ok === true;
+  const sentMessageId = (result as { data?: { result?: { message_id?: number } } })?.data?.result?.message_id;
   await logModeration(adminClient, {
     groupId: params.groupId,
     userId: params.member.id ?? null,
@@ -1652,7 +1727,7 @@ async function sendWelcomeToMember(
     action: ok ? "welcome_sent" : "welcome_send_failed",
     reason: `${params.reason}:${mode}${avatarUrl ? "" : ":no_avatar"}`,
     messageText: ok ? null : JSON.stringify((result as { data?: unknown })?.data ?? result).slice(0, 500),
-    messageId: params.messageId ?? null,
+    messageId: welcomeLogMessageId(sentMessageId),
   });
   return ok;
 }
@@ -1703,7 +1778,6 @@ async function handleWelcomeCommand(message: TelegramMessage, settings: Communit
     },
     settings: { ...settings, welcome_enabled: true },
     reason: "manual_welcome_test",
-    messageId: message.message_id ?? null,
   });
   return true;
 }
@@ -4824,13 +4898,17 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
   });
   if (joinBlocked) return;
 
-  if (!settings.welcome_enabled) {
+  const joinFlow = resolveJoinFlow({
+    verificationEnabled: settings.verification_enabled,
+    welcomeEnabled: settings.welcome_enabled,
+  });
+  if (joinFlow === "skip") {
     await logModeration(adminClient, {
       groupId: evt.chat.id,
       userId: member.id,
       username: member.username ?? null,
       action: "welcome_skipped_disabled",
-      reason: "chat_member",
+      reason: "welcome_and_verification_disabled",
     });
     return;
   }

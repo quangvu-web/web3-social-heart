@@ -25,12 +25,46 @@ export type VerificationCallbackDecision =
 
 export type VerificationFailureLogAction = "verification_expired" | "verification_failed";
 
+export type VerifiedCallbackOutcome =
+  | "settings_unavailable_released"
+  | "settings_unavailable_release_failed"
+  | "permissions_restore_failed"
+  | "welcome_sent"
+  | "welcome_skipped"
+  | "welcome_failed";
+
+export function resolveJoinFlow(settings: {
+  verificationEnabled: boolean;
+  welcomeEnabled: boolean;
+}): "verify" | "welcome" | "skip" {
+  if (settings.verificationEnabled) return "verify";
+  return settings.welcomeEnabled ? "welcome" : "skip";
+}
+
+export function verificationClaimOutcome(input: {
+  count: number | null;
+  hasError: boolean;
+}): "claimed" | "already_claimed" | "unavailable" {
+  if (input.hasError || input.count === null) return "unavailable";
+  if (input.count === 1) return "claimed";
+  if (input.count === 0) return "already_claimed";
+  return "unavailable";
+}
+
+export function isRecoverableVerificationStatus(status: string | null | undefined): boolean {
+  return status === "pending" || status === "release_failed";
+}
+
+export function welcomeLogMessageId(messageId: number | undefined): number | null {
+  return typeof messageId === "number" && Number.isFinite(messageId) ? messageId : null;
+}
+
 export async function completeVerifiedCallback<TSettings>(params: {
   settings: TSettings | null;
   restoreMemberPermissions: () => Promise<TelegramVerificationResult>;
   log: (action: string, reason: string) => Promise<void>;
-  continueWelcome: (settings: TSettings) => Promise<boolean>;
-}): Promise<"settings_unavailable_released" | "settings_unavailable_release_failed" | "welcome_sent" | "welcome_failed"> {
+  continueWelcome: (settings: TSettings) => Promise<Exclude<VerifiedCallbackOutcome, "settings_unavailable_released" | "settings_unavailable_release_failed">>;
+}): Promise<VerifiedCallbackOutcome> {
   if (!params.settings) {
     const restored = await releaseVerifiedMember({
       restoreMemberPermissions: params.restoreMemberPermissions,
@@ -39,7 +73,7 @@ export async function completeVerifiedCallback<TSettings>(params: {
     return restored ? "settings_unavailable_released" : "settings_unavailable_release_failed";
   }
 
-  return await params.continueWelcome(params.settings) ? "welcome_sent" : "welcome_failed";
+  return await params.continueWelcome(params.settings);
 }
 
 export async function enforceVerificationFailure(params: {

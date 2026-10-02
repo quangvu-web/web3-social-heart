@@ -76,6 +76,7 @@ const WalletAbuseTab = ({ users, adminId, onRefresh }: WalletAbuseTabProps) => {
   }, [users]);
 
   const handleBanUser = async (user: UserData) => {
+    if (!window.confirm(`Cấm VĨNH VIỄN tài khoản "${user.username}"?\n\nThao tác này khóa tài khoản, reset thưởng về 0 và đưa ví vào danh sách đen. Không thể hoàn tác.`)) return;
     setLoading(user.id);
     try {
       const { error } = await supabase.rpc('ban_user_permanently', {
@@ -96,6 +97,7 @@ const WalletAbuseTab = ({ users, adminId, onRefresh }: WalletAbuseTabProps) => {
   };
 
   const handleBanWalletGroup = async (walletGroup: { wallet_address: string; users: UserData[] }) => {
+    if (!window.confirm(`Cấm VĨNH VIỄN cả ${walletGroup.users.length} tài khoản dùng chung ví ${walletGroup.wallet_address}?\n\nThao tác này không thể hoàn tác.`)) return;
     setLoading(walletGroup.wallet_address);
     try {
       for (const user of walletGroup.users) {

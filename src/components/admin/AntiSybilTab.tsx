@@ -261,6 +261,7 @@ const AntiSybilTab = ({ adminId }: AntiSybilTabProps) => {
   };
 
   const handleBanAndBurn = async (userId: string) => {
+    if (!window.confirm(`Cấm VĨNH VIỄN và hủy thưởng của tài khoản ${userId.slice(0, 8)}…?\n\nThao tác này không thể hoàn tác.`)) return;
     const { error } = await supabase.rpc("ban_user_permanently", {
       p_admin_id: adminId,
       p_user_id: userId,

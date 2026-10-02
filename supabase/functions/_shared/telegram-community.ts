@@ -3647,13 +3647,39 @@ export async function ensureSettings(adminClient: SupabaseClient): Promise<Commu
 }
 
 export async function getSettingsForGroup(adminClient: SupabaseClient, groupId: number): Promise<CommunitySettings | null> {
-  const { data } = await adminClient
-    .from("telegram_community_settings")
-    .select("*")
-    .eq("group_id", groupId)
-    .maybeSingle();
+  const result = await loadGroupSettings(adminClient, groupId);
+  return result.ok ? result.settings : null;
+}
 
-  return (data as CommunitySettings | null) ?? null;
+export type GroupSettingsLookup =
+  | { ok: true; settings: CommunitySettings | null }
+  | { ok: false; errorCode: string };
+
+/**
+ * Distinguishes "group is not managed" (ok + settings null) from "lookup failed"
+ * (ok false). Retries once so a transient database error is not mistaken for
+ * an unmanaged group.
+ */
+export async function loadGroupSettings(
+  adminClient: Pick<SupabaseClient, "from">,
+  groupId: number,
+): Promise<GroupSettingsLookup> {
+  let errorCode = "unknown";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const { data, error } = await adminClient
+        .from("telegram_community_settings")
+        .select("*")
+        .eq("group_id", groupId)
+        .maybeSingle();
+      if (!error) return { ok: true, settings: (data as CommunitySettings | null) ?? null };
+      errorCode = (error as { code?: string }).code ?? "query_error";
+    } catch {
+      errorCode = "exception";
+    }
+  }
+  console.error("[telegram-community] settings lookup failed", { group_id: groupId, error_code: errorCode });
+  return { ok: false, errorCode };
 }
 
 export async function activeDomains(adminClient: SupabaseClient): Promise<string[]> {

@@ -33,6 +33,7 @@
   getClients,
   getCommunityUserAvatarUrl,
   getSettingsForGroup,
+  loadGroupSettings,
   isTelegramAdmin,
   json,
   kickChatMember,
@@ -4949,7 +4950,18 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
 
   // Allow any â†’ member/restricted (covers invite link join where old may be "left" or undefined)
 
-  const settings = await getSettingsForGroup(adminClient, evt.chat.id);
+  const settingsLookup = await loadGroupSettings(adminClient, evt.chat.id);
+  if (!settingsLookup.ok) {
+    await logModeration(adminClient, {
+      groupId: evt.chat.id,
+      userId: member.id,
+      username: member.username ?? null,
+      action: "settings_lookup_failed",
+      reason: `chat_member:${settingsLookup.errorCode}`,
+    });
+    return;
+  }
+  const settings = settingsLookup.settings;
   console.log("[webhook] settings lookup", { chat_id: evt.chat.id, found: !!settings, welcome_enabled: settings?.welcome_enabled });
   if (!settings) {
     await logModeration(adminClient, {
@@ -5053,7 +5065,12 @@ async function handleMyChatMemberUpdate(update: TelegramUpdate, req: Request): P
   const joinedStatuses = new Set(["member", "administrator", "restricted"]);
   if (!joinedStatuses.has(newStatus ?? "")) return;
 
-  const settings = await getSettingsForGroup(adminClient, evt.chat.id);
+  const settingsLookup = await loadGroupSettings(adminClient, evt.chat.id);
+  if (!settingsLookup.ok) {
+    console.error("[webhook] my_chat_member skipped: settings lookup failed", { chat_id: evt.chat.id, error_code: settingsLookup.errorCode });
+    return;
+  }
+  const settings = settingsLookup.settings;
   if (!settings) {
     await handleUnauthorizedGroup(adminClient, evt.chat.id, "my_chat_member_no_settings", { sendNotice: true, groupName: evt.chat.title ?? null });
     return;
@@ -5164,7 +5181,13 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
     if (!isGroup(chatType)) return;
 
     const { adminClient } = getClients(req);
-    const settings = await getSettingsForGroup(adminClient, message.chat.id);
+    const settingsLookup = await loadGroupSettings(adminClient, message.chat.id);
+    if (!settingsLookup.ok) {
+      // Do not treat a managed group as unauthorized because of a transient DB error.
+      console.error("[webhook] group message skipped: settings lookup failed", { chat_id: message.chat.id, error_code: settingsLookup.errorCode });
+      return;
+    }
+    const settings = settingsLookup.settings;
     emitModerationPipelineEvent("group_moderation_config", message, {
       configuration_found: Boolean(settings),
       anti_spam_enabled: settings?.anti_spam_enabled ?? null,

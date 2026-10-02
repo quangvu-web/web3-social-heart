@@ -81,6 +81,7 @@ const UserReviewTab = ({ users, adminId, onRefresh }: UserReviewTabProps) => {
   }, [users]);
 
   const handleBanUser = async (user: UserData) => {
+    if (!window.confirm(`Cấm VĨNH VIỄN tài khoản "${user.username}"?\n\nThao tác này khóa tài khoản, reset thưởng về 0 và đưa ví vào danh sách đen. Không thể hoàn tác.`)) return;
     setLoading(user.id);
     try {
       const { error } = await supabase.rpc('ban_user_permanently', {

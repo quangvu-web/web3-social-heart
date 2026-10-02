@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { filterManagedGroups, hasManagedGroupId, managedGroupDisplayName } from "./managedGroups";
+import { createLatestGroupSettingsRequest } from "./telegramGroupSettingsLoad";
 import {
   AlertTriangle,
   Bot,
@@ -272,6 +273,9 @@ export default function TelegramGroupPanel() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const selectedGroupIdRef = useRef<number | null>(selectedGroupId);
+  selectedGroupIdRef.current = selectedGroupId;
+  const groupSettingsRequests = useRef(createLatestGroupSettingsRequest());
   const [newGroupIdInput, setNewGroupIdInput] = useState("");
   const [groupSearch, setGroupSearch] = useState("");
   const [groupsLoadError, setGroupsLoadError] = useState<string | null>(null);
@@ -361,13 +365,16 @@ export default function TelegramGroupPanel() {
   };
 
   const loadAll = async (groupIdOverride?: number | null) => {
+    const requestId = groupSettingsRequests.current.begin();
     setLoading(true);
+    setGroupsLoadError(null);
     try {
-      const targetGroupId = groupIdOverride ?? selectedGroupId;
+      const targetGroupId = groupIdOverride === undefined ? selectedGroupId : groupIdOverride;
       const data = await invokeAdmin(
         "get_settings",
         targetGroupId ? { group_id: targetGroupId } : {},
       );
+      if (!groupSettingsRequests.current.isCurrent(requestId)) return;
       const loadedGroups: GroupRow[] = data.groups ?? [];
       setGroups(loadedGroups);
       setGroupsLoadError(null);
@@ -382,10 +389,11 @@ export default function TelegramGroupPanel() {
         setSelectedGroupId(data.settings.group_id);
       }
     } catch (error: unknown) {
+      if (!groupSettingsRequests.current.isCurrent(requestId)) return;
       setGroupsLoadError(error instanceof Error ? error.message : "Không tải được danh sách nhóm.");
       toast.error(error instanceof Error ? error.message : "Failed to load Community Guard settings");
     } finally {
-      setLoading(false);
+      if (groupSettingsRequests.current.isCurrent(requestId)) setLoading(false);
     }
   };
 
@@ -410,14 +418,15 @@ export default function TelegramGroupPanel() {
 
   const updateSettings = async (patch: Partial<Settings>) => {
     if (!settings) return;
+    const targetGroupId = settings.group_id;
     setSaving(true);
     try {
       const data = await invokeAdmin("update_settings", {
         ...patch,
-        group_id: settings.group_id,
+        group_id: targetGroupId,
       });
-      setSettings(data.settings);
-      toast.success("Community Guard settings saved");
+      if (selectedGroupIdRef.current === targetGroupId) setSettings(data.settings);
+      toast.success(`Đã lưu cài đặt cho nhóm ${targetGroupId}.`);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Failed to save settings");
     } finally {
@@ -440,6 +449,11 @@ export default function TelegramGroupPanel() {
 
   const selectGroup = async (groupId: number) => {
     setSelectedGroupId(groupId);
+    setSettings(null);
+    setDomains([]);
+    setKeywords([]);
+    setQuickReplies([]);
+    setLogs([]);
     await loadAll(groupId);
   };
 
@@ -1222,7 +1236,7 @@ export default function TelegramGroupPanel() {
       )}
 
 
-      {!settings && !loading && (
+      {!settings && !loading && !groupsLoadError && (
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="pt-6 space-y-2 text-sm text-amber-950">
             <p className="font-semibold flex items-center gap-2">

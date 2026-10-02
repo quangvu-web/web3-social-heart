@@ -243,6 +243,28 @@ Deno.test("correct answer with unavailable settings releases permissions before 
   assert.deepStrictEqual(events, ["unrestrict"]);
 });
 
+Deno.test("correct CAPTCHA with a failed settings query logs the lookup failure, releases permissions, and skips welcome", async () => {
+  const events: string[] = [];
+  const params = {
+    settings: null,
+    settingsLookupErrorCode: "42501",
+    restoreMemberPermissions: async () => {
+      events.push("unrestrict");
+      return { ok: true };
+    },
+    log: async (action: string) => { events.push(`log:${action}`); },
+    continueWelcome: async () => {
+      events.push("welcome");
+      return "welcome_sent" as const;
+    },
+  };
+
+  const outcome = await completeVerifiedCallback(params);
+
+  assert.deepStrictEqual(outcome, "settings_unavailable_released");
+  assert.deepStrictEqual(events, ["log:verification_settings_lookup_failed", "unrestrict"]);
+});
+
 Deno.test("successful CAPTCHA reports welcome and permission failures separately", async () => {
   const settings = { id: "group" };
   const welcomeFailed = await completeVerifiedCallback({

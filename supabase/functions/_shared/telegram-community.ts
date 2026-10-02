@@ -35,6 +35,7 @@ import {
 } from "./angel-rolling-summary.ts";
 import { tryFetchTelegramMedia } from "./telegram-media.ts";
 import { callAiGateway, gatewayText } from "./ai-gateway-retry.ts";
+import { captureTelegramRequest, isTelegramApiSuccess } from "./telegram-transport.ts";
 
 
 // EdgeRuntime.waitUntil declaration (Supabase Edge Runtime global).
@@ -1348,13 +1349,24 @@ export async function callCommunityTelegram(method: string, body: Record<string,
     return { ok: false, status: 500, data: { error: "COMMUNITY_GUARD_BOT_TOKEN is not configured" } };
   }
 
-  const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await response.json().catch(() => ({}));
-  return { ok: response.ok && data?.ok !== false, status: response.status, data };
+  const request = await captureTelegramRequest(
+    () => fetch(`https://api.telegram.org/bot${token}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+    token,
+  );
+  if (!request.ok) {
+    return { ok: false, status: 0, data: { error: request.error } };
+  }
+  const response = request.value;
+  const data = await response.json().catch(() => null);
+  return {
+    ok: isTelegramApiSuccess(response.ok, data),
+    status: response.status,
+    data: data ?? { error: "Telegram returned an invalid response body" },
+  };
 }
 
 export async function sendMessage(chatId: number | string, text: string, extra: Record<string, unknown> = {}) {

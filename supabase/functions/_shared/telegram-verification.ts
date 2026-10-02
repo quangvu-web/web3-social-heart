@@ -80,11 +80,19 @@ export function welcomeLogMessageId(messageId: number | undefined): number | nul
 
 export async function completeVerifiedCallback<TSettings>(params: {
   settings: TSettings | null;
+  settingsLookupErrorCode?: string | null;
   restoreMemberPermissions: () => Promise<TelegramVerificationResult>;
   log: (action: string, reason: string) => Promise<void>;
   continueWelcome: (settings: TSettings) => Promise<Exclude<VerifiedCallbackOutcome, "settings_unavailable_released" | "settings_unavailable_release_failed">>;
 }): Promise<VerifiedCallbackOutcome> {
   if (!params.settings) {
+    if (params.settingsLookupErrorCode !== undefined) {
+      await safeLog(
+        params.log,
+        "verification_settings_lookup_failed",
+        `group_settings_query_failed:${params.settingsLookupErrorCode ?? "unknown"}`,
+      );
+    }
     const restored = await releaseVerifiedMember({
       restoreMemberPermissions: params.restoreMemberPermissions,
       log: params.log,

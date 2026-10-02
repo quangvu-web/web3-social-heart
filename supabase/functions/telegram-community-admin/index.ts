@@ -41,6 +41,38 @@ function redactedWebhookUrl(projectUrl: string) {
   return `${projectUrl}/functions/v1/telegram-community-webhook?secret=***`;
 }
 
+async function loadManagedGroups(adminClient: ReturnType<typeof requireAdmin> extends Promise<infer R> ? (R extends { adminClient: infer A } ? A : never) : never) {
+  const { data: groups, error } = await adminClient
+    .from("telegram_community_settings")
+    .select("id, group_id, bot_username, welcome_enabled, anti_spam_enabled, anti_link_enabled, ai_enabled, created_at")
+    .order("created_at", { ascending: true });
+  if (error) return { error: error.message } as const;
+  if (!groups?.length) {
+    return { groups: [], group_title_lookup_error: null } as const;
+  }
+  const groupIds = groups.map((group) => group.group_id);
+
+  const [{ data: configuredTitles, error: configError }, { data: healthTitles, error: healthError }] = await Promise.all([
+    adminClient.from("telegram_group_config").select("group_id, group_title").in("group_id", groupIds),
+    adminClient.from("telegram_group_health").select("group_id, group_title").in("group_id", groupIds),
+  ]);
+  const titleByGroupId = new Map<number, string>();
+  for (const row of healthTitles ?? []) {
+    if (row.group_title?.trim()) titleByGroupId.set(row.group_id, row.group_title.trim());
+  }
+  for (const row of configuredTitles ?? []) {
+    if (row.group_title?.trim()) titleByGroupId.set(row.group_id, row.group_title.trim());
+  }
+
+  return {
+    groups: (groups ?? []).map((group) => ({
+      ...group,
+      group_title: titleByGroupId.get(group.group_id) ?? null,
+    })),
+    group_title_lookup_error: configError?.message ?? healthError?.message ?? null,
+  } as const;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: communityCorsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -109,31 +141,32 @@ Deno.serve(async (req) => {
 
 
   if (action === "list_groups") {
-    const { data, error } = await adminClient
-      .from("telegram_community_settings")
-      .select("id, group_id, bot_username, welcome_enabled, anti_spam_enabled, anti_link_enabled, ai_enabled, created_at")
-      .order("created_at", { ascending: true });
-    if (error) return json({ success: false, error: error.message }, 500);
-    return json({ success: true, groups: data ?? [] });
+    const result = await loadManagedGroups(adminClient);
+    if ("error" in result) return json({ success: false, error: result.error }, 500);
+    return json({ success: true, ...result });
   }
 
   if (action === "add_group") {
     const newGroupId = Number(payload.group_id);
-    if (!Number.isFinite(newGroupId) || newGroupId === 0) {
+    if (!Number.isFinite(newGroupId) || !Number.isInteger(newGroupId) || newGroupId === 0) {
       return json({ success: false, error: "Group ID phải là số (thường là số âm cho supergroup)" }, 400);
     }
-    const { data: existing } = await adminClient
+    const { data: existing, error: lookupError } = await adminClient
       .from("telegram_community_settings")
       .select("id")
       .eq("group_id", newGroupId)
       .maybeSingle();
+    if (lookupError) return json({ success: false, error: lookupError.message }, 500);
     if (existing) return json({ success: false, error: "Group này đã được quản lý rồi" }, 409);
     const { data, error } = await adminClient
       .from("telegram_community_settings")
       .insert({ group_id: newGroupId, bot_username: botUsername })
       .select("*")
       .single();
-    if (error) return json({ success: false, error: error.message }, 500);
+    if (error) {
+      const duplicate = (error as { code?: string }).code === "23505";
+      return json({ success: false, error: duplicate ? "Group này đã được quản lý rồi" : error.message }, duplicate ? 409 : 500);
+    }
     return json({ success: true, settings: data });
   }
 
@@ -315,11 +348,9 @@ Deno.serve(async (req) => {
 
   if (action === "get_settings") {
     const settings = await resolveSettings(adminClient, payload.group_id);
-    const [{ data: groups }, { data: domains }, { data: keywords }, { data: logs }, { data: quickReplies }] = await Promise.all([
-      adminClient
-        .from("telegram_community_settings")
-        .select("id, group_id, bot_username, welcome_enabled, anti_spam_enabled, anti_link_enabled, ai_enabled, created_at")
-        .order("created_at", { ascending: true }),
+    const groupsResult = await loadManagedGroups(adminClient);
+    if ("error" in groupsResult) return json({ success: false, error: groupsResult.error }, 500);
+    const [{ data: domains }, { data: keywords }, { data: logs }, { data: quickReplies }] = await Promise.all([
       adminClient.from("telegram_community_domain_whitelist").select("*").order("domain"),
       adminClient.from("telegram_community_blocked_keywords").select("*").order("keyword"),
       adminClient
@@ -339,7 +370,8 @@ Deno.serve(async (req) => {
       bot_username: botUsername,
       group_id_env: groupId || null,
       settings,
-      groups: groups ?? [],
+      groups: groupsResult.groups,
+      group_title_lookup_error: groupsResult.group_title_lookup_error,
       domains: domains ?? [],
       keywords: keywords ?? [],
       quick_replies: quickReplies ?? [],

@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { filterManagedGroups, hasManagedGroupId, managedGroupDisplayName } from "./managedGroups";
 import {
   AlertTriangle,
   Bot,
@@ -198,6 +199,7 @@ type LogRow = {
 type GroupRow = {
   id: string;
   group_id: number;
+  group_title?: string | null;
   bot_username: string | null;
   welcome_enabled: boolean;
   anti_spam_enabled: boolean;
@@ -271,6 +273,9 @@ export default function TelegramGroupPanel() {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [newGroupIdInput, setNewGroupIdInput] = useState("");
+  const [groupSearch, setGroupSearch] = useState("");
+  const [groupsLoadError, setGroupsLoadError] = useState<string | null>(null);
+  const [groupTitleLookupError, setGroupTitleLookupError] = useState<string | null>(null);
   const [domains, setDomains] = useState<DomainRow[]>([]);
   const [keywords, setKeywords] = useState<KeywordRow[]>([]);
   const [quickReplies, setQuickReplies] = useState<QuickReplyRow[]>([]);
@@ -365,6 +370,8 @@ export default function TelegramGroupPanel() {
       );
       const loadedGroups: GroupRow[] = data.groups ?? [];
       setGroups(loadedGroups);
+      setGroupsLoadError(null);
+      setGroupTitleLookupError(data.group_title_lookup_error ?? null);
       setSettings(data.settings ?? null);
       setDomains(data.domains ?? []);
       setKeywords(data.keywords ?? []);
@@ -375,6 +382,7 @@ export default function TelegramGroupPanel() {
         setSelectedGroupId(data.settings.group_id);
       }
     } catch (error: unknown) {
+      setGroupsLoadError(error instanceof Error ? error.message : "Không tải được danh sách nhóm.");
       toast.error(error instanceof Error ? error.message : "Failed to load Community Guard settings");
     } finally {
       setLoading(false);
@@ -437,8 +445,11 @@ export default function TelegramGroupPanel() {
 
   const addGroup = async () => {
     const parsed = Number(newGroupIdInput.trim());
-    if (!Number.isFinite(parsed) || parsed === 0) {
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed === 0) {
       return toast.error("Group ID phải là số (thường âm cho supergroup, ví dụ -1001234567890)");
+    }
+    if (hasManagedGroupId(groups, parsed)) {
+      return toast.error("Group ID này đã có trong danh sách quản lý.");
     }
     setLoading(true);
     try {
@@ -604,6 +615,7 @@ export default function TelegramGroupPanel() {
     if (!settings) return "";
     return settings.welcome_message.replace(/\{full_name\}/g, "Angel Builder (@angel)").replace(/\{name\}/g, "Angel Builder");
   }, [settings]);
+  const filteredGroups = useMemo(() => filterManagedGroups(groups, groupSearch), [groups, groupSearch]);
 
   if (!settings && loading) {
     return (
@@ -633,10 +645,10 @@ export default function TelegramGroupPanel() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" /> Managed Groups
+            <Shield className="w-5 h-5" /> Nhóm đang quản lý
           </CardTitle>
           <CardDescription>
-            Cha có thể thêm Group ID vào allowlist trước, rồi mới mời bot vào group. Group chưa có trong danh sách này sẽ bị bot tự rời để tránh phát sinh token AI ngoài ý muốn.
+            Thêm Group ID vào danh sách trước khi mời bot. Group ID là định danh duy nhất cho allowlist; tên nhóm chỉ dùng để nhận diện. Tên lấy từ metadata hiện có, nhóm chưa có metadata sẽ cần bổ sung cột lưu tên nếu muốn đặt tên riêng.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -647,19 +659,41 @@ export default function TelegramGroupPanel() {
               onChange={(e) => setNewGroupIdInput(e.target.value)}
               className="font-mono"
             />
-            <Button onClick={addGroup} disabled={loading}>
-              <Plus className="w-4 h-4 mr-2" /> Add to Allowlist
+            <Button onClick={addGroup} disabled={loading || !!groupsLoadError}>
+              <Plus className="w-4 h-4 mr-2" /> Thêm vào danh sách
             </Button>
           </div>
+          {groupsLoadError && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+              <span>Không tải được danh sách Managed Groups: {groupsLoadError}</span>
+              <Button variant="outline" size="sm" onClick={() => loadAll()} disabled={loading}>Thử tải lại</Button>
+            </div>
+          )}
+          {groupTitleLookupError && !groupsLoadError && (
+            <p className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+              Chưa tải được metadata tên nhóm; vẫn hiển thị Group ID. {groupTitleLookupError}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
             💡 Nếu chưa biết Group ID, mời bot vào group một lần: bot sẽ báo Group ID rồi tự rời. Dán ID đó vào đây, sau đó mời bot lại và bấm Test/Verify.
           </p>
 
-          {groups.length === 0 ? (
+          {groups.length > 0 && (
+            <Input
+              aria-label="Tìm nhóm theo tên hoặc Group ID"
+              placeholder="Tìm theo tên nhóm hoặc Group ID"
+              value={groupSearch}
+              onChange={(event) => setGroupSearch(event.target.value)}
+            />
+          )}
+
+          {!groupsLoadError && groups.length === 0 ? (
             <p className="text-sm text-muted-foreground">Chưa có group nào được quản lý.</p>
-          ) : (
+          ) : !groupsLoadError && filteredGroups.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Không tìm thấy nhóm phù hợp.</p>
+          ) : !groupsLoadError ? (
             <div className="space-y-2">
-              {groups.map((g) => {
+              {filteredGroups.map((g) => {
                 const isSelected = g.group_id === (settings?.group_id ?? selectedGroupId);
                 return (
                   <div
@@ -668,14 +702,15 @@ export default function TelegramGroupPanel() {
                   >
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono font-medium">{g.group_id}</span>
                         {isSelected && <Badge className="bg-primary/20 text-primary hover:bg-primary/30">Đang chọn</Badge>}
                         {g.welcome_enabled && <Badge variant="outline">welcome</Badge>}
                         {g.anti_spam_enabled && <Badge variant="outline">anti-spam</Badge>}
                         {g.anti_link_enabled && <Badge variant="outline">anti-link</Badge>}
                         {g.ai_enabled && <Badge variant="outline">AI</Badge>}
                       </div>
-                      <p className="text-xs text-muted-foreground">Added {fmtTime(g.created_at)}</p>
+                      <p className="truncate font-semibold text-foreground">{managedGroupDisplayName(g.group_title)}</p>
+                      <p className="font-mono text-xs text-muted-foreground">Group ID: {g.group_id}</p>
+                      <p className="text-xs text-muted-foreground">Đã thêm {fmtTime(g.created_at)}</p>
                     </div>
                     <div className="flex gap-2">
                       {!isSelected && (
@@ -691,7 +726,7 @@ export default function TelegramGroupPanel() {
                 );
               })}
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 

@@ -96,6 +96,7 @@ import {
   decideVerificationCallback,
   enforceVerificationFailure,
   isRecoverableVerificationStatus,
+  isJoinedMembershipState,
   isStaleVerificationEnforcement,
   releaseVerifiedMember,
   resolveJoinFlow,
@@ -4904,6 +4905,7 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
     chat_type: evt?.chat?.type,
     old: evt?.old_chat_member?.status,
     new: evt?.new_chat_member?.status,
+    is_member: evt?.new_chat_member?.is_member,
     user: evt?.new_chat_member?.user?.id,
     is_bot: evt?.new_chat_member?.user?.is_bot,
   }));
@@ -4936,8 +4938,10 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
   }
 
   const leftStatuses = new Set(["left", "kicked"]);
-  const joinedStatuses = new Set(["member", "restricted"]);
-  if (!joinedStatuses.has(newStatus ?? "")) { console.log("[webhook] skip welcome: not joined transition", { oldStatus, newStatus }); return; }
+  if (!isJoinedMembershipState(newStatus, evt.new_chat_member?.is_member)) {
+    console.log("[webhook] skip welcome: not joined transition", { oldStatus, newStatus, is_member: evt.new_chat_member?.is_member });
+    return;
+  }
   if (oldStatus && !leftStatuses.has(oldStatus)) {
     console.log("[webhook] skip welcome: already present before transition", { oldStatus, newStatus });
     return;

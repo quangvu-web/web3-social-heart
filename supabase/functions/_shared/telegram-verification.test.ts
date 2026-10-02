@@ -4,6 +4,7 @@ import {
   decideVerificationCallback,
   enforceVerificationFailure,
   isRecoverableVerificationStatus,
+  isJoinedMembershipState,
   isStaleVerificationEnforcement,
   resolveJoinFlow,
   releaseVerifiedMember,
@@ -19,6 +20,13 @@ Deno.test("verification remains active when welcome messages are disabled", () =
   assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: true, welcomeEnabled: true }), "verify");
   assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: false, welcomeEnabled: true }), "welcome");
   assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: false, welcomeEnabled: false }), "skip");
+});
+
+Deno.test("a restricted user counts as joined only when Telegram says they are still a member", () => {
+  assert.strictEqual(isJoinedMembershipState("member"), true);
+  assert.strictEqual(isJoinedMembershipState("restricted", true), true);
+  assert.strictEqual(isJoinedMembershipState("restricted", false), false);
+  assert.strictEqual(isJoinedMembershipState("left"), false);
 });
 
 Deno.test("verification claim outcome prevents a duplicate callback from repeating completion", () => {

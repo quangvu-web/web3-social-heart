@@ -1254,8 +1254,8 @@ export type ChatMemberUpdate = {
   chat?: { id?: number; type?: string; title?: string };
   from?: TelegramUser;
   date?: number;
-  old_chat_member?: { user?: TelegramUser; status?: string };
-  new_chat_member?: { user?: TelegramUser; status?: string };
+  old_chat_member?: { user?: TelegramUser; status?: string; is_member?: boolean };
+  new_chat_member?: { user?: TelegramUser; status?: string; is_member?: boolean };
   invite_link?: { invite_link?: string; name?: string };
 };
 

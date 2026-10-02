@@ -42,6 +42,14 @@ export function resolveJoinFlow(settings: {
   return settings.welcomeEnabled ? "welcome" : "skip";
 }
 
+export function isJoinedMembershipState(
+  status: string | null | undefined,
+  isMember?: boolean,
+): boolean {
+  if (status === "member") return true;
+  return status === "restricted" && isMember !== false;
+}
+
 export function verificationClaimOutcome(input: {
   count: number | null;
   hasError: boolean;

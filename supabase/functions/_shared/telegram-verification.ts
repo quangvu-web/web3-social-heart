@@ -42,12 +42,27 @@ export function resolveJoinFlow(settings: {
   return settings.welcomeEnabled ? "welcome" : "skip";
 }
 
+export function shouldSendVerifiedWelcome(welcomeEnabled: boolean): boolean {
+  return welcomeEnabled;
+}
+
 export function isJoinedMembershipState(
   status: string | null | undefined,
   isMember?: boolean,
 ): boolean {
   if (status === "member") return true;
   return status === "restricted" && isMember !== false;
+}
+
+export function shouldProcessChatMemberJoin(input: {
+  oldStatus?: string | null;
+  newStatus?: string | null;
+  isMember?: boolean;
+  isBot?: boolean;
+}): boolean {
+  if (input.isBot) return false;
+  if (!isJoinedMembershipState(input.newStatus, input.isMember)) return false;
+  return !input.oldStatus || input.oldStatus === "left" || input.oldStatus === "kicked";
 }
 
 export function verificationClaimOutcome(input: {

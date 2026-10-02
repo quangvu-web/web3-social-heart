@@ -7,6 +7,8 @@ import {
   isJoinedMembershipState,
   isStaleVerificationEnforcement,
   resolveJoinFlow,
+  shouldProcessChatMemberJoin,
+  shouldSendVerifiedWelcome,
   releaseVerifiedMember,
   verificationClaimOutcome,
   welcomeLogMessageId,
@@ -20,6 +22,8 @@ Deno.test("verification remains active when welcome messages are disabled", () =
   assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: true, welcomeEnabled: true }), "verify");
   assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: false, welcomeEnabled: true }), "welcome");
   assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: false, welcomeEnabled: false }), "skip");
+  assert.strictEqual(shouldSendVerifiedWelcome(false), false);
+  assert.strictEqual(shouldSendVerifiedWelcome(true), true);
 });
 
 Deno.test("a restricted user counts as joined only when Telegram says they are still a member", () => {
@@ -27,6 +31,18 @@ Deno.test("a restricted user counts as joined only when Telegram says they are s
   assert.strictEqual(isJoinedMembershipState("restricted", true), true);
   assert.strictEqual(isJoinedMembershipState("restricted", false), false);
   assert.strictEqual(isJoinedMembershipState("left"), false);
+});
+
+Deno.test("invite-link member transitions are processed once, only for a real newly joined user", () => {
+  const join = (oldStatus: string, newStatus: string, isMember?: boolean, isBot = false) =>
+    shouldProcessChatMemberJoin({ oldStatus, newStatus, isMember, isBot });
+
+  assert.strictEqual(join("left", "member"), true);
+  assert.strictEqual(join("kicked", "member"), true);
+  assert.strictEqual(join("left", "restricted", true), true);
+  assert.strictEqual(join("left", "restricted", false), false);
+  assert.strictEqual(join("member", "member"), false);
+  assert.strictEqual(join("left", "member", undefined, true), false);
 });
 
 Deno.test("verification claim outcome prevents a duplicate callback from repeating completion", () => {

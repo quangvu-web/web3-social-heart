@@ -19,6 +19,8 @@ import {
   welcomeMarkup,
 } from "../_shared/telegram-community.ts";
 import { loadManagedGroupTitles } from "../_shared/managed-groups.ts";
+import { managedGroupSettingsInsert } from "../_shared/telegram-welcome-defaults.ts";
+import { COMMUNITY_WEBHOOK_ALLOWED_UPDATES } from "../_shared/telegram-webhook-config.ts";
 
 
 
@@ -100,7 +102,7 @@ Deno.serve(async (req) => {
     const webhookUrl = `${supabaseUrl}/functions/v1/telegram-community-webhook?secret=${encodeURIComponent(secret)}`;
     const result = await callCommunityTelegram("setWebhook", {
       url: webhookUrl,
-      allowed_updates: ["message", "edited_message", "channel_post", "edited_channel_post", "callback_query", "chat_member", "my_chat_member"],
+      allowed_updates: [...COMMUNITY_WEBHOOK_ALLOWED_UPDATES],
       secret_token: secret,
       drop_pending_updates: false,
     });
@@ -120,7 +122,7 @@ Deno.serve(async (req) => {
     const webhookUrl = `${supabaseUrl}/functions/v1/telegram-community-webhook?secret=${encodeURIComponent(secret)}`;
     const result = await callCommunityTelegram("setWebhook", {
       url: webhookUrl,
-      allowed_updates: ["message", "edited_message", "channel_post", "edited_channel_post", "callback_query", "chat_member", "my_chat_member"],
+      allowed_updates: [...COMMUNITY_WEBHOOK_ALLOWED_UPDATES],
       secret_token: secret,
       drop_pending_updates: false,
     });
@@ -151,7 +153,7 @@ Deno.serve(async (req) => {
     if (existing) return json({ success: false, error: "Group này đã được quản lý rồi" }, 409);
     const { data, error } = await adminClient
       .from("telegram_community_settings")
-      .insert({ group_id: newGroupId, bot_username: botUsername })
+      .insert(managedGroupSettingsInsert(newGroupId, botUsername))
       .select("*")
       .single();
     if (error) {

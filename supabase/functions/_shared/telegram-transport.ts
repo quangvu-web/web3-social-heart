@@ -6,6 +6,10 @@ export function isTelegramApiSuccess(httpOk: boolean, payload: { ok?: unknown } 
   return httpOk && payload?.ok === true;
 }
 
+export function welcomeLogAction(ok: boolean): "welcome_sent" | "welcome_send_failed" {
+  return ok ? "welcome_sent" : "welcome_send_failed";
+}
+
 export function sanitizeTelegramTransportError(error: unknown, token: string | null): string {
   const raw = error instanceof Error ? `${error.name}: ${error.message}` : "Telegram transport failed";
   const withoutToken = token ? raw.replaceAll(token, "[REDACTED]") : raw;

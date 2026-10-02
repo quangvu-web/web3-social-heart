@@ -97,10 +97,11 @@ import {
   decideVerificationCallback,
   enforceVerificationFailure,
   isRecoverableVerificationStatus,
-  isJoinedMembershipState,
   isStaleVerificationEnforcement,
   releaseVerifiedMember,
   resolveJoinFlow,
+  shouldProcessChatMemberJoin,
+  shouldSendVerifiedWelcome,
   startVerificationDelivery,
   verificationClaimOutcome,
   verificationRestrictionUntil,
@@ -110,7 +111,11 @@ import {
   type VerifiedCallbackOutcome,
 } from "../_shared/telegram-verification.ts";
 import { loadAngelRuleOverrides } from "../_shared/angel-facts.ts";
-import { sanitizeTelegramTransportError } from "../_shared/telegram-transport.ts";
+import { sanitizeTelegramTransportError, welcomeLogAction } from "../_shared/telegram-transport.ts";
+import {
+  COMMUNITY_WEBHOOK_ALLOWED_UPDATES,
+  missingCommunityWebhookUpdates,
+} from "../_shared/telegram-webhook-config.ts";
 import {
   scanJoinName,
   scanAvatarImage,
@@ -588,7 +593,7 @@ async function sendFinalWelcome(
   };
 
   let welcomeOutcome: "welcome_sent" | "welcome_skipped" | "welcome_failed" = "welcome_skipped";
-  if (params.settings.welcome_enabled === true) {
+  if (shouldSendVerifiedWelcome(params.settings.welcome_enabled)) {
     try {
       const sent = await sendWelcomeToMember(adminClient, {
         groupId: params.groupId,
@@ -1709,13 +1714,19 @@ async function handleVerificationCallback(update: TelegramUpdate): Promise<boole
   return true;
 }
 
-async function ensureWebhookReceivesPrivateMessages(): Promise<void> {
+async function ensureWebhookReceivesRequiredUpdates(): Promise<void> {
   try {
     const info = await callCommunityTelegram("getWebhookInfo");
-    const allowedUpdates = Array.isArray(info?.data?.result?.allowed_updates)
-      ? info.data.result.allowed_updates as string[]
-      : null;
-    if (!allowedUpdates || (allowedUpdates.includes("message") && allowedUpdates.includes("channel_post"))) return;
+    const allowedUpdates = info?.data?.result?.allowed_updates;
+    const missingUpdates = missingCommunityWebhookUpdates(allowedUpdates);
+    if (!missingUpdates) {
+      console.warn("[webhook] cannot verify allowed_updates; leaving webhook unchanged", {
+        request_ok: info.ok,
+        status: info.status,
+      });
+      return;
+    }
+    if (missingUpdates.length === 0) return;
 
     const secret = Deno.env.get("COMMUNITY_GUARD_WEBHOOK_SECRET");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -1727,12 +1738,12 @@ async function ensureWebhookReceivesPrivateMessages(): Promise<void> {
     const webhookUrl = `${supabaseUrl}/functions/v1/telegram-community-webhook?secret=${encodeURIComponent(secret)}`;
     const result = await callCommunityTelegram("setWebhook", {
       url: webhookUrl,
-      allowed_updates: ["message", "edited_message", "channel_post", "edited_channel_post", "callback_query", "chat_member", "my_chat_member"],
+      allowed_updates: [...COMMUNITY_WEBHOOK_ALLOWED_UPDATES],
       secret_token: secret,
       drop_pending_updates: false,
     });
-    console.warn("[webhook] repaired allowed_updates for private messages", {
-      previous: allowedUpdates,
+    console.warn("[webhook] repaired allowed_updates for community handlers", {
+      missing: missingUpdates,
       ok: result.ok,
       status: result.status,
     });
@@ -1751,7 +1762,7 @@ async function handleCallback(update: TelegramUpdate) {
   if (!chatId) return;
 
   if (callback.data === "ask_angel_hint") {
-    await ensureWebhookReceivesPrivateMessages();
+    await ensureWebhookReceivesRequiredUpdates();
     await sendMessage(
       chatId,
       "💛 <b>Hi there</b>, type your question for Angel right here. For example:\n\n• What is FUN.RICH?\n• How do I create a Light Profile?\n• How do I connect my wallet?\n• What's in the Community Rules?\n\nAngel will reply right away 🌟",
@@ -1844,7 +1855,7 @@ async function sendWelcomeToMember(
     groupId: params.groupId,
     userId: params.member.id ?? null,
     username: params.member.username ?? null,
-    action: ok ? "welcome_sent" : "welcome_send_failed",
+    action: welcomeLogAction(ok),
     reason: `${params.reason}:${mode}${avatarUrl ? "" : ":no_avatar"}`,
     messageText: ok ? null : JSON.stringify((result as { data?: unknown })?.data ?? result).slice(0, 500),
     messageId: welcomeLogMessageId(sentMessageId),
@@ -5007,13 +5018,17 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
     console.error("[webhook] logMemberEvent failed", e);
   }
 
-  const leftStatuses = new Set(["left", "kicked"]);
-  if (!isJoinedMembershipState(newStatus, evt.new_chat_member?.is_member)) {
-    console.log("[webhook] skip welcome: not joined transition", { oldStatus, newStatus, is_member: evt.new_chat_member?.is_member });
-    return;
-  }
-  if (oldStatus && !leftStatuses.has(oldStatus)) {
-    console.log("[webhook] skip welcome: already present before transition", { oldStatus, newStatus });
+  if (!shouldProcessChatMemberJoin({
+    oldStatus,
+    newStatus,
+    isMember: evt.new_chat_member?.is_member,
+    isBot: member.is_bot,
+  })) {
+    console.log("[webhook] skip welcome: not a newly joined member", {
+      oldStatus,
+      newStatus,
+      is_member: evt.new_chat_member?.is_member,
+    });
     return;
   }
 

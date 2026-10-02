@@ -36,6 +36,7 @@ import {
 import { tryFetchTelegramMedia } from "./telegram-media.ts";
 import { callAiGateway, gatewayText } from "./ai-gateway-retry.ts";
 import { captureTelegramRequest, isTelegramApiSuccess } from "./telegram-transport.ts";
+import { managedGroupSettingsInsert } from "./telegram-welcome-defaults.ts";
 
 
 // EdgeRuntime.waitUntil declaration (Supabase Edge Runtime global).
@@ -3646,7 +3647,7 @@ export async function ensureSettings(adminClient: SupabaseClient): Promise<Commu
 
   const { data, error } = await adminClient
     .from("telegram_community_settings")
-    .insert({ group_id: envGroupId, bot_username: botUsername })
+    .insert(managedGroupSettingsInsert(envGroupId, botUsername))
     .select("*")
     .single();
 

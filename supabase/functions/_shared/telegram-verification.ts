@@ -24,6 +24,7 @@ export type VerificationCallbackDecision =
   | { kind: "failed"; attempts: number };
 
 export type VerificationFailureLogAction = "verification_expired" | "verification_failed";
+export const VERIFICATION_ENFORCEMENT_LEASE_MS = 60_000;
 
 export type VerifiedCallbackOutcome =
   | "settings_unavailable_released"
@@ -53,6 +54,16 @@ export function verificationClaimOutcome(input: {
 
 export function isRecoverableVerificationStatus(status: string | null | undefined): boolean {
   return status === "pending" || status === "release_failed";
+}
+
+export function isStaleVerificationEnforcement(input: {
+  status: string | null | undefined;
+  updatedAt: string | null | undefined;
+  nowMilliseconds: number;
+}): boolean {
+  if (input.status !== "enforcement_processing" || !input.updatedAt) return false;
+  const updatedAt = Date.parse(input.updatedAt);
+  return Number.isFinite(updatedAt) && input.nowMilliseconds - updatedAt >= VERIFICATION_ENFORCEMENT_LEASE_MS;
 }
 
 export function welcomeLogMessageId(messageId: number | undefined): number | null {

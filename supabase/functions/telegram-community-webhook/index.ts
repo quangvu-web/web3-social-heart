@@ -96,12 +96,14 @@ import {
   decideVerificationCallback,
   enforceVerificationFailure,
   isRecoverableVerificationStatus,
+  isStaleVerificationEnforcement,
   releaseVerifiedMember,
   resolveJoinFlow,
   startVerificationDelivery,
   verificationClaimOutcome,
   verificationRestrictionUntil,
   verificationTimeoutSeconds,
+  VERIFICATION_ENFORCEMENT_LEASE_MS,
   welcomeLogMessageId,
   type VerifiedCallbackOutcome,
 } from "../_shared/telegram-verification.ts";
@@ -324,7 +326,8 @@ type VerificationChallenge = {
   attempts: number;
   max_attempts: number;
   expires_at: string;
-  status: "pending" | "verified" | "failed" | "expired" | "release_failed";
+  status: "pending" | "verified" | "failed" | "expired" | "release_failed" | "enforcement_processing";
+  updated_at: string;
 };
 
 function formatTemplate(template: string, params: Record<string, string | number>) {
@@ -363,9 +366,44 @@ async function punishUnverifiedMember(
   challenge: VerificationChallenge,
   settings: CommunitySettings | null,
   actionReason: "verification_failed" | "verification_expired",
-) {
+  options: { expectedAttempts?: number; reclaimStaleProcessing?: boolean } = {},
+): Promise<boolean> {
+  const claimedAt = new Date().toISOString();
+  let claim = adminClient
+    .from("telegram_community_verification_challenges")
+    .update({ status: "enforcement_processing", updated_at: claimedAt }, { count: "exact" })
+    .eq("id", challenge.id);
+
+  if (challenge.status === "pending") {
+    claim = claim.eq("status", "pending");
+    if (options.expectedAttempts !== undefined) claim = claim.eq("attempts", options.expectedAttempts);
+    if (actionReason === "verification_expired") claim = claim.lte("expires_at", claimedAt);
+  } else if (challenge.status === "enforcement_processing" && options.reclaimStaleProcessing) {
+    if (!isStaleVerificationEnforcement({
+      status: challenge.status,
+      updatedAt: challenge.updated_at,
+      nowMilliseconds: Date.now(),
+    })) return false;
+    claim = claim.eq("status", "enforcement_processing").eq("updated_at", challenge.updated_at);
+  } else {
+    return false;
+  }
+
+  const claimResult = await claim;
+  if (claimResult.error || claimResult.count !== 1) {
+    if (claimResult.error) {
+      console.error("[verification] failure enforcement claim failed", {
+        chat_id: challenge.group_id,
+        user_id: challenge.telegram_user_id,
+        challenge_id: challenge.id,
+        error: claimResult.error.message,
+      });
+    }
+    return false;
+  }
+
   const action = settings?.verification_failure_action ?? "kick";
-  await enforceVerificationFailure({
+  const enforcementSucceeded = await enforceVerificationFailure({
     action: actionReason,
     enforce: async () => {
       const result = action === "mute"
@@ -395,10 +433,13 @@ async function punishUnverifiedMember(
     },
   });
 
+  const terminalStatus = actionReason === "verification_expired" ? "expired" : "failed";
   const { error: statusError } = await adminClient
     .from("telegram_community_verification_challenges")
-    .update({ status: actionReason === "verification_expired" ? "expired" : "failed" })
-    .eq("id", challenge.id);
+    .update({ status: terminalStatus, updated_at: new Date().toISOString() })
+    .eq("id", challenge.id)
+    .eq("status", "enforcement_processing")
+    .eq("updated_at", claimedAt);
   if (statusError) {
     console.error("[verification] terminal challenge status update failed", {
       chat_id: challenge.group_id,
@@ -410,7 +451,7 @@ async function punishUnverifiedMember(
       groupId: challenge.group_id,
       userId: challenge.telegram_user_id,
       username: challenge.username,
-    action: "verification_status_update_failed",
+      action: "verification_status_update_failed",
       reason: statusError.message,
       messageId: challenge.captcha_message_id,
     });
@@ -428,14 +469,16 @@ async function punishUnverifiedMember(
         : `${challenge.full_name ?? "Member"} did not complete verification.`,
     );
   }
+  return enforcementSucceeded;
 }
 
 async function processExpiredVerifications(adminClient: ReturnType<typeof getClients>["adminClient"]) {
+  const now = new Date();
   const { data: expired, error } = await adminClient
     .from("telegram_community_verification_challenges")
     .select("*")
     .eq("status", "pending")
-    .lte("expires_at", new Date().toISOString())
+    .lte("expires_at", now.toISOString())
     .limit(20);
 
   if (error) {
@@ -446,6 +489,27 @@ async function processExpiredVerifications(adminClient: ReturnType<typeof getCli
   for (const challenge of (expired ?? []) as VerificationChallenge[]) {
     const settings = await getSettingsForGroup(adminClient, challenge.group_id);
     await punishUnverifiedMember(adminClient, challenge, settings, "verification_expired");
+  }
+
+  const staleBefore = new Date(now.getTime() - VERIFICATION_ENFORCEMENT_LEASE_MS).toISOString();
+  const { data: interrupted, error: interruptedError } = await adminClient
+    .from("telegram_community_verification_challenges")
+    .select("*")
+    .eq("status", "enforcement_processing")
+    .lt("updated_at", staleBefore)
+    .limit(20);
+  if (interruptedError) {
+    console.error("[verification] interrupted enforcement query failed", { error: interruptedError.message });
+    return;
+  }
+  for (const challenge of (interrupted ?? []) as VerificationChallenge[]) {
+    const settings = await getSettingsForGroup(adminClient, challenge.group_id);
+    const interruptedReason = (challenge.attempts ?? 0) >= (challenge.max_attempts ?? 3)
+      ? "verification_failed"
+      : "verification_expired";
+    await punishUnverifiedMember(adminClient, challenge, settings, interruptedReason, {
+      reclaimStaleProcessing: true,
+    });
   }
 }
 
@@ -649,18 +713,18 @@ async function startVerificationForMember(
     settings: CommunitySettings;
     reason: string;
   },
-) {
-  if (!params.member.id || params.member.is_bot) return;
+): Promise<string> {
+  if (!params.member.id || params.member.is_bot) return "ignored_invalid_member";
   await upsertUserState({ adminClient, groupId: params.groupId, user: params.member });
   if (!params.settings.verification_enabled) {
-    if (!params.settings.welcome_enabled) return;
-    await sendWelcomeToMember(adminClient, {
+    if (!params.settings.welcome_enabled) return "welcome_and_verification_disabled";
+    const sent = await sendWelcomeToMember(adminClient, {
       groupId: params.groupId,
       member: params.member,
       settings: params.settings,
       reason: `${params.reason}_verification_disabled`,
     });
-    return;
+    return sent ? "welcome_sent" : "welcome_failed";
   }
 
   const existing = await adminClient
@@ -686,9 +750,9 @@ async function startVerificationForMember(
       action: "verification_lookup_failed",
       reason: existing.error.message,
     });
-    return;
+    return "challenge_lookup_failed";
   }
-  if (existing.data) return;
+  if (existing.data) return "existing_challenge_reused";
 
   const captcha = buildMathCaptcha();
   const memberName = fullName(params.member);
@@ -704,7 +768,7 @@ async function startVerificationForMember(
     question: captcha.question,
     expires_minutes: Math.ceil(timeoutSeconds / 60),
   });
-  await startVerificationDelivery({
+  const outcome = await startVerificationDelivery({
     restrictMember: async () => {
       const result = await restrictChatMember(params.groupId, params.member.id!, restrictionUntil);
       return {
@@ -782,6 +846,7 @@ async function startVerificationForMember(
       scheduleVerificationExpiryCheck(challengeId, timeoutSeconds * 1000 + 1000);
     },
   });
+  return outcome;
 }
 
 const DM_TEXT_CAP = 8000;
@@ -1583,7 +1648,9 @@ async function handleVerificationCallback(update: TelegramUpdate): Promise<boole
   }
 
   if (decision.kind === "failed") {
-    await punishUnverifiedMember(adminClient, challenge, settings, "verification_failed");
+    await punishUnverifiedMember(adminClient, challenge, settings, "verification_failed", {
+      expectedAttempts: attempts,
+    });
     await answerCallbackQuery(callback.id, "Too many wrong answers.");
     return true;
   }
@@ -4913,13 +4980,18 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
     return;
   }
 
-  await startVerificationForMember(adminClient, {
+  const joinOutcome = await startVerificationForMember(adminClient, {
     groupId: evt.chat.id,
     member,
     settings,
     reason: "chat_member",
   });
-  console.log("[webhook] verification started", { chat_id: evt.chat.id, user_id: member.id });
+  console.log("[webhook] join flow completed", {
+    chat_id: evt.chat.id,
+    user_id: member.id,
+    update_id: update.update_id ?? null,
+    outcome: joinOutcome,
+  });
 }
 
 async function handleUnauthorizedGroup(

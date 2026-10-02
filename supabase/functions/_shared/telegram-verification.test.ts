@@ -4,6 +4,7 @@ import {
   decideVerificationCallback,
   enforceVerificationFailure,
   isRecoverableVerificationStatus,
+  isStaleVerificationEnforcement,
   resolveJoinFlow,
   releaseVerifiedMember,
   verificationClaimOutcome,
@@ -32,6 +33,25 @@ Deno.test("a failed permission restoration remains retryable after the original 
   assert.deepStrictEqual(isRecoverableVerificationStatus("release_failed"), true);
   assert.deepStrictEqual(isRecoverableVerificationStatus("verified"), false);
   assert.deepStrictEqual(isRecoverableVerificationStatus("failed"), false);
+});
+
+Deno.test("only stale enforcement claims can be reclaimed after a webhook interruption", () => {
+  const now = Date.parse("2026-10-02T00:02:00.000Z");
+  assert.deepStrictEqual(isStaleVerificationEnforcement({
+    status: "enforcement_processing",
+    updatedAt: "2026-10-02T00:00:59.000Z",
+    nowMilliseconds: now,
+  }), true);
+  assert.deepStrictEqual(isStaleVerificationEnforcement({
+    status: "enforcement_processing",
+    updatedAt: "2026-10-02T00:01:30.000Z",
+    nowMilliseconds: now,
+  }), false);
+  assert.deepStrictEqual(isStaleVerificationEnforcement({
+    status: "verified",
+    updatedAt: "2026-10-02T00:00:00.000Z",
+    nowMilliseconds: now,
+  }), false);
 });
 
 Deno.test("welcome log uses the Telegram welcome message ID, not the CAPTCHA message ID", () => {

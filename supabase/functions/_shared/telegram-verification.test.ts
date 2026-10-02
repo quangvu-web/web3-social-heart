@@ -61,6 +61,24 @@ Deno.test("challenge creation failure releases member after a successful restric
   assert.deepStrictEqual(events, ["verification_create_failed", "restore", "verification_restriction_recovered"]);
 });
 
+Deno.test("permission-denied challenge insert and failing moderation log still release member", async () => {
+  // Mirrors production: service_role lacks INSERT on challenges and moderation logs.
+  const events: string[] = [];
+  const result = await startVerificationDelivery({
+    restrictMember: async () => ({ ok: true }),
+    createChallenge: async () => { throw new Error("permission denied for table telegram_community_verification_challenges"); },
+    sendCaptcha: async () => { events.push("send"); return { ok: true, messageId: 9 }; },
+    storeCaptchaMessageId: async () => null,
+    markChallengeFailed: async () => null,
+    restoreMemberPermissions: async () => { events.push("restore"); return { ok: true }; },
+    log: async () => { throw new Error("permission denied for table telegram_community_moderation_logs"); },
+    scheduleExpiry: () => events.push("schedule"),
+  });
+
+  assert.deepStrictEqual(result, "challenge_create_failed");
+  assert.deepStrictEqual(events, ["restore"]);
+});
+
 Deno.test("CAPTCHA send failure closes challenge and releases member", async () => {
   const events: string[] = [];
   const result = await startVerificationDelivery({

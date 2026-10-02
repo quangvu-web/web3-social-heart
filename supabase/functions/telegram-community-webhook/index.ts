@@ -91,6 +91,15 @@ import {
   type ScamModerationContext,
 } from "../_shared/telegram-scam-protection.ts";
 import { tryFetchTelegramMedia } from "../_shared/telegram-media.ts";
+import {
+  completeVerifiedCallback,
+  decideVerificationCallback,
+  enforceVerificationFailure,
+  releaseVerifiedMember,
+  startVerificationDelivery,
+  verificationRestrictionUntil,
+  verificationTimeoutSeconds,
+} from "../_shared/telegram-verification.ts";
 import { loadAngelRuleOverrides } from "../_shared/angel-facts.ts";
 import {
   scanJoinName,
@@ -344,12 +353,6 @@ function captchaMarkup(challengeId: string, options: number[]) {
   };
 }
 
-async function restrictPendingMember(chatId: number, userId: number, settings: CommunitySettings) {
-  const timeoutSeconds = Number(settings.verification_timeout_seconds) || 180;
-  const untilUnix = Math.floor(Date.now() / 1000) + Math.max(timeoutSeconds, 180) + 600;
-  return restrictChatMember(chatId, userId, untilUnix);
-}
-
 async function punishUnverifiedMember(
   adminClient: ReturnType<typeof getClients>["adminClient"],
   challenge: VerificationChallenge,
@@ -357,17 +360,56 @@ async function punishUnverifiedMember(
   actionReason: "verification_failed" | "verification_expired",
 ) {
   const action = settings?.verification_failure_action ?? "kick";
-  if (action === "mute") {
-    const untilUnix = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
-    await restrictChatMember(challenge.group_id, challenge.telegram_user_id, untilUnix);
-  } else {
-    await kickChatMember(challenge.group_id, challenge.telegram_user_id);
-  }
+  await enforceVerificationFailure({
+    action: actionReason,
+    enforce: async () => {
+      const result = action === "mute"
+        ? await restrictChatMember(challenge.group_id, challenge.telegram_user_id, Math.floor(Date.now() / 1000) + 24 * 60 * 60)
+        : await kickChatMember(challenge.group_id, challenge.telegram_user_id);
+      return { ok: result.ok, errorCode: result.data?.error_code, description: result.data?.description };
+    },
+    restoreMemberPermissions: async () => {
+      const result = await unrestrictChatMember(challenge.group_id, challenge.telegram_user_id);
+      return { ok: result.ok, errorCode: result.data?.error_code, description: result.data?.description };
+    },
+    log: async (logAction, reason) => {
+      console.error("[verification] failure enforcement outcome", {
+        chat_id: challenge.group_id,
+        user_id: challenge.telegram_user_id,
+        action: logAction,
+        reason,
+      });
+      await logModeration(adminClient, {
+        groupId: challenge.group_id,
+        userId: challenge.telegram_user_id,
+        username: challenge.username,
+        action: logAction,
+        reason: `${actionReason}: ${reason}`.slice(0, 240),
+        messageId: challenge.captcha_message_id,
+      });
+    },
+  });
 
-  await adminClient
+  const { error: statusError } = await adminClient
     .from("telegram_community_verification_challenges")
     .update({ status: actionReason === "verification_expired" ? "expired" : "failed" })
     .eq("id", challenge.id);
+  if (statusError) {
+    console.error("[verification] terminal challenge status update failed", {
+      chat_id: challenge.group_id,
+      user_id: challenge.telegram_user_id,
+      challenge_id: challenge.id,
+      error: statusError.message,
+    });
+    await logModeration(adminClient, {
+      groupId: challenge.group_id,
+      userId: challenge.telegram_user_id,
+      username: challenge.username,
+    action: "verification_status_update_failed",
+      reason: statusError.message,
+      messageId: challenge.captcha_message_id,
+    });
+  }
 
   if (challenge.captcha_message_id) {
     await editMessageText(
@@ -381,24 +423,20 @@ async function punishUnverifiedMember(
         : `${challenge.full_name ?? "Member"} did not complete verification.`,
     );
   }
-
-  await logModeration(adminClient, {
-    groupId: challenge.group_id,
-    userId: challenge.telegram_user_id,
-    username: challenge.username,
-    action,
-    reason: actionReason,
-    messageId: challenge.captcha_message_id,
-  });
 }
 
 async function processExpiredVerifications(adminClient: ReturnType<typeof getClients>["adminClient"]) {
-  const { data: expired } = await adminClient
+  const { data: expired, error } = await adminClient
     .from("telegram_community_verification_challenges")
     .select("*")
     .eq("status", "pending")
     .lte("expires_at", new Date().toISOString())
     .limit(20);
+
+  if (error) {
+    console.error("[verification] expired challenge query failed", { error: error.message });
+    return;
+  }
 
   for (const challenge of (expired ?? []) as VerificationChallenge[]) {
     const settings = await getSettingsForGroup(adminClient, challenge.group_id);
@@ -417,7 +455,29 @@ async function sendFinalWelcome(
     captchaMessageId?: number | null;
   },
 ) {
-  await unrestrictChatMember(params.groupId, params.userId);
+  const permissionsRestored = await releaseVerifiedMember({
+    restoreMemberPermissions: async () => {
+      const result = await unrestrictChatMember(params.groupId, params.userId);
+      return { ok: result.ok, errorCode: result.data?.error_code, description: result.data?.description };
+    },
+    log: async (action, reason) => {
+      console.error("[verification] verified member unrestrict outcome", {
+        chat_id: params.groupId,
+        user_id: params.userId,
+        action,
+        reason,
+      });
+      await logModeration(adminClient, {
+        groupId: params.groupId,
+        userId: params.userId,
+        username: params.username ?? null,
+        action,
+        reason,
+        messageId: params.captchaMessageId ?? null,
+      });
+    },
+  });
+  if (!permissionsRestored) return false;
   if (params.captchaMessageId) {
     await deleteMessage(params.groupId, params.captchaMessageId).catch(() => undefined);
   }
@@ -454,6 +514,7 @@ async function sendFinalWelcome(
     reason: "captcha_correct",
     messageId: params.captchaMessageId ?? null,
   });
+  return true;
 }
 
 // ─── Join Gate: chặn thành viên có tên / avatar nhạy cảm ─────────────────────
@@ -585,67 +646,115 @@ async function startVerificationForMember(
     .eq("status", "pending")
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
-  if (existing.data) return;
-
-  await restrictPendingMember(params.groupId, params.member.id, params.settings);
-  const captcha = buildMathCaptcha();
-  const memberName = fullName(params.member);
-  const timeoutSeconds = Number(params.settings.verification_timeout_seconds) || 180;
-  const maxAttempts = Number(params.settings.verification_max_attempts) || 3;
-  const expiresAt = new Date(Date.now() + Math.max(timeoutSeconds, 60) * 1000);
-  const { data: challenge, error } = await adminClient
-    .from("telegram_community_verification_challenges")
-    .insert({
-      group_id: params.groupId,
-      telegram_user_id: params.member.id,
-      username: params.member.username ?? null,
-      full_name: memberName,
-      question: captcha.question,
-      correct_answer: captcha.correct,
-      options: captcha.options,
-      max_attempts: maxAttempts,
-      expires_at: expiresAt.toISOString(),
-    })
-    .select("*")
-    .single();
-
-  if (error || !challenge) {
+  if (existing.error) {
+    console.error("[verification] pending challenge lookup failed", {
+      chat_id: params.groupId,
+      user_id: params.member.id,
+      error: existing.error.message,
+    });
     await logModeration(adminClient, {
       groupId: params.groupId,
       userId: params.member.id,
       username: params.member.username ?? null,
-      action: "verification_create_failed",
-      reason: error?.message ?? "unknown",
+      action: "verification_lookup_failed",
+      reason: existing.error.message,
     });
     return;
   }
+  if (existing.data) return;
 
+  const captcha = buildMathCaptcha();
+  const memberName = fullName(params.member);
+  const configuredTimeout = Number(params.settings.verification_timeout_seconds) || 180;
+  const timeoutSeconds = verificationTimeoutSeconds(configuredTimeout);
+  const maxAttempts = Number(params.settings.verification_max_attempts) || 3;
+  const nowMilliseconds = Date.now();
+  const expiresAt = new Date(nowMilliseconds + timeoutSeconds * 1000);
+  const restrictionUntil = verificationRestrictionUntil(nowMilliseconds, configuredTimeout);
   const text = formatTemplate(params.settings.verification_prompt_message || "Welcome {full_name}! Please verify: {question}", {
     full_name: memberName,
     name: memberName,
     question: captcha.question,
     expires_minutes: Math.ceil(timeoutSeconds / 60),
   });
-  const sent = await sendMessage(params.groupId, text, { reply_markup: captchaMarkup(challenge.id, captcha.options) });
-  if (sent.ok && sent.data?.result?.message_id) {
-    await adminClient
-      .from("telegram_community_verification_challenges")
-      .update({ captcha_message_id: sent.data.result.message_id })
-      .eq("id", challenge.id);
-  }
-  await logModeration(adminClient, {
-    groupId: params.groupId,
-    userId: params.member.id,
-    username: params.member.username ?? null,
-    action: sent.ok ? "verification_started" : "verification_send_failed",
-    reason: params.reason,
-    messageText: sent.ok ? null : JSON.stringify(sent.data ?? sent).slice(0, 500),
-    messageId: sent.data?.result?.message_id ?? null,
+  await startVerificationDelivery({
+    restrictMember: async () => {
+      const result = await restrictChatMember(params.groupId, params.member.id!, restrictionUntil);
+      return {
+        ok: result.ok,
+        errorCode: result.data?.error_code,
+        description: result.data?.description,
+      };
+    },
+    createChallenge: async () => {
+      const { data, error } = await adminClient
+        .from("telegram_community_verification_challenges")
+        .insert({
+          group_id: params.groupId,
+          telegram_user_id: params.member.id,
+          username: params.member.username ?? null,
+          full_name: memberName,
+          question: captcha.question,
+          correct_answer: captcha.correct,
+          options: captcha.options,
+          max_attempts: maxAttempts,
+          expires_at: expiresAt.toISOString(),
+        })
+        .select("id")
+        .single();
+      return { challengeId: data?.id, error: error?.message };
+    },
+    sendCaptcha: async (challengeId, options) => {
+      const sent = await sendMessage(params.groupId, text, {
+        reply_markup: captchaMarkup(challengeId, captcha.options),
+        skipAutoDelete: options.skipAutoDelete,
+      });
+      return {
+        ok: sent.ok,
+        messageId: sent.data?.result?.message_id,
+        errorCode: sent.data?.error_code,
+        description: sent.data?.description ?? (!sent.ok ? JSON.stringify(sent.data ?? sent).slice(0, 240) : undefined),
+      };
+    },
+    storeCaptchaMessageId: async (challengeId, messageId) => {
+      const { error } = await adminClient
+        .from("telegram_community_verification_challenges")
+        .update({ captcha_message_id: messageId })
+        .eq("id", challengeId);
+      return error?.message ?? null;
+    },
+    markChallengeFailed: async (challengeId) => {
+      const { error } = await adminClient
+        .from("telegram_community_verification_challenges")
+        .update({ status: "failed" })
+        .eq("id", challengeId);
+      return error?.message ?? null;
+    },
+    restoreMemberPermissions: async () => {
+      const result = await unrestrictChatMember(params.groupId, params.member.id!);
+      return {
+        ok: result.ok,
+        errorCode: result.data?.error_code,
+        description: result.data?.description,
+      };
+    },
+    deleteCaptcha: async (messageId) => {
+      await deleteMessage(params.groupId, messageId);
+    },
+    log: async (action, reason, messageId) => {
+      await logModeration(adminClient, {
+        groupId: params.groupId,
+        userId: params.member.id,
+        username: params.member.username ?? null,
+        action,
+        reason: `${params.reason}: ${reason}`.slice(0, 240),
+        messageId: messageId ?? null,
+      });
+    },
+    scheduleExpiry: (challengeId) => {
+      scheduleVerificationExpiryCheck(challengeId, timeoutSeconds * 1000 + 1000);
+    },
   });
-
-  if (sent.ok) {
-    scheduleVerificationExpiryCheck(challenge.id, Math.max(timeoutSeconds, 60) * 1000 + 1000);
-  }
 }
 
 const DM_TEXT_CAP = 8000;
@@ -1231,8 +1340,8 @@ async function handlePrivateMessage(message: TelegramMessage) {
       if (_dmImageOut.image_url || _dmImageOut.image_base64) {
         const caption = reply || "Angel vẽ cho bé đây ✨💛";
         await _dmImageStreamer.finalize({
-          b64: _dmImageOut.image_base64,
-          url: _dmImageOut.image_url,
+          b64: _dmImageOut.image_base64 ?? undefined,
+          url: _dmImageOut.image_url ?? undefined,
           mime: _dmImageOut.mime_type || "image/png",
           caption,
         });
@@ -1259,62 +1368,152 @@ async function handleVerificationCallback(update: TelegramUpdate): Promise<boole
   const answer = Number(answerRaw);
   const userId = callback.from?.id;
   const { adminClient } = getClients();
-  const { data: challengeRow } = await adminClient
+  const { data: challengeRow, error: lookupError } = await adminClient
     .from("telegram_community_verification_challenges")
     .select("*")
     .eq("id", challengeId)
     .maybeSingle();
   const challenge = challengeRow as VerificationChallenge | null;
 
-  if (!challenge || challenge.status !== "pending") {
+  if (lookupError) {
+    console.error("[verification] callback challenge lookup failed", {
+      challenge_id: challengeId,
+      user_id: userId ?? null,
+      error: lookupError.message,
+    });
+    await answerCallbackQuery(callback.id, "Verification is temporarily unavailable. Please try again.");
+    return true;
+  }
+
+  const settings = challenge ? await getSettingsForGroup(adminClient, challenge.group_id) : null;
+  const decision = decideVerificationCallback({
+    isPending: challenge?.status === "pending",
+    ownerUserId: challenge?.telegram_user_id ?? -1,
+    callbackUserId: userId,
+    answer,
+    correctAnswer: challenge?.correct_answer ?? Number.NaN,
+    expiresAtMilliseconds: challenge ? new Date(challenge.expires_at).getTime() : 0,
+    nowMilliseconds: Date.now(),
+    attempts: challenge?.attempts ?? 0,
+    maxAttempts: challenge?.max_attempts ?? settings?.verification_max_attempts ?? 3,
+  });
+
+  if (decision.kind === "inactive") {
     await answerCallbackQuery(callback.id, "This verification is no longer active.");
     return true;
   }
-  if (!userId || userId !== challenge.telegram_user_id) {
+  if (decision.kind === "not_owner") {
     await answerCallbackQuery(callback.id, "This captcha is for another member.");
     return true;
   }
 
-  const settings = await getSettingsForGroup(adminClient, challenge.group_id);
-  if (new Date(challenge.expires_at).getTime() <= Date.now()) {
+  if (!challenge) {
+    await answerCallbackQuery(callback.id, "This verification is no longer active.");
+    return true;
+  }
+  if (decision.kind === "expired") {
     await punishUnverifiedMember(adminClient, challenge, settings, "verification_expired");
     await answerCallbackQuery(callback.id, "Verification expired.");
     return true;
   }
 
-  if (answer === challenge.correct_answer) {
-    await adminClient
+  if (decision.kind === "verified") {
+    let statusUpdate = await adminClient
       .from("telegram_community_verification_challenges")
       .update({ status: "verified", verified_at: new Date().toISOString() })
       .eq("id", challenge.id);
-    if (settings) {
-      await sendFinalWelcome(adminClient, {
+    if (statusUpdate.error) {
+      console.error("[verification] verified status update failed; retrying", {
+        challenge_id: challenge.id,
+        user_id: challenge.telegram_user_id,
+        error: statusUpdate.error.message,
+      });
+      statusUpdate = await adminClient
+        .from("telegram_community_verification_challenges")
+        .update({ status: "verified", verified_at: new Date().toISOString() })
+        .eq("id", challenge.id);
+    }
+    if (statusUpdate.error) {
+      await logModeration(adminClient, {
+        groupId: challenge.group_id,
+        userId: challenge.telegram_user_id,
+        username: challenge.username,
+        action: "verification_verified_status_update_failed",
+        reason: statusUpdate.error.message,
+        messageId: challenge.captcha_message_id,
+      });
+      await answerCallbackQuery(callback.id, "Could not save verification. Please try again.");
+      return true;
+    }
+    const callbackOutcome = await completeVerifiedCallback({
+      settings,
+      restoreMemberPermissions: async () => {
+        const result = await unrestrictChatMember(challenge.group_id, challenge.telegram_user_id);
+        return { ok: result.ok, errorCode: result.data?.error_code, description: result.data?.description };
+      },
+      log: async (action, reason) => {
+        console.error("[verification] settings unavailable after correct CAPTCHA", {
+          chat_id: challenge.group_id,
+          user_id: challenge.telegram_user_id,
+          action,
+          reason,
+        });
+        await logModeration(adminClient, {
+          groupId: challenge.group_id,
+          userId: challenge.telegram_user_id,
+          username: challenge.username,
+          action,
+          reason,
+          messageId: challenge.captcha_message_id,
+        });
+      },
+      continueWelcome: async (groupSettings) => await sendFinalWelcome(adminClient, {
         groupId: challenge.group_id,
         userId: challenge.telegram_user_id,
         username: challenge.username,
         fullName: challenge.full_name ?? "Member",
-        settings,
+        settings: groupSettings,
         captchaMessageId: challenge.captcha_message_id,
-      });
+      }),
+    });
+    if (callbackOutcome === "settings_unavailable_released") {
+      await answerCallbackQuery(callback.id, "Verified, but group settings are unavailable. Your permissions were restored.");
+      return true;
+    }
+    if (callbackOutcome === "settings_unavailable_release_failed") {
+      await answerCallbackQuery(callback.id, "Verified, but permissions could not be restored. Please contact an admin.");
+      return true;
+    }
+    if (callbackOutcome === "welcome_failed") {
+      await answerCallbackQuery(callback.id, "Verified, but permissions could not be restored. Please contact an admin.");
+      return true;
     }
     await answerCallbackQuery(callback.id, "Verified. Welcome to FUN.RICH!");
     return true;
   }
 
-  const attempts = (challenge.attempts ?? 0) + 1;
-  await adminClient
+  const attempts = decision.attempts;
+  const { error: attemptsError } = await adminClient
     .from("telegram_community_verification_challenges")
     .update({ attempts })
     .eq("id", challenge.id);
+  if (attemptsError) {
+    console.error("[verification] wrong-answer attempt update failed", {
+      challenge_id: challenge.id,
+      user_id: challenge.telegram_user_id,
+      error: attemptsError.message,
+    });
+    await answerCallbackQuery(callback.id, "Could not save your answer. Please try again.");
+    return true;
+  }
 
-  const maxAttempts = challenge.max_attempts ?? settings?.verification_max_attempts ?? 3;
-  if (attempts >= maxAttempts) {
+  if (decision.kind === "failed") {
     await punishUnverifiedMember(adminClient, challenge, settings, "verification_failed");
     await answerCallbackQuery(callback.id, "Too many wrong answers.");
     return true;
   }
 
-  await answerCallbackQuery(callback.id, `Wrong answer. Attempts ${attempts}/${maxAttempts}.`);
+  await answerCallbackQuery(callback.id, `Wrong answer. Attempts ${attempts}/${challenge.max_attempts ?? settings?.verification_max_attempts ?? 3}.`);
   return true;
 }
 
@@ -4411,8 +4610,8 @@ async function handleGroupAiMention(message: TelegramMessage, settings: Communit
     if (_groupAutoIllustrate && _groupImageStreamer && (_groupImageOut.image_url || _groupImageOut.image_base64)) {
       const caption = reply || "Angel vẽ tặng cả nhà ✨💛";
       await _groupImageStreamer.finalize({
-        b64: _groupImageOut.image_base64,
-        url: _groupImageOut.image_url,
+        b64: _groupImageOut.image_base64 ?? undefined,
+        url: _groupImageOut.image_url ?? undefined,
         mime: _groupImageOut.mime_type || "image/png",
         caption,
         extra: _groupStreamExtra,

@@ -1,4 +1,5 @@
-import { assertEquals } from "npm:@std/assert@1";
+import assert from "npm:assert@2.1.0";
+const assertEquals = (a: unknown, b: unknown) => assert.deepStrictEqual(a, b);
 import { loadGroupSettings } from "./telegram-community.ts";
 
 type Resp = { data: unknown; error: { code?: string } | null } | Error;

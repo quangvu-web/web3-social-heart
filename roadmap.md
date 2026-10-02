@@ -6,6 +6,8 @@
 3. angel-channel-manage: replace direct user_roles query with has_role RPC (+ regression tests). Code only — no deploy/migration until user reviews diff.
 4. Google login + Telegram 2FA OTP not shown (routed /auth page lacks 2FA gating) — plan drafted, paused for the admin-check fix.
 
+5. Telegram CAPTCHA group -1004329816292: root cause found (service_role lacks grants on challenges/moderation_logs/user_state). Waiting on user approval for a GRANT migration + redeploy of telegram-community-webhook.
+
 ## Done
 - Verified external Supabase project `funprofile-production` (ref xoiceivuqbxnmpfdiklg) is connected and the frontend `.env` points at it.
 - Produced the per-platform secret name inventory (Edge Functions / Cloudflare Worker / frontend VITE).

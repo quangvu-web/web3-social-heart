@@ -18,6 +18,7 @@ import {
   unrestrictChatMember,
   welcomeMarkup,
 } from "../_shared/telegram-community.ts";
+import { loadManagedGroupTitles } from "../_shared/managed-groups.ts";
 
 
 
@@ -42,34 +43,24 @@ function redactedWebhookUrl(projectUrl: string) {
 }
 
 async function loadManagedGroups(adminClient: ReturnType<typeof requireAdmin> extends Promise<infer R> ? (R extends { adminClient: infer A } ? A : never) : never) {
-  const { data: groups, error } = await adminClient
-    .from("telegram_community_settings")
-    .select("id, group_id, bot_username, welcome_enabled, anti_spam_enabled, anti_link_enabled, ai_enabled, created_at")
-    .order("created_at", { ascending: true });
-  if (error) return { error: error.message } as const;
-  if (!groups?.length) {
-    return { groups: [], group_title_lookup_error: null } as const;
-  }
-  const groupIds = groups.map((group) => group.group_id);
-
-  const [{ data: configuredTitles, error: configError }, { data: healthTitles, error: healthError }] = await Promise.all([
-    adminClient.from("telegram_group_config").select("group_id, group_title").in("group_id", groupIds),
-    adminClient.from("telegram_group_health").select("group_id, group_title").in("group_id", groupIds),
-  ]);
-  const titleByGroupId = new Map<number, string>();
-  for (const row of healthTitles ?? []) {
-    if (row.group_title?.trim()) titleByGroupId.set(row.group_id, row.group_title.trim());
-  }
-  for (const row of configuredTitles ?? []) {
-    if (row.group_title?.trim()) titleByGroupId.set(row.group_id, row.group_title.trim());
-  }
-
+  const result = await loadManagedGroupTitles({
+    readAllowlist: async () => await adminClient
+      .from("telegram_community_settings")
+      .select("id, group_id, bot_username, welcome_enabled, anti_spam_enabled, anti_link_enabled, ai_enabled, created_at")
+      .order("created_at", { ascending: true }),
+    readTelegramGroupConfigTitles: async (groupIds) => await adminClient
+      .from("telegram_group_config")
+      .select("group_id, group_title")
+      .in("group_id", groupIds),
+    onMetadataError: (code) => console.warn("[admin] Managed Groups title metadata lookup failed", {
+      source: "telegram_group_config",
+      error_code: code ?? "unknown",
+    }),
+  });
+  if (!result.success) return { error: result.error } as const;
   return {
-    groups: (groups ?? []).map((group) => ({
-      ...group,
-      group_title: titleByGroupId.get(group.group_id) ?? null,
-    })),
-    group_title_lookup_error: configError?.message ?? healthError?.message ?? null,
+    groups: result.groups,
+    group_title_lookup_failed: result.titleLookupFailed,
   } as const;
 }
 
@@ -371,7 +362,7 @@ Deno.serve(async (req) => {
       group_id_env: groupId || null,
       settings,
       groups: groupsResult.groups,
-      group_title_lookup_error: groupsResult.group_title_lookup_error,
+      group_title_lookup_failed: groupsResult.group_title_lookup_failed,
       domains: domains ?? [],
       keywords: keywords ?? [],
       quick_replies: quickReplies ?? [],

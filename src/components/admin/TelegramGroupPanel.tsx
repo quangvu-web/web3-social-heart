@@ -275,7 +275,7 @@ export default function TelegramGroupPanel() {
   const [newGroupIdInput, setNewGroupIdInput] = useState("");
   const [groupSearch, setGroupSearch] = useState("");
   const [groupsLoadError, setGroupsLoadError] = useState<string | null>(null);
-  const [groupTitleLookupError, setGroupTitleLookupError] = useState<string | null>(null);
+  const [groupTitleLookupFailed, setGroupTitleLookupFailed] = useState(false);
   const [domains, setDomains] = useState<DomainRow[]>([]);
   const [keywords, setKeywords] = useState<KeywordRow[]>([]);
   const [quickReplies, setQuickReplies] = useState<QuickReplyRow[]>([]);
@@ -371,7 +371,7 @@ export default function TelegramGroupPanel() {
       const loadedGroups: GroupRow[] = data.groups ?? [];
       setGroups(loadedGroups);
       setGroupsLoadError(null);
-      setGroupTitleLookupError(data.group_title_lookup_error ?? null);
+      setGroupTitleLookupFailed(data.group_title_lookup_failed === true);
       setSettings(data.settings ?? null);
       setDomains(data.domains ?? []);
       setKeywords(data.keywords ?? []);
@@ -669,9 +669,9 @@ export default function TelegramGroupPanel() {
               <Button variant="outline" size="sm" onClick={() => loadAll()} disabled={loading}>Thử tải lại</Button>
             </div>
           )}
-          {groupTitleLookupError && !groupsLoadError && (
+          {groupTitleLookupFailed && !groupsLoadError && (
             <p className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-              Chưa tải được metadata tên nhóm; vẫn hiển thị Group ID. {groupTitleLookupError}
+              Chưa tải được tên một số nhóm. Danh sách và Group ID vẫn hoạt động; Angel sẽ hiển thị nhãn dự phòng.
             </p>
           )}
           <p className="text-xs text-muted-foreground">

@@ -155,8 +155,11 @@ BEGIN
     processed_at=CASE WHEN p_status IN ('done','needs_review') THEN now() ELSE NULL END,
     lease_token=NULL, lease_until=NULL
   WHERE id=p_id AND lease_token=p_token AND processing_status='processing'
-    AND NOT (delivery_state='sending' AND
-      (p_status='failed' OR coalesce(p_delivery,'sending') NOT IN ('sent','uncertain')))
+    -- Only an explicit not_sent report may retry an attempted delivery.
+    -- Ambiguous sends must remain needs_review; never retry sent messages.
+    AND NOT (delivery_state='sending' AND NOT (
+      (p_status='failed' AND coalesce(p_delivery,'sending')='not_sent') OR
+      (p_status IN ('done','needs_review') AND coalesce(p_delivery,'sending') IN ('sent','uncertain'))))
     AND NOT (p_status='failed' AND coalesce(p_delivery,delivery_state)='sent')
     AND (p_delivery IS NULL OR p_delivery NOT IN ('sent','uncertain') OR delivery_state='sending')
     AND NOT (p_status='done' AND coalesce(p_delivery,delivery_state)='uncertain');

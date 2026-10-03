@@ -18,6 +18,12 @@ CREATE TABLE public.telegram_community_verification_challenges (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), group_id bigint NOT NULL,
  telegram_user_id bigint NOT NULL, status text NOT NULL DEFAULT 'pending'
 );
+-- Mirrors the production constraint discovered during preflight. The webhook
+-- also writes enforcement_processing and release_failed; the follow-up
+-- migration test verifies that both states become valid.
+ALTER TABLE public.telegram_community_verification_challenges
+ ADD CONSTRAINT telegram_community_verification_status_check
+ CHECK (status IN ('pending','verified','failed','expired'));
 ALTER TABLE public.telegram_member_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.telegram_community_verification_challenges ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.telegram_member_events,

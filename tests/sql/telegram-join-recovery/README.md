@@ -26,10 +26,13 @@ Nếu không có duplicate:
 
 ```sh
 "${PSQL[@]}" -1 -f supabase/migrations/20261003020000_telegram_join_event_recovery.sql
+"${PSQL[@]}" -1 -f supabase/migrations/20261003030000_telegram_verification_statuses.sql
+"${PSQL[@]}" -f tests/sql/telegram-join-recovery/verification-status.sql
 "${PSQL[@]}" -f tests/sql/telegram-join-recovery/rejection.sql -f tests/sql/telegram-join-recovery/checks.sql
 python3 tests/sql/telegram-join-recovery/concurrency.py "$PG_BIN/psql" "$TEST_ROOT" 55437
 # Chạy lại migration và test; không bọc các file test BEGIN/ROLLBACK bằng -1.
-"${PSQL[@]}" -1 -f tests/sql/telegram-join-recovery/preflight.sql -f supabase/migrations/20261003020000_telegram_join_event_recovery.sql
+"${PSQL[@]}" -1 -f tests/sql/telegram-join-recovery/preflight.sql -f supabase/migrations/20261003020000_telegram_join_event_recovery.sql -f supabase/migrations/20261003030000_telegram_verification_statuses.sql
+"${PSQL[@]}" -f tests/sql/telegram-join-recovery/verification-status.sql
 "${PSQL[@]}" -f tests/sql/telegram-join-recovery/rejection.sql -f tests/sql/telegram-join-recovery/checks.sql
 "$PG_BIN/pg_ctl" -D "$TEST_ROOT/data" -m fast -w stop
 ```
@@ -44,6 +47,9 @@ python3 tests/sql/telegram-join-recovery/concurrency.py "$PG_BIN/psql" "$TEST_RO
 - 7 RPC: quyền execute dành cho service_role; anon/authenticated bị từ chối.
   RLS và quyền DML của 2 bảng fixture không đổi.
 - 10 cột mới, recovery index và unique active-challenge index được tạo.
+- Fixture mirrors the production verification-status constraint. The follow-up
+  migration allows both `enforcement_processing` and `release_failed`, and the
+  regression test verifies both persisted values.
 - Concurrent insert/claim/begin: mỗi thao tác đúng một winner.
 - Fresh apply và reapply pass. Snapshot dữ liệu, RLS, grants bảng, ACL và
   định nghĩa RPC trước/sau reapply giống nhau.

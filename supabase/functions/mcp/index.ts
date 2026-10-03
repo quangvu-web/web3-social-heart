@@ -8,12 +8,12 @@ import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
 // src/lib/mcp/tools/get-my-profile.ts
 import { createClient } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.20.0";
-function supabaseForUser(ctx) {
+function supabaseForUser(token = "") {
   return createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY,
+    process.env.SUPABASE_URL ?? "",
+    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "",
     {
-      global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+      global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false, autoRefreshToken: false }
     }
   );
@@ -28,7 +28,7 @@ var get_my_profile_default = defineTool({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const { data, error } = await supabaseForUser(ctx).from("profiles").select("id, username, display_name, bio, avatar_url, created_at").eq("id", ctx.getUserId()).maybeSingle();
+    const { data, error } = await supabaseForUser(String(ctx.getToken() ?? "")).from("profiles").select("id, username, display_name, bio, avatar_url, created_at").eq("id", ctx.getUserId()).maybeSingle();
     if (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
     }
@@ -43,12 +43,12 @@ var get_my_profile_default = defineTool({
 import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z } from "npm:zod@^4.4.3";
-function supabaseForUser2(ctx) {
+function supabaseForUser2(token = "") {
   return createClient2(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY,
+    process.env.SUPABASE_URL ?? "",
+    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "",
     {
-      global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+      global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false, autoRefreshToken: false }
     }
   );
@@ -65,7 +65,7 @@ var list_my_posts_default = defineTool2({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const { data, error } = await supabaseForUser2(ctx).from("posts").select("id, content, created_at, likes_count, comments_count").eq("user_id", ctx.getUserId()).order("created_at", { ascending: false }).limit(limit);
+    const { data, error } = await supabaseForUser2(String(ctx.getToken() ?? "")).from("posts").select("id, content, created_at, likes_count, comments_count").eq("user_id", ctx.getUserId()).order("created_at", { ascending: false }).limit(limit);
     if (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
     }
@@ -80,12 +80,12 @@ var list_my_posts_default = defineTool2({
 import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.116.0";
 import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z2 } from "npm:zod@^4.4.3";
-function supabaseForUser3(ctx) {
+function supabaseForUser3(token = "") {
   return createClient3(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY,
+    process.env.SUPABASE_URL ?? "",
+    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "",
     {
-      global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+      global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false, autoRefreshToken: false }
     }
   );
@@ -107,7 +107,7 @@ var create_post_default = defineTool3({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const { data, error } = await supabaseForUser3(ctx).from("posts").insert({ user_id: ctx.getUserId(), content }).select("id, content, created_at").maybeSingle();
+    const { data, error } = await supabaseForUser3(String(ctx.getToken() ?? "")).from("posts").insert({ user_id: ctx.getUserId(), content }).select("id, content, created_at").maybeSingle();
     if (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
     }

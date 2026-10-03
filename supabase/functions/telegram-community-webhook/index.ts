@@ -114,10 +114,19 @@ import { loadAngelRuleOverrides } from "../_shared/angel-facts.ts";
 import { sanitizeTelegramTransportError, welcomeLogAction } from "../_shared/telegram-transport.ts";
 import {
   scanJoinName,
+  attemptJoinGateAction,
+  joinGateFailureDisposition,
   scanAvatarImage,
   avatarVerdictBlocks,
   joinGuardNameOptions,
 } from "../_shared/telegram-join-guard.ts";
+import { rateLimitUnavailableDecision } from "../_shared/telegram-rate-limit.ts";
+import { escalatedModerationOutcome, moderationStateDecision, violationActionOutcome } from "../_shared/telegram-moderation-outcome.ts";
+import {
+  joinEventCompletionStatus,
+  joinEventDispatchDecision,
+  telegramDeliveryFailure,
+} from "../_shared/telegram-join-recovery.ts";
 import { getFlag } from "../_shared/angel/flags.ts";
 import { withUsage } from '../_shared/track-cloud-usage.ts';
 
@@ -282,8 +291,9 @@ async function loadQuickReplies(): Promise<QuickReplyRule[]> {
       .eq("is_active", true)
       .order("sort_order", { ascending: true });
     if (error) {
-      console.warn("[quick-reply] load failed", error);
-      return quickReplyCache?.rules ?? [];
+      console.warn("[quick-reply] load failed", { error_code: error.code ?? "unknown" });
+      if (quickReplyCache) return quickReplyCache.rules;
+      throw new Error(`quick reply lookup failed (${error.code ?? "unknown"})`);
     }
     const rules = (data ?? [])
       .map((row) => compileQuickReplyRule(row as never))
@@ -291,8 +301,9 @@ async function loadQuickReplies(): Promise<QuickReplyRule[]> {
     quickReplyCache = { at: now, rules };
     return rules;
   } catch (err) {
-    console.warn("[quick-reply] load exception", err);
-    return quickReplyCache?.rules ?? [];
+    console.warn("[quick-reply] load exception", { error_name: err instanceof Error ? err.name : "unknown" });
+    if (quickReplyCache) return quickReplyCache.rules;
+    throw new Error("quick reply lookup unavailable");
   }
 }
 
@@ -654,9 +665,9 @@ async function runJoinGate(
     reason: string;
     messageId?: number | null;
   },
-): Promise<boolean> {
+): Promise<"not_required" | "removed" | "failed"> {
   const { groupId, member, settings } = params;
-  if (!member?.id || member.is_bot) return false;
+  if (!member?.id || member.is_bot) return "not_required";
 
   const label = fullName(member) + (member.username ? ` (@${member.username})` : "");
   const nameEnabled = (settings as any).join_guard_name_enabled !== false;
@@ -664,19 +675,31 @@ async function runJoinGate(
   const action = ((settings as any).join_guard_action ?? "ban") === "kick" ? "kick" : "ban";
 
   const remove = async (logAction: string, reasonText: string) => {
-    try {
-      if (action === "kick") await kickChatMember(groupId, member.id!);
-      else await banChatMember(groupId, member.id!);
-    } catch (e) {
-      console.error("[join-guard] remove failed", e);
+    const attempt = await attemptJoinGateAction(action, {
+      kick: async () => {
+        const result = await kickChatMember(groupId, member.id!);
+        return { ok: result.ok, error_code: result.data?.error_code };
+      },
+      ban: async () => {
+        const result = await banChatMember(groupId, member.id!);
+        return { ok: result.ok, error_code: result.data?.error_code };
+      },
+    });
+    if (attempt.outcome === "failed") {
+      console.error("[join-guard] Telegram removal failed", {
+        chat_id: groupId,
+        user_id: member.id,
+        failure: attempt.failure,
+        error_code: attempt.errorCode,
+      });
       await logModeration(adminClient, {
         groupId,
         userId: member.id ?? null,
         username: member.username ?? null,
         action: "join_guard_remove_failed",
-        reason: reasonText,
+        reason: `${reasonText}:${attempt.failure}${attempt.errorCode ? `:${attempt.errorCode}` : ""}`,
       }).catch(() => undefined);
-      return false;
+      return "failed" as const;
     }
     if (params.messageId) await deleteMessage(groupId, params.messageId).catch(() => undefined);
     await logModeration(adminClient, {
@@ -702,7 +725,7 @@ async function runJoinGate(
         ].join("\n"),
       ).catch(() => undefined);
     }
-    return true;
+    return "removed" as const;
   };
 
   // 1) Quét tên
@@ -740,8 +763,13 @@ async function runJoinGate(
     }
   }
 
-  return false;
+  return "not_required";
 }
+
+type JoinDeliveryHooks = {
+  begin: () => Promise<boolean>;
+  report: (result: { ok: boolean; status?: number; messageId?: number }) => void;
+};
 
 async function startVerificationForMember(
   adminClient: ReturnType<typeof getClients>["adminClient"],
@@ -750,6 +778,7 @@ async function startVerificationForMember(
     member: NonNullable<TelegramMessage["from"]>;
     settings: CommunitySettings;
     reason: string;
+    delivery?: JoinDeliveryHooks;
   },
 ): Promise<string> {
   if (!params.member.id || params.member.is_bot) return "ignored_invalid_member";
@@ -761,6 +790,7 @@ async function startVerificationForMember(
       member: params.member,
       settings: params.settings,
       reason: `${params.reason}_verification_disabled`,
+      delivery: params.delivery,
     });
     return sent ? "welcome_sent" : "welcome_failed";
   }
@@ -831,12 +861,35 @@ async function startVerificationForMember(
         })
         .select("id")
         .single();
+      if (error?.code === "23505") {
+        const active = await adminClient
+          .from("telegram_community_verification_challenges")
+          .select("id")
+          .eq("group_id", params.groupId)
+          .eq("telegram_user_id", params.member.id)
+          .in("status", ["pending", "enforcement_processing"])
+          .gt("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!active.error && active.data?.id) {
+          return { challengeId: active.data.id, reused: true };
+        }
+      }
       return { challengeId: data?.id, error: error?.message };
     },
     sendCaptcha: async (challengeId, options) => {
+      if (params.delivery && !(await params.delivery.begin())) {
+        return { ok: false, description: "join event lease is no longer valid" };
+      }
       const sent = await sendMessage(params.groupId, text, {
         reply_markup: captchaMarkup(challengeId, captcha.options),
         skipAutoDelete: options.skipAutoDelete,
+      });
+      params.delivery?.report({
+        ok: sent.ok === true && typeof sent.data?.result?.message_id === "number",
+        status: sent.status,
+        messageId: sent.data?.result?.message_id,
       });
       return {
         ok: sent.ok,
@@ -1384,12 +1437,18 @@ async function handlePrivateMessage(message: TelegramMessage) {
       telegramUserId: message.from.id,
       limitPerMinute: settings?.ai_max_messages_per_minute ?? 10,
     }).catch((err) => {
-      console.warn("[dm] ai_rate_failed_open", { chatId, userId: message.from?.id, error: err instanceof Error ? err.message : String(err) });
-      return { allowed: true, count: 0 };
+      console.warn("[dm] ai_rate_check_unavailable", {
+        chatId,
+        userId: message.from?.id,
+        error_name: err instanceof Error ? err.name : "unknown",
+      });
+      return rateLimitUnavailableDecision();
     });
     console.log("[dm] ai_rate", { chatId, userId: message.from.id, allowed: rate.allowed, count: rate.count });
     if (!rate.allowed) {
-      await replyDm("🙏 You're sending a bit too fast. Angel needs a short break — please try again in about a minute 💛");
+      await replyDm(rate.count === 0
+        ? "🙏 Angel chưa kiểm tra được giới hạn tin nhắn lúc này. Bé thử lại sau ít phút nhé 💛"
+        : "🙏 Bé nhắn hơi nhanh, Angel cần nghỉ một chút. Bé thử lại sau khoảng một phút nhé 💛");
       return;
     }
     try {
@@ -1773,6 +1832,7 @@ async function sendWelcomeToMember(
     member: NonNullable<TelegramMessage["from"]>;
     settings: CommunitySettings;
     reason: string;
+    delivery?: JoinDeliveryHooks;
   },
 ) {
   await upsertUserState({ adminClient, groupId: params.groupId, user: params.member });
@@ -1794,7 +1854,17 @@ async function sendWelcomeToMember(
 
   let result;
   let mode: "photo" | "text" = "text";
-  if (avatarUrl) {
+  if (params.delivery) {
+    if (!(await params.delivery.begin())) return false;
+    // Durable join delivery makes one Telegram attempt only. Avoid a photo-to-text
+    // fallback because an ambiguous photo response could otherwise duplicate the welcome.
+    result = await sendMessage(params.groupId, text, { reply_markup: replyMarkup });
+    params.delivery.report({
+      ok: result.ok === true && typeof result.data?.result?.message_id === "number",
+      status: result.status,
+      messageId: result.data?.result?.message_id,
+    });
+  } else if (avatarUrl) {
     result = await sendPhoto(params.groupId, avatarUrl, text, { reply_markup: replyMarkup });
     mode = "photo";
     if (!result.ok) {
@@ -2072,15 +2142,17 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
     const actorUsername = user?.username ?? message.via_bot?.username ?? null;
     let deleted = false;
     let banned = false;
-    let deleteError: string | null = null;
-    let banError: string | null = null;
+    let deleteErrorCode: number | null = null;
+    let banErrorCode: number | null = null;
 
     try {
       const result = await deleteMessage(chatId, messageId);
       deleted = result.ok === true;
-      if (!deleted) deleteError = JSON.stringify(result.data ?? result).slice(0, 240);
-    } catch (err) {
-      deleteError = err instanceof Error ? err.message : String(err);
+      if (!deleted) deleteErrorCode = result.data?.error_code ?? null;
+    } catch (error) {
+      console.warn("[AUTOMATED_CJK_SCAM] message deletion threw", {
+        error_name: error instanceof Error ? error.name : "unknown",
+      });
     }
 
     // A direct foreign bot can continuously flood the group, so remove it at
@@ -2090,9 +2162,11 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
       try {
         const result = await banChatMember(chatId, user.id);
         banned = result.ok === true;
-        if (!banned) banError = JSON.stringify(result.data ?? result).slice(0, 240);
-      } catch (err) {
-        banError = err instanceof Error ? err.message : String(err);
+        if (!banned) banErrorCode = result.data?.error_code ?? null;
+      } catch (error) {
+        console.warn("[AUTOMATED_CJK_SCAM] bot ban request threw", {
+          error_name: error instanceof Error ? error.name : "unknown",
+        });
       }
       await logModeration(adminClient, {
         groupId: chatId,
@@ -2104,13 +2178,13 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
           sender_kind: automatedCjkScam.senderKind,
           has_inline_keyboard: automatedCjkScam.hasInlineKeyboard,
           has_external_button: automatedCjkScam.hasExternalButton,
-          delete_error: deleteError,
-          ban_error: banError,
+          delete_error_code: deleteErrorCode,
+          ban_error_code: banErrorCode,
           preview: automatedCjkScam.payload.slice(0, 260),
         }),
         messageId,
       });
-      console.log("[AUTOMATED_CJK_SCAM]", { chat_id: chatId, message_id: messageId, actor_id: actorId, deleted, banned, delete_error: deleteError, ban_error: banError });
+      console.log("[AUTOMATED_CJK_SCAM]", { chat_id: chatId, message_id: messageId, actor_id: actorId, deleted, banned, delete_error_code: deleteErrorCode, ban_error_code: banErrorCode });
       return true;
     }
 
@@ -2118,30 +2192,86 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
     // policy to the human sender without performing another delete call.
     if (user?.id) {
       const state = await upsertUserState({ adminClient, groupId: chatId, user });
-      const warningCount = (state?.warning_count ?? 0) + 1;
-      await adminClient
-        .from("telegram_community_user_state")
-        .update({ warning_count: warningCount })
-        .eq("group_id", chatId)
-        .eq("telegram_user_id", user.id);
-      if (warningCount >= settings.warning_before_ban) {
-        await banChatMember(chatId, user.id);
-        banned = true;
-      } else if (warningCount >= settings.warning_before_mute) {
-        const untilUnix = Math.floor(Date.now() / 1000) + settings.mute_duration_minutes * 60;
-        await restrictChatMember(chatId, user.id, untilUnix);
+      let warningStateAvailable = state !== null;
+      let warningCount: number | null = state ? state.warning_count + 1 : null;
+      let warningStateErrorCode: string | null = state ? null : "unavailable";
+      if (state && warningCount !== null) {
+        const stateUpdate = await adminClient
+          .from("telegram_community_user_state")
+          .update({ warning_count: warningCount })
+          .eq("group_id", chatId)
+          .eq("telegram_user_id", user.id);
+        const stateCheck = stateUpdate.error
+          ? null
+          : await adminClient
+            .from("telegram_community_user_state")
+            .select("warning_count")
+            .eq("group_id", chatId)
+            .eq("telegram_user_id", user.id)
+            .maybeSingle();
+        if (stateUpdate.error || stateCheck?.error || stateCheck?.data?.warning_count !== warningCount) {
+          warningStateAvailable = false;
+          warningCount = null;
+          warningStateErrorCode = stateUpdate.error?.code ?? stateCheck?.error?.code ?? "row_not_updated";
+        }
       }
+
+      let inlineBanAttempted = false;
+      let inlineBanSucceeded = false;
+      let inlineBanErrorCode: number | null = null;
+      let inlineMuteAttempted = false;
+      let inlineMuteSucceeded = false;
+      let inlineMuteErrorCode: number | null = null;
+      if (warningStateAvailable && warningCount !== null && warningCount >= settings.warning_before_ban) {
+        inlineBanAttempted = true;
+        try {
+          const result = await banChatMember(chatId, user.id);
+          inlineBanSucceeded = result.ok === true;
+          inlineBanErrorCode = result.data?.error_code ?? null;
+        } catch (error) {
+          console.warn("[AUTOMATED_CJK_SCAM] inline sender ban threw", {
+            error_name: error instanceof Error ? error.name : "unknown",
+          });
+        }
+      } else if (warningStateAvailable && warningCount !== null && warningCount >= settings.warning_before_mute) {
+        inlineMuteAttempted = true;
+        const untilUnix = Math.floor(Date.now() / 1000) + settings.mute_duration_minutes * 60;
+        try {
+          const result = await restrictChatMember(chatId, user.id, untilUnix);
+          inlineMuteSucceeded = result.ok === true;
+          inlineMuteErrorCode = result.data?.error_code ?? null;
+        } catch (error) {
+          console.warn("[AUTOMATED_CJK_SCAM] inline sender mute threw", {
+            error_name: error instanceof Error ? error.name : "unknown",
+          });
+        }
+      }
+      const inlineAction = violationActionOutcome({
+        deleted,
+        countWarning: true,
+        banAttempted: inlineBanAttempted,
+        banSucceeded: inlineBanSucceeded,
+        muteAttempted: inlineMuteAttempted,
+        muteSucceeded: inlineMuteSucceeded,
+        warningStateAvailable,
+      });
       await logModeration(adminClient, {
         groupId: chatId,
         userId: user.id,
         username: user.username ?? null,
-        action: banned ? "banned" : "deleted_warned",
-        reason: "automated_cjk_scam:inline_bot",
+        action: inlineAction,
+        reason: [
+          "automated_cjk_scam:inline_bot",
+          !warningStateAvailable ? `warning_state:${warningStateErrorCode ?? "unknown"}` : null,
+          inlineBanAttempted && !inlineBanSucceeded ? `ban_failed:${inlineBanErrorCode ?? "unknown"}` : null,
+          inlineMuteAttempted && !inlineMuteSucceeded ? `mute_failed:${inlineMuteErrorCode ?? "unknown"}` : null,
+          !deleted ? `delete_failed:${deleteErrorCode ?? "unknown"}` : null,
+        ].filter(Boolean).join(";").slice(0, 240),
         messageText: automatedCjkScam.payload,
         messageId,
       });
     }
-    console.log("[AUTOMATED_CJK_SCAM]", { chat_id: chatId, message_id: messageId, actor_id: actorId, sender_kind: automatedCjkScam.senderKind, deleted, delete_error: deleteError });
+    console.log("[AUTOMATED_CJK_SCAM]", { chat_id: chatId, message_id: messageId, actor_id: actorId, sender_kind: automatedCjkScam.senderKind, deleted, delete_error_code: deleteErrorCode });
     return true;
   }
 
@@ -2161,6 +2291,21 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
   }
 
   const state = user?.id ? await upsertUserState({ adminClient, groupId: chatId, user }) : null;
+  if (moderationStateDecision(Boolean(user?.id), state !== null) === "stop_unverified") {
+    await logModeration(adminClient, {
+      groupId: chatId,
+      userId: user?.id ?? null,
+      username: user?.username ?? null,
+      action: "moderation_state_unavailable",
+      reason: "anti_spam_rate_state_could_not_be_verified",
+      messageId,
+    }).catch(() => undefined);
+    console.warn("[community] anti-spam evaluation stopped because per-user state is unavailable", {
+      chat_id: chatId,
+      user_id: user?.id ?? null,
+    });
+    return true;
+  }
   const messageCount = state ? await updateMessageWindow(adminClient, state) : 1;
 
   // FUN spiritual bypass â€” khÃ´ng xoÃ¡ bÃ i sÃ¡m há»‘i / biáº¿t Æ¡n / tÃ¢m linh FUN
@@ -2385,22 +2530,55 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
   );
 
   if (escalatedBan) {
-    try { await deleteMessage(chatId, messageId); } catch (e) { console.warn("[MODERATION] deleteMessage failed", e); }
-    try { await banChatMember(chatId, violatingUserId); } catch (e) { console.warn("[MODERATION] banChatMember failed", e); }
+    let messageDeleted = false;
+    let memberBanned = false;
+    let deleteErrorCode: number | undefined;
+    let banErrorCode: number | undefined;
     try {
-      await adminClient
+      const deletion = await deleteMessage(chatId, messageId);
+      messageDeleted = deletion.ok;
+      deleteErrorCode = deletion.data?.error_code;
+    } catch (error) {
+      console.warn("[MODERATION] delete request threw", { error_name: error instanceof Error ? error.name : "unknown" });
+    }
+    try {
+      const ban = await banChatMember(chatId, violatingUserId);
+      memberBanned = ban.ok;
+      banErrorCode = ban.data?.error_code;
+    } catch (error) {
+      console.warn("[MODERATION] ban request threw", { error_name: error instanceof Error ? error.name : "unknown" });
+    }
+
+    const outcome = escalatedModerationOutcome({ messageDeleted, memberBanned });
+    if (memberBanned) {
+      const { error } = await adminClient
         .from("telegram_community_user_state")
         .update({ banned_at: new Date().toISOString() })
         .eq("group_id", chatId)
         .eq("telegram_user_id", violatingUserId);
-    } catch (e) { console.warn("[MODERATION] user_state update failed", e); }
+      if (error) console.warn("[MODERATION] banned state update failed", { error_code: error.code ?? "unknown" });
+    }
+    await logModeration(adminClient, {
+      groupId: chatId,
+      userId: violatingUserId,
+      username: user?.username ?? null,
+      action: outcome === "ban_succeeded" ? "banned" : outcome,
+      reason: `coordinated_spam_escalation:delete_${messageDeleted ? "success" : `failed_${deleteErrorCode ?? "unknown"}`}:ban_${memberBanned ? "success" : `failed_${banErrorCode ?? "unknown"}`}`,
+      messageId,
+    });
     const label = user?.username ? `@${user.username}` : (user?.first_name ?? String(violatingUserId));
     try {
       await sendMessage(
         chatId,
-        `🚫 <b>${label}</b> was permanently banned — coordinated spam pattern (mention-bait + scam follow-up).`,
+        outcome === "ban_succeeded"
+          ? `🚫 <b>${label}</b> was permanently banned — coordinated spam pattern (mention-bait + scam follow-up).`
+          : messageDeleted
+            ? `⚠️ The suspicious message was removed, but the account could not be banned automatically.`
+            : `⚠️ Automatic moderation could not remove the message or ban the account. An admin should review it.`,
       );
-    } catch (e) { console.warn("[MODERATION] notify failed", e); }
+    } catch (error) {
+      console.warn("[MODERATION] notify failed", { error_name: error instanceof Error ? error.name : "unknown" });
+    }
     return true;
   }
 
@@ -4949,17 +5127,25 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
   }));
   if (!evt?.chat?.id) return;
   if (!isGroup(evt.chat.type)) { console.log("[webhook] skip: not group"); return; }
+  const chatId = evt.chat.id;
 
   const oldStatus = evt.old_chat_member?.status;
   const newStatus = evt.new_chat_member?.status;
   const member = evt.new_chat_member?.user;
   if (!member?.id || member.is_bot) { console.log("[webhook] skip: no member or is_bot"); return; }
 
-  // Always log every membership transition (join/left/kicked/banned/unbanned/rejoined).
-  // This is the data source for Member Tracking & Retention Analytics.
+  const isNewJoin = shouldProcessChatMemberJoin({
+    oldStatus,
+    newStatus,
+    isMember: evt.new_chat_member?.is_member,
+    isBot: member.is_bot,
+  });
+
+  // Persist before join side effects; the production unique key makes this idempotent.
+  let memberEventResult;
   try {
-    await logMemberEvent(adminClient, {
-      chatId: evt.chat.id,
+    memberEventResult = await logMemberEvent(adminClient, {
+      chatId: chatId,
       user: member,
       oldStatus,
       newStatus,
@@ -4967,20 +5153,55 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
       inviteLink: evt.invite_link,
       occurredAt: evt.date ? new Date(evt.date * 1000) : undefined,
       metadata: {
+        is_member: evt.new_chat_member?.is_member ?? true,
         via_chat_folder_invite_link: (evt as unknown as { via_chat_folder_invite_link?: boolean }).via_chat_folder_invite_link ?? false,
         via_join_request: (evt as unknown as { via_join_request?: boolean }).via_join_request ?? false,
+        member: {
+          id: member.id,
+          is_bot: member.is_bot ?? false,
+          first_name: member.first_name ?? "",
+          last_name: member.last_name ?? "",
+          username: member.username ?? null,
+        },
       },
     });
   } catch (e) {
-    console.error("[webhook] logMemberEvent failed", e);
+    console.error("[webhook] member event persistence threw", {
+      chat_id: chatId,
+      user_id: member.id,
+      error_name: e instanceof Error ? e.name : "unknown",
+    });
+    if (isNewJoin) {
+      await logModeration(adminClient, {
+        groupId: chatId,
+        userId: member.id,
+        username: member.username ?? null,
+        action: "member_event_persist_failed",
+        reason: "chat_member:exception",
+      }).catch(() => undefined);
+    }
+    throw new Error("member_event_persist_failed");
   }
 
-  if (!shouldProcessChatMemberJoin({
-    oldStatus,
-    newStatus,
-    isMember: evt.new_chat_member?.is_member,
-    isBot: member.is_bot,
-  })) {
+  if (memberEventResult.kind === "error") {
+    console.error("[webhook] member event persistence failed", {
+      chat_id: chatId,
+      user_id: member.id,
+      error_code: memberEventResult.errorCode,
+    });
+    if (isNewJoin) {
+      await logModeration(adminClient, {
+        groupId: chatId,
+        userId: member.id,
+        username: member.username ?? null,
+        action: "member_event_persist_failed",
+        reason: `chat_member:${memberEventResult.errorCode}`,
+      }).catch(() => undefined);
+    }
+    throw new Error("member_event_persist_failed");
+  }
+
+  if (!isNewJoin) {
     console.log("[webhook] skip welcome: not a newly joined member", {
       oldStatus,
       newStatus,
@@ -4989,65 +5210,182 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
     return;
   }
 
-  // Allow any â†’ member/restricted (covers invite link join where old may be "left" or undefined)
-
-  const settingsLookup = await loadGroupSettings(adminClient, evt.chat.id);
-  if (!settingsLookup.ok) {
-    await logModeration(adminClient, {
-      groupId: evt.chat.id,
-      userId: member.id,
-      username: member.username ?? null,
-      action: "settings_lookup_failed",
-      reason: `chat_member:${settingsLookup.errorCode}`,
-    });
-    return;
+  if ((memberEventResult.kind !== "inserted" && memberEventResult.kind !== "duplicate") || !memberEventResult.eventId) {
+    console.error("[webhook] join event has no durable recovery row", { chat_id: chatId, user_id: member.id });
+    throw new Error("join_event_recovery_row_missing");
   }
-  const settings = settingsLookup.settings;
-  console.log("[webhook] settings lookup", { chat_id: evt.chat.id, found: !!settings, welcome_enabled: settings?.welcome_enabled });
-  if (!settings) {
-    await logModeration(adminClient, {
-      groupId: evt.chat.id,
-      userId: member.id,
-      username: member.username ?? null,
-      action: "welcome_skipped_no_settings",
-      reason: "chat_member",
-    });
-    return;
-  }
-  const joinBlocked = await runJoinGate(adminClient, {
-    groupId: evt.chat.id,
-    member,
-    settings: settings as CommunitySettings & Record<string, unknown>,
-    reason: "chat_member",
+  const decision = joinEventDispatchDecision({
+    status: memberEventResult.processingStatus ?? null,
+    inserted: memberEventResult.kind === "inserted",
   });
-  if (joinBlocked) return;
-
-  const joinFlow = resolveJoinFlow({
-    verificationEnabled: settings.verification_enabled,
-    welcomeEnabled: settings.welcome_enabled,
-  });
-  if (joinFlow === "skip") {
-    await logModeration(adminClient, {
-      groupId: evt.chat.id,
-      userId: member.id,
-      username: member.username ?? null,
-      action: "welcome_skipped_disabled",
-      reason: "welcome_and_verification_disabled",
+  if (decision !== "claim") {
+    console.log("[webhook] join event is not claimable", {
+      chat_id: chatId,
+      user_id: member.id,
+      status: memberEventResult.processingStatus ?? null,
+      reason: decision,
     });
     return;
   }
 
-  const joinOutcome = await startVerificationForMember(adminClient, {
-    groupId: evt.chat.id,
-    member,
-    settings,
-    reason: "chat_member",
+  const claim = await (adminClient as any).rpc("tg_claim_join_event", {
+    p_id: memberEventResult.eventId,
+    p_lease_seconds: 90,
   });
+  if (claim.error) {
+    throw new Error(`join_event_claim_failed:${claim.error.code ?? "unknown"}`);
+  }
+  if (typeof claim.data !== "string") {
+    console.log("[webhook] join event claim not acquired", {
+      chat_id: chatId,
+      user_id: member.id,
+      error_code: claim.error?.code ?? null,
+    });
+    return;
+  }
+  const leaseToken = claim.data;
+  const deliveryTracker: { state: "not_sent" | "sending" | "sent" | "uncertain" } = { state: "not_sent" };
+  const delivery: JoinDeliveryHooks = {
+    begin: async () => {
+      let begun = await adminClient.rpc("tg_begin_join_delivery", {
+        p_id: memberEventResult.eventId,
+        p_token: leaseToken,
+      });
+      if (!begun.error && begun.data === true) {
+        deliveryTracker.state = "sending";
+        return true;
+      }
+      const renewed = await adminClient.rpc("tg_renew_join_lease", {
+        p_id: memberEventResult.eventId,
+        p_token: leaseToken,
+        p_seconds: 60,
+      });
+      if (renewed.error || renewed.data !== true) return false;
+      begun = await adminClient.rpc("tg_begin_join_delivery", {
+        p_id: memberEventResult.eventId,
+        p_token: leaseToken,
+      });
+      const ok = !begun.error && begun.data === true;
+      if (ok) deliveryTracker.state = "sending";
+      return ok;
+    },
+    report: (result) => {
+      deliveryTracker.state = result.ok
+        ? "sent"
+        : telegramDeliveryFailure(result.status) === "transport_ambiguous"
+        ? "uncertain"
+        : "not_sent";
+    },
+  };
+  const finish = async (status: "done" | "failed" | "needs_review", outcome: string, error?: string) => {
+    const result = await adminClient.rpc("tg_finish_join_event", {
+      p_id: memberEventResult.eventId,
+      p_token: leaseToken,
+      p_status: status,
+      p_outcome: outcome,
+      p_delivery: deliveryTracker.state === "sending" ? "uncertain" : deliveryTracker.state,
+      p_error: error?.slice(0, 240) ?? null,
+    });
+    if (result.error || result.data !== true) {
+      console.warn("[webhook] join event finish rejected", {
+        chat_id: chatId,
+        user_id: member.id,
+        error_code: result.error?.code ?? "lease_lost",
+      });
+    }
+  };
+
+  let outcome = "join_flow_failed";
+  let failure: string | undefined;
+  try {
+    const settingsLookup = await loadGroupSettings(adminClient, chatId);
+    if (!settingsLookup.ok) {
+      await logModeration(adminClient, {
+        groupId: chatId,
+        userId: member.id,
+        username: member.username ?? null,
+        action: "settings_lookup_failed",
+        reason: `chat_member:${settingsLookup.errorCode}`,
+      });
+      outcome = "settings_lookup_failed";
+    } else if (!settingsLookup.settings) {
+      await logModeration(adminClient, {
+        groupId: chatId,
+        userId: member.id,
+        username: member.username ?? null,
+        action: "welcome_skipped_no_settings",
+        reason: "chat_member",
+      });
+      outcome = "settings_missing";
+    } else {
+      const settings = settingsLookup.settings;
+      console.log("[webhook] settings lookup", { chat_id: chatId, found: true, welcome_enabled: settings.welcome_enabled });
+
+      const gateOutcome = await runJoinGate(adminClient, {
+        groupId: chatId,
+        member,
+        settings: settings as CommunitySettings & Record<string, unknown>,
+        reason: "chat_member",
+      });
+      const gateDisposition = joinGateFailureDisposition(gateOutcome, settings.verification_enabled);
+      if (gateDisposition === "stop_removed") {
+        outcome = "join_guard_removed";
+      } else if (gateDisposition === "stop_unremoved") {
+        await logModeration(adminClient, {
+          groupId: chatId,
+          userId: member.id,
+          username: member.username ?? null,
+          action: "join_guard_failed_verification_disabled",
+          reason: "member_not_removed_and_verification_disabled",
+        });
+        outcome = "join_guard_failed_verification_disabled";
+      } else if (resolveJoinFlow({
+        verificationEnabled: settings.verification_enabled,
+        welcomeEnabled: settings.welcome_enabled,
+      }) === "skip") {
+        await logModeration(adminClient, {
+          groupId: chatId,
+          userId: member.id,
+          username: member.username ?? null,
+          action: "welcome_skipped_disabled",
+          reason: "welcome_and_verification_disabled",
+        });
+        outcome = "welcome_and_verification_disabled";
+      } else {
+        outcome = await startVerificationForMember(adminClient, {
+          groupId: chatId,
+          member,
+          settings,
+          reason: "chat_member",
+          delivery,
+        });
+      }
+    }
+  } catch (error) {
+    failure = error instanceof Error ? error.message : "join flow threw";
+    outcome = "join_flow_exception";
+    console.error("[webhook] join flow failed", {
+      chat_id: chatId,
+      user_id: member.id,
+      error_name: error instanceof Error ? error.name : "unknown",
+    });
+  }
+  const status = joinEventCompletionStatus(outcome, deliveryTracker.state);
+  if (status === "needs_review") {
+    await logModeration(adminClient, {
+      groupId: chatId,
+      userId: member.id,
+      username: member.username ?? null,
+      action: "join_delivery_uncertain",
+      reason: outcome,
+    }).catch(() => undefined);
+  }
+  await finish(status, outcome, failure);
   console.log("[webhook] join flow completed", {
-    chat_id: evt.chat.id,
+    chat_id: chatId,
     user_id: member.id,
     update_id: update.update_id ?? null,
-    outcome: joinOutcome,
+    outcome,
   });
 }
 
@@ -5494,10 +5832,11 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
           messageId: message?.message_id ?? null,
         });
       }
-    } catch {
-      // Keep stable even if logging fails.
-    }
+  } catch {
+    // Keep stable even if logging fails.
   }
+  if (update.chat_member) throw new Error("chat_member_processing_failed");
+}
 }
 
 Deno.serve(withUsage('telegram-community-webhook', 'Angel AI · Telegram', async (req) => {
@@ -5528,7 +5867,18 @@ Deno.serve(withUsage('telegram-community-webhook', 'Angel AI · Telegram', async
 
 
   if (shouldRunInline) {
-    await processUpdate(update, req);
+    try {
+      await processUpdate(update, req);
+    } catch (error) {
+      if (update.chat_member) {
+        console.error("[telegram-community-webhook] chat_member not durably accepted", {
+          update_id: update.update_id ?? null,
+          error_name: error instanceof Error ? error.name : "unknown",
+        });
+        return json({ error: "Temporary processing failure" }, 503);
+      }
+      throw error;
+    }
     return json({ ok: true });
   }
 

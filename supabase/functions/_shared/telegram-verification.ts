@@ -10,6 +10,7 @@ export type VerificationDeliveryResult = TelegramVerificationResult & {
 
 export type VerificationStartOutcome =
   | "started"
+  | "existing_challenge_reused"
   | "restriction_failed"
   | "challenge_create_failed"
   | "captcha_send_failed"
@@ -198,7 +199,7 @@ export function decideVerificationCallback(input: {
 
 export async function startVerificationDelivery(params: {
   restrictMember: () => Promise<TelegramVerificationResult>;
-  createChallenge: () => Promise<{ challengeId?: string; error?: string }>;
+  createChallenge: () => Promise<{ challengeId?: string; error?: string; reused?: boolean }>;
   sendCaptcha: (
     challengeId: string,
     options: { skipAutoDelete: true },
@@ -217,7 +218,7 @@ export async function startVerificationDelivery(params: {
     return "restriction_failed";
   }
 
-  let challenge: { challengeId?: string; error?: string };
+  let challenge: { challengeId?: string; error?: string; reused?: boolean };
   try {
     challenge = await params.createChallenge();
   } catch (error) {
@@ -230,6 +231,11 @@ export async function startVerificationDelivery(params: {
   }
 
   const challengeId = challenge.challengeId;
+  if (challenge.reused) {
+    await safeLog(params.log, "verification_challenge_reused", "active challenge already exists");
+    return "existing_challenge_reused";
+  }
+
   let delivery: VerificationDeliveryResult;
   try {
     delivery = await params.sendCaptcha(challengeId, { skipAutoDelete: true });

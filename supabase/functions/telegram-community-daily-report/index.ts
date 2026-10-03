@@ -4,6 +4,7 @@
 // formatted report to the configured admin chat.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { callCommunityTelegram, communityCorsHeaders, json } from "../_shared/telegram-community.ts";
+import { assertQuerySucceeded, assertTelegramActionSucceeded } from "../_shared/telegram-query.ts";
 
 const TZ = "Asia/Kuala_Lumpur";
 
@@ -28,12 +29,13 @@ async function getChatMemberCount(chatId: number): Promise<number | null> {
 
 async function buildAndSendReport(admin: ReturnType<typeof createClient>, chatId: number, alertChatId: string, dateStr: string): Promise<void> {
   const { startUtc, endUtc } = klDayBoundsUtc(dateStr);
-  const { data: events } = await admin
+  const eventsResult = await admin
     .from("telegram_member_events")
     .select("event_type, invite_link, invite_link_name")
     .eq("chat_id", chatId)
     .gte("occurred_at", startUtc)
     .lt("occurred_at", endUtc);
+  const events = assertQuerySucceeded(eventsResult, "daily member events");
 
   const counts = { join: 0, rejoined: 0, left: 0, kicked: 0, banned: 0, unbanned: 0 };
   const inviteJoins = new Map<string, { name: string | null; count: number }>();
@@ -59,7 +61,7 @@ async function buildAndSendReport(admin: ReturnType<typeof createClient>, chatId
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
-  await admin.from("telegram_member_daily_stats").upsert({
+  const statsResult = await admin.from("telegram_member_daily_stats").upsert({
     chat_id: chatId,
     stat_date: dateStr,
     total_members: totalMembers,
@@ -73,6 +75,7 @@ async function buildAndSendReport(admin: ReturnType<typeof createClient>, chatId
     top_invite_links: topInvites,
     updated_at: new Date().toISOString(),
   });
+  if (statsResult.error) throw new Error(`daily stats save failed (${statsResult.error.code ?? "unknown"})`);
 
   const top3 = topInvites.slice(0, 3);
   const inviteLines = top3.length
@@ -97,12 +100,13 @@ async function buildAndSendReport(admin: ReturnType<typeof createClient>, chatId
     inviteLines,
   ].join("\n");
 
-  await callCommunityTelegram("sendMessage", {
+  const sendResult = await callCommunityTelegram("sendMessage", {
     chat_id: alertChatId,
     text,
     parse_mode: "HTML",
     disable_web_page_preview: true,
   });
+  assertTelegramActionSucceeded(sendResult, "daily report Telegram send");
 }
 
 Deno.serve(async (req) => {
@@ -122,7 +126,12 @@ Deno.serve(async (req) => {
     .from("telegram_community_settings")
     .select("group_id, member_alerts_enabled, member_alerts_chat_id");
   if (chatIdParam) query = query.eq("group_id", Number(chatIdParam));
-  const { data: groups } = await query;
+  const groupsResult = await query;
+  if (groupsResult.error) {
+    console.error("[daily-report] managed group lookup failed", { error_code: groupsResult.error.code ?? "unknown" });
+    return json({ ok: false, error: "Không tải được cấu hình nhóm để lập báo cáo." }, 500);
+  }
+  const groups = groupsResult.data;
 
   const targets = (groups ?? []).filter(
     (g) => g.member_alerts_chat_id && (g.member_alerts_enabled || chatIdParam),
@@ -138,5 +147,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ ok: true, date: dateStr, processed: results });
+  const ok = results.every((result) => result.ok);
+  return json({ ok, date: dateStr, processed: results }, ok ? 200 : 502);
 });

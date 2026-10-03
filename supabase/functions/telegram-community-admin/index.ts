@@ -20,6 +20,7 @@ import {
 } from "../_shared/telegram-community.ts";
 import { loadManagedGroupTitles } from "../_shared/managed-groups.ts";
 import { managedGroupSettingsInsert } from "../_shared/telegram-welcome-defaults.ts";
+import { assertQuerySucceeded } from "../_shared/telegram-query.ts";
 import {
   COMMUNITY_WEBHOOK_ALLOWED_UPDATES,
   safeCommunityWebhookStatus,
@@ -338,7 +339,7 @@ Deno.serve(async (req) => {
     const settings = await resolveSettings(adminClient, payload.group_id);
     const groupsResult = await loadManagedGroups(adminClient);
     if ("error" in groupsResult) return json({ success: false, error: groupsResult.error }, 500);
-    const [{ data: domains }, { data: keywords }, { data: logs }, { data: quickReplies }] = await Promise.all([
+    const [domainsResult, keywordsResult, logsResult, quickRepliesResult] = await Promise.all([
       adminClient.from("telegram_community_domain_whitelist").select("*").order("domain"),
       adminClient.from("telegram_community_blocked_keywords").select("*").order("keyword"),
       adminClient
@@ -352,6 +353,23 @@ Deno.serve(async (req) => {
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true }),
     ]);
+    try {
+      assertQuerySucceeded(domainsResult, "domain whitelist");
+      assertQuerySucceeded(keywordsResult, "blocked keyword list");
+      assertQuerySucceeded(logsResult, "moderation logs");
+      assertQuerySucceeded(quickRepliesResult, "quick replies");
+    } catch (error) {
+      console.error("[telegram-community-admin] settings data lookup failed", {
+        group_id: payload.group_id ?? null,
+        error: error instanceof Error ? error.message : "unknown query error",
+      });
+      return json({ success: false, error: "Không tải được đầy đủ cấu hình nhóm. Hãy thử lại." }, 500);
+    }
+
+    const domains = domainsResult.data;
+    const keywords = keywordsResult.data;
+    const logs = logsResult.data;
+    const quickReplies = quickRepliesResult.data;
 
     return json({
       success: true,

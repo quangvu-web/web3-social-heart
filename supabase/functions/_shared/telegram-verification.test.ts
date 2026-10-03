@@ -3,25 +3,37 @@ import {
   completeVerifiedCallback,
   decideVerificationCallback,
   enforceVerificationFailure,
-  isRecoverableVerificationStatus,
   isJoinedMembershipState,
+  isRecoverableVerificationStatus,
   isStaleVerificationEnforcement,
+  releaseVerifiedMember,
   resolveJoinFlow,
   shouldProcessChatMemberJoin,
   shouldSendVerifiedWelcome,
-  releaseVerifiedMember,
-  verificationClaimOutcome,
-  welcomeLogMessageId,
   startVerificationDelivery,
+  verificationClaimOutcome,
   verificationRestrictionUntil,
   verificationTimeoutSeconds,
+  welcomeLogMessageId,
 } from "./telegram-verification.ts";
 
 Deno.test("verification remains active when welcome messages are disabled", () => {
-  assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: true, welcomeEnabled: false }), "verify");
-  assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: true, welcomeEnabled: true }), "verify");
-  assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: false, welcomeEnabled: true }), "welcome");
-  assert.deepStrictEqual(resolveJoinFlow({ verificationEnabled: false, welcomeEnabled: false }), "skip");
+  assert.deepStrictEqual(
+    resolveJoinFlow({ verificationEnabled: true, welcomeEnabled: false }),
+    "verify",
+  );
+  assert.deepStrictEqual(
+    resolveJoinFlow({ verificationEnabled: true, welcomeEnabled: true }),
+    "verify",
+  );
+  assert.deepStrictEqual(
+    resolveJoinFlow({ verificationEnabled: false, welcomeEnabled: true }),
+    "welcome",
+  );
+  assert.deepStrictEqual(
+    resolveJoinFlow({ verificationEnabled: false, welcomeEnabled: false }),
+    "skip",
+  );
   assert.strictEqual(shouldSendVerifiedWelcome(false), false);
   assert.strictEqual(shouldSendVerifiedWelcome(true), true);
 });
@@ -34,8 +46,12 @@ Deno.test("a restricted user counts as joined only when Telegram says they are s
 });
 
 Deno.test("invite-link member transitions are processed once, only for a real newly joined user", () => {
-  const join = (oldStatus: string, newStatus: string, isMember?: boolean, isBot = false) =>
-    shouldProcessChatMemberJoin({ oldStatus, newStatus, isMember, isBot });
+  const join = (
+    oldStatus: string,
+    newStatus: string,
+    isMember?: boolean,
+    isBot = false,
+  ) => shouldProcessChatMemberJoin({ oldStatus, newStatus, isMember, isBot });
 
   assert.strictEqual(join("left", "member"), true);
   assert.strictEqual(join("kicked", "member"), true);
@@ -46,36 +62,60 @@ Deno.test("invite-link member transitions are processed once, only for a real ne
 });
 
 Deno.test("verification claim outcome prevents a duplicate callback from repeating completion", () => {
-  assert.deepStrictEqual(verificationClaimOutcome({ count: 1, hasError: false }), "claimed");
-  assert.deepStrictEqual(verificationClaimOutcome({ count: 0, hasError: false }), "already_claimed");
-  assert.deepStrictEqual(verificationClaimOutcome({ count: null, hasError: false }), "unavailable");
-  assert.deepStrictEqual(verificationClaimOutcome({ count: null, hasError: true }), "unavailable");
+  assert.deepStrictEqual(
+    verificationClaimOutcome({ count: 1, hasError: false }),
+    "claimed",
+  );
+  assert.deepStrictEqual(
+    verificationClaimOutcome({ count: 0, hasError: false }),
+    "already_claimed",
+  );
+  assert.deepStrictEqual(
+    verificationClaimOutcome({ count: null, hasError: false }),
+    "unavailable",
+  );
+  assert.deepStrictEqual(
+    verificationClaimOutcome({ count: null, hasError: true }),
+    "unavailable",
+  );
 });
 
 Deno.test("a failed permission restoration remains retryable after the original CAPTCHA expires", () => {
   assert.deepStrictEqual(isRecoverableVerificationStatus("pending"), true);
-  assert.deepStrictEqual(isRecoverableVerificationStatus("release_failed"), true);
+  assert.deepStrictEqual(
+    isRecoverableVerificationStatus("release_failed"),
+    true,
+  );
   assert.deepStrictEqual(isRecoverableVerificationStatus("verified"), false);
   assert.deepStrictEqual(isRecoverableVerificationStatus("failed"), false);
 });
 
 Deno.test("only stale enforcement claims can be reclaimed after a webhook interruption", () => {
   const now = Date.parse("2026-10-02T00:02:00.000Z");
-  assert.deepStrictEqual(isStaleVerificationEnforcement({
-    status: "enforcement_processing",
-    updatedAt: "2026-10-02T00:00:59.000Z",
-    nowMilliseconds: now,
-  }), true);
-  assert.deepStrictEqual(isStaleVerificationEnforcement({
-    status: "enforcement_processing",
-    updatedAt: "2026-10-02T00:01:30.000Z",
-    nowMilliseconds: now,
-  }), false);
-  assert.deepStrictEqual(isStaleVerificationEnforcement({
-    status: "verified",
-    updatedAt: "2026-10-02T00:00:00.000Z",
-    nowMilliseconds: now,
-  }), false);
+  assert.deepStrictEqual(
+    isStaleVerificationEnforcement({
+      status: "enforcement_processing",
+      updatedAt: "2026-10-02T00:00:59.000Z",
+      nowMilliseconds: now,
+    }),
+    true,
+  );
+  assert.deepStrictEqual(
+    isStaleVerificationEnforcement({
+      status: "enforcement_processing",
+      updatedAt: "2026-10-02T00:01:30.000Z",
+      nowMilliseconds: now,
+    }),
+    false,
+  );
+  assert.deepStrictEqual(
+    isStaleVerificationEnforcement({
+      status: "verified",
+      updatedAt: "2026-10-02T00:00:00.000Z",
+      nowMilliseconds: now,
+    }),
+    false,
+  );
 });
 
 Deno.test("welcome log uses the Telegram welcome message ID, not the CAPTCHA message ID", () => {
@@ -85,14 +125,21 @@ Deno.test("welcome log uses the Telegram welcome message ID, not the CAPTCHA mes
 
 Deno.test("180-second CAPTCHA timeout restricts only through timeout plus grace", () => {
   assert.deepStrictEqual(verificationTimeoutSeconds(180), 180);
-  assert.deepStrictEqual(verificationRestrictionUntil(1_790_000_000_000, 180), 1_790_000_240);
+  assert.deepStrictEqual(
+    verificationRestrictionUntil(1_790_000_000_000, 180),
+    1_790_000_240,
+  );
   assert.deepStrictEqual(verificationTimeoutSeconds(Number.NaN), 180);
 });
 
 Deno.test("restriction failure restores ambiguous Telegram state and does not create challenge", async () => {
   const events: string[] = [];
   const result = await startVerificationDelivery({
-    restrictMember: async () => ({ ok: false, errorCode: 400, description: "restrict denied" }),
+    restrictMember: async () => ({
+      ok: false,
+      errorCode: 400,
+      description: "restrict denied",
+    }),
     createChallenge: async () => {
       events.push("create");
       return { challengeId: "challenge-1" };
@@ -107,12 +154,18 @@ Deno.test("restriction failure restores ambiguous Telegram state and does not cr
       events.push("restore");
       return { ok: true };
     },
-    log: async (action) => { events.push(action); },
+    log: async (action) => {
+      events.push(action);
+    },
     scheduleExpiry: () => events.push("schedule"),
   });
 
   assert.deepStrictEqual(result, "restriction_failed");
-  assert.deepStrictEqual(events, ["verification_restriction_failed", "restore", "verification_restriction_recovered"]);
+  assert.deepStrictEqual(events, [
+    "verification_restriction_failed",
+    "restore",
+    "verification_restriction_recovered",
+  ]);
 });
 
 Deno.test("challenge creation failure releases member after a successful restriction", async () => {
@@ -127,12 +180,49 @@ Deno.test("challenge creation failure releases member after a successful restric
       events.push("restore");
       return { ok: true };
     },
-    log: async (action) => { events.push(action); },
+    log: async (action) => {
+      events.push(action);
+    },
     scheduleExpiry: () => events.push("schedule"),
   });
 
   assert.deepStrictEqual(result, "challenge_create_failed");
-  assert.deepStrictEqual(events, ["verification_create_failed", "restore", "verification_restriction_recovered"]);
+  assert.deepStrictEqual(events, [
+    "verification_create_failed",
+    "restore",
+    "verification_restriction_recovered",
+  ]);
+});
+
+Deno.test("a concurrent active challenge is reused without sending a duplicate or lifting restriction", async () => {
+  const events: string[] = [];
+  const result = await startVerificationDelivery({
+    restrictMember: async () => {
+      events.push("restrict");
+      return { ok: true };
+    },
+    createChallenge: async () => ({
+      challengeId: "active-challenge",
+      reused: true,
+    }),
+    sendCaptcha: async () => {
+      events.push("send");
+      return { ok: true, messageId: 99 };
+    },
+    storeCaptchaMessageId: async () => null,
+    markChallengeFailed: async () => null,
+    restoreMemberPermissions: async () => {
+      events.push("restore");
+      return { ok: true };
+    },
+    log: async (action) => {
+      events.push(action);
+    },
+    scheduleExpiry: () => events.push("schedule"),
+  });
+
+  assert.deepStrictEqual(result, "existing_challenge_reused");
+  assert.deepStrictEqual(events, ["restrict", "verification_challenge_reused"]);
 });
 
 Deno.test("permission-denied challenge insert and failing moderation log still release member", async () => {
@@ -140,12 +230,26 @@ Deno.test("permission-denied challenge insert and failing moderation log still r
   const events: string[] = [];
   const result = await startVerificationDelivery({
     restrictMember: async () => ({ ok: true }),
-    createChallenge: async () => { throw new Error("permission denied for table telegram_community_verification_challenges"); },
-    sendCaptcha: async () => { events.push("send"); return { ok: true, messageId: 9 }; },
+    createChallenge: async () => {
+      throw new Error(
+        "permission denied for table telegram_community_verification_challenges",
+      );
+    },
+    sendCaptcha: async () => {
+      events.push("send");
+      return { ok: true, messageId: 9 };
+    },
     storeCaptchaMessageId: async () => null,
     markChallengeFailed: async () => null,
-    restoreMemberPermissions: async () => { events.push("restore"); return { ok: true }; },
-    log: async () => { throw new Error("permission denied for table telegram_community_moderation_logs"); },
+    restoreMemberPermissions: async () => {
+      events.push("restore");
+      return { ok: true };
+    },
+    log: async () => {
+      throw new Error(
+        "permission denied for table telegram_community_moderation_logs",
+      );
+    },
     scheduleExpiry: () => events.push("schedule"),
   });
 
@@ -159,7 +263,9 @@ Deno.test("CAPTCHA send failure closes challenge and releases member", async () 
     restrictMember: async () => ({ ok: true }),
     createChallenge: async () => ({ challengeId: "challenge-1" }),
     sendCaptcha: async (_challengeId, options) => {
-      events.push(options.skipAutoDelete ? "skip-auto-delete" : "auto-delete-enabled");
+      events.push(
+        options.skipAutoDelete ? "skip-auto-delete" : "auto-delete-enabled",
+      );
       return { ok: false, errorCode: 403, description: "send denied" };
     },
     storeCaptchaMessageId: async () => null,
@@ -171,7 +277,9 @@ Deno.test("CAPTCHA send failure closes challenge and releases member", async () 
       events.push("restore");
       return { ok: true };
     },
-    log: async (action) => { events.push(action); },
+    log: async (action) => {
+      events.push(action);
+    },
     scheduleExpiry: () => events.push("schedule"),
   });
 
@@ -192,18 +300,26 @@ Deno.test("successful CAPTCHA is protected from auto-delete and starts expiry tr
     restrictMember: async () => ({ ok: true }),
     createChallenge: async () => ({ challengeId: "challenge-1" }),
     sendCaptcha: async (_challengeId, options) => {
-      events.push(options.skipAutoDelete ? "skip-auto-delete" : "auto-delete-enabled");
+      events.push(
+        options.skipAutoDelete ? "skip-auto-delete" : "auto-delete-enabled",
+      );
       return { ok: true, messageId: 9 };
     },
     storeCaptchaMessageId: async () => null,
     markChallengeFailed: async () => null,
     restoreMemberPermissions: async () => ({ ok: true }),
-    log: async (action) => { events.push(action); },
+    log: async (action) => {
+      events.push(action);
+    },
     scheduleExpiry: (challengeId) => events.push(`schedule:${challengeId}`),
   });
 
   assert.deepStrictEqual(result, "started");
-  assert.deepStrictEqual(events, ["skip-auto-delete", "verification_started", "schedule:challenge-1"]);
+  assert.deepStrictEqual(events, [
+    "skip-auto-delete",
+    "verification_started",
+    "schedule:challenge-1",
+  ]);
 });
 
 Deno.test("correct, wrong, and expired verification callbacks are distinguished", () => {
@@ -219,22 +335,43 @@ Deno.test("correct, wrong, and expired verification callbacks are distinguished"
     maxAttempts: 3,
   };
 
-  assert.deepStrictEqual(decideVerificationCallback(base), { kind: "verified" });
-  assert.deepStrictEqual(decideVerificationCallback({ ...base, answer: 7 }), { kind: "retry", attempts: 1 });
-  assert.deepStrictEqual(decideVerificationCallback({ ...base, nowMilliseconds: 2_000 }), { kind: "expired" });
-  assert.deepStrictEqual(decideVerificationCallback({ ...base, callbackUserId: 99 }), { kind: "not_owner" });
-  assert.deepStrictEqual(decideVerificationCallback({ ...base, isPending: false }), { kind: "inactive" });
-  assert.deepStrictEqual(decideVerificationCallback({ ...base, answer: 7, attempts: 2 }), { kind: "failed", attempts: 3 });
+  assert.deepStrictEqual(decideVerificationCallback(base), {
+    kind: "verified",
+  });
+  assert.deepStrictEqual(decideVerificationCallback({ ...base, answer: 7 }), {
+    kind: "retry",
+    attempts: 1,
+  });
+  assert.deepStrictEqual(
+    decideVerificationCallback({ ...base, nowMilliseconds: 2_000 }),
+    { kind: "expired" },
+  );
+  assert.deepStrictEqual(
+    decideVerificationCallback({ ...base, callbackUserId: 99 }),
+    { kind: "not_owner" },
+  );
+  assert.deepStrictEqual(
+    decideVerificationCallback({ ...base, isPending: false }),
+    { kind: "inactive" },
+  );
+  assert.deepStrictEqual(
+    decideVerificationCallback({ ...base, answer: 7, attempts: 2 }),
+    { kind: "failed", attempts: 3 },
+  );
 });
 
 Deno.test("successful expiry and failed-answer enforcement records the matching moderation action", async () => {
-  for (const action of ["verification_expired", "verification_failed"] as const) {
+  for (
+    const action of ["verification_expired", "verification_failed"] as const
+  ) {
     const logged: string[] = [];
     const succeeded = await enforceVerificationFailure({
       action,
       enforce: async () => ({ ok: true }),
       restoreMemberPermissions: async () => ({ ok: true }),
-      log: async (name) => { logged.push(name); },
+      log: async (name) => {
+        logged.push(name);
+      },
     });
     assert.deepStrictEqual(succeeded, true);
     assert.deepStrictEqual(logged, [action]);
@@ -249,7 +386,9 @@ Deno.test("correct answer with unavailable settings releases permissions before 
       events.push("unrestrict");
       return { ok: true };
     },
-    log: async (action) => { events.push(`log:${action}`); },
+    log: async (action) => {
+      events.push(`log:${action}`);
+    },
     continueWelcome: async () => {
       events.push("welcome");
       return "welcome_sent";
@@ -268,7 +407,9 @@ Deno.test("correct CAPTCHA with a failed settings query logs the lookup failure,
       events.push("unrestrict");
       return { ok: true };
     },
-    log: async (action: string) => { events.push(`log:${action}`); },
+    log: async (action: string) => {
+      events.push(`log:${action}`);
+    },
     continueWelcome: async () => {
       events.push("welcome");
       return "welcome_sent" as const;
@@ -278,7 +419,10 @@ Deno.test("correct CAPTCHA with a failed settings query logs the lookup failure,
   const outcome = await completeVerifiedCallback(params);
 
   assert.deepStrictEqual(outcome, "settings_unavailable_released");
-  assert.deepStrictEqual(events, ["log:verification_settings_lookup_failed", "unrestrict"]);
+  assert.deepStrictEqual(events, [
+    "log:verification_settings_lookup_failed",
+    "unrestrict",
+  ]);
 });
 
 Deno.test("successful CAPTCHA reports welcome and permission failures separately", async () => {
@@ -309,9 +453,14 @@ Deno.test("Telegram exceptions during verified-member unrestrict are logged and 
       if (calls === 1) throw new Error("Telegram network failure");
       return { ok: true };
     },
-    log: async (action) => { events.push(action); },
+    log: async (action) => {
+      events.push(action);
+    },
   });
   assert.deepStrictEqual(restored, true);
   assert.deepStrictEqual(calls, 2);
-  assert.deepStrictEqual(events, ["verification_unrestrict_failed", "verification_restriction_recovered"]);
+  assert.deepStrictEqual(events, [
+    "verification_unrestrict_failed",
+    "verification_restriction_recovered",
+  ]);
 });

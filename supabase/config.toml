@@ -11,6 +11,14 @@ verify_jwt = false
 [functions.telegram-webhook]
 verify_jwt = false
 
+# Telegram community webhook validates Telegram’s secret token itself.
+[functions.telegram-community-webhook]
+verify_jwt = false
+
+# Scheduled join recovery authenticates itself with x-cron-secret.
+[functions.telegram-community-join-recovery]
+verify_jwt = false
+
 # MCP server: OAuth discovery and the 401 challenge must reach the function
 # without a gateway JWT; @lovable.dev/mcp-js validates bearer tokens itself.
 [functions.mcp]

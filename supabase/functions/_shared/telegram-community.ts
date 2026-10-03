@@ -37,6 +37,11 @@ import { tryFetchTelegramMedia } from "./telegram-media.ts";
 import { callAiGateway, gatewayText } from "./ai-gateway-retry.ts";
 import { captureTelegramRequest, isTelegramApiSuccess } from "./telegram-transport.ts";
 import { managedGroupSettingsInsert } from "./telegram-welcome-defaults.ts";
+import { assertQuerySucceeded, resolveTelegramAdminCheck } from "./telegram-query.ts";
+import { resolveAdminRoleCheck } from "./telegram-admin-auth.ts";
+import { violationActionOutcome } from "./telegram-moderation-outcome.ts";
+import { classifyMemberEventType, resolveMemberEventWrite, type MemberEventWriteResult } from "./telegram-membership.ts";
+import { parseJoinEventRecordResult } from "./telegram-join-recovery.ts";
 
 
 // EdgeRuntime.waitUntil declaration (Supabase Edge Runtime global).
@@ -1337,7 +1342,12 @@ export async function requireAdmin(req: Request): Promise<{ userId: string; admi
     _role: "admin",
   });
 
-  if (roleError || !isAdmin) {
+  const roleCheck = resolveAdminRoleCheck(isAdmin, roleError?.code ?? null);
+  if (!roleCheck.allowed) {
+    if (roleCheck.reason === "unverified") {
+      console.error("[telegram-community] admin role check failed", { error_code: roleCheck.errorCode });
+      return { error: json({ error: "Không xác minh được quyền quản trị. Hãy thử lại." }, 503) };
+    }
     return { error: json({ error: "Forbidden - admin only" }, 403) };
   }
 
@@ -3552,21 +3562,23 @@ export async function checkAndUpdateAiRate(adminClient: SupabaseClient, params: 
   telegramUserId: number;
   limitPerMinute: number;
 }): Promise<{ allowed: boolean; count: number }> {
-  const { data: state } = await adminClient
+  const lookup = await adminClient
     .from("telegram_community_user_state")
     .select("id, ai_msg_count, ai_window_start")
     .eq("group_id", params.chatId)
     .eq("telegram_user_id", params.telegramUserId)
     .maybeSingle();
+  const state = assertQuerySucceeded(lookup, "AI rate limit state");
 
   const now = Date.now();
   if (!state) {
-    await adminClient.from("telegram_community_user_state").upsert({
+    const insert = await adminClient.from("telegram_community_user_state").upsert({
       group_id: params.chatId,
       telegram_user_id: params.telegramUserId,
       ai_msg_count: 1,
       ai_window_start: new Date(now).toISOString(),
     }, { onConflict: "group_id,telegram_user_id" });
+    if (insert.error) throw new Error(`AI rate limit state save failed (${insert.error.code ?? "unknown"})`);
     return { allowed: true, count: 1 };
 }
 
@@ -3575,10 +3587,11 @@ export async function checkAndUpdateAiRate(adminClient: SupabaseClient, params: 
   const nextCount = reset ? 1 : (state.ai_msg_count ?? 0) + 1;
   const nextStart = reset ? new Date(now).toISOString() : state.ai_window_start;
 
-  await adminClient
+  const update = await adminClient
     .from("telegram_community_user_state")
     .update({ ai_msg_count: nextCount, ai_window_start: nextStart })
     .eq("id", state.id);
+  if (update.error) throw new Error(`AI rate limit state update failed (${update.error.code ?? "unknown"})`);
 
   return { allowed: nextCount <= params.limitPerMinute, count: nextCount };
 }
@@ -3632,17 +3645,18 @@ export async function upsertTrustedSenderChat(
 
 
 export async function ensureSettings(adminClient: SupabaseClient): Promise<CommunitySettings | null> {
-  const envGroupId = Number(Deno.env.get("COMMUNITY_GUARD_GROUP_ID") ?? "0");
-  const botUsername = Deno.env.get("COMMUNITY_GUARD_BOT_USERNAME") ?? null;
-
-  const { data: existing } = await adminClient
+  const lookup = await adminClient
     .from("telegram_community_settings")
     .select("*")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+  const existing = assertQuerySucceeded(lookup, "community settings");
 
   if (existing) return existing as CommunitySettings;
+
+  const envGroupId = Number(Deno.env.get("COMMUNITY_GUARD_GROUP_ID") ?? "0");
+  const botUsername = Deno.env.get("COMMUNITY_GUARD_BOT_USERNAME") ?? null;
   if (!envGroupId) return null;
 
   const { data, error } = await adminClient
@@ -3652,8 +3666,8 @@ export async function ensureSettings(adminClient: SupabaseClient): Promise<Commu
     .single();
 
   if (error) {
-    console.error("[telegram-community] failed to create default settings", error);
-    return null;
+    console.error("[telegram-community] failed to create default settings", { error_code: error.code ?? "unknown" });
+    throw new Error(`community settings insert failed (${error.code ?? "unknown"})`);
   }
 
   return data as CommunitySettings;
@@ -3661,7 +3675,8 @@ export async function ensureSettings(adminClient: SupabaseClient): Promise<Commu
 
 export async function getSettingsForGroup(adminClient: SupabaseClient, groupId: number): Promise<CommunitySettings | null> {
   const result = await loadGroupSettings(adminClient, groupId);
-  return result.ok ? result.settings : null;
+  if (!result.ok) throw new Error(`group settings lookup failed (${result.errorCode})`);
+  return result.settings;
 }
 
 export type GroupSettingsLookup =
@@ -3696,18 +3711,20 @@ export async function loadGroupSettings(
 }
 
 export async function activeDomains(adminClient: SupabaseClient): Promise<string[]> {
-  const { data } = await adminClient
+  const result = await adminClient
     .from("telegram_community_domain_whitelist")
     .select("domain")
     .eq("is_active", true);
+  const data = assertQuerySucceeded(result, "domain whitelist");
   return (data ?? []).map((row: { domain: string }) => row.domain.toLowerCase());
 }
 
 export async function activeKeywords(adminClient: SupabaseClient): Promise<Array<{ keyword: string; severity: string }>> {
-  const { data } = await adminClient
+  const result = await adminClient
     .from("telegram_community_blocked_keywords")
     .select("keyword, severity")
     .eq("is_active", true);
+  const data = assertQuerySucceeded(result, "blocked keyword list");
   return (data ?? []).map((row: { keyword: string; severity: string }) => ({
     keyword: row.keyword.toLowerCase(),
     severity: row.severity,
@@ -4866,7 +4883,7 @@ export async function upsertUserState(params: {
     .single();
 
   if (error) {
-    console.warn("[telegram-community] upsert user state failed", error);
+    console.warn("[telegram-community] upsert user state failed", { error_code: error.code ?? "unknown" });
     return null;
   }
   return data;
@@ -4883,18 +4900,24 @@ export async function updateMessageWindow(adminClient: SupabaseClient, state: {
   const nextCount = reset ? 1 : state.message_count + 1;
   const nextStart = reset ? new Date(now).toISOString() : state.message_count_window_start;
 
-  await adminClient
+  const update = await adminClient
     .from("telegram_community_user_state")
     .update({ message_count: nextCount, message_count_window_start: nextStart })
     .eq("id", state.id);
+  if (update.error) throw new Error(`message rate state update failed (${update.error.code ?? "unknown"})`);
 
   return nextCount;
 }
 
 export async function isTelegramAdmin(chatId: number, userId: number): Promise<boolean> {
   const result = await getChatMember(chatId, userId);
-  const status = result.data?.result?.status;
-  return status === "creator" || status === "administrator";
+  const check = resolveTelegramAdminCheck({
+    ok: result.ok,
+    status: result.data?.result?.status,
+    error_code: result.data?.error_code,
+  });
+  if (!check.verified) throw new Error(`Telegram admin status could not be verified (${check.errorCode})`);
+  return check.isAdmin;
 }
 
 export async function logModeration(adminClient: SupabaseClient, params: {
@@ -5044,52 +5067,145 @@ export async function applyViolation(params: {
     groupId: params.chatId,
     user: params.user,
   });
+  if (!state) {
+    await logModeration(params.adminClient, {
+      groupId: params.chatId,
+      userId,
+      username: params.user.username ?? null,
+      action: "moderation_state_unavailable",
+      reason: "warning_count_could_not_be_read_or_created",
+      messageId: params.messageId,
+    });
+  }
 
   const countWarning = params.countWarning !== false;
-  const currentWarningCount = state?.warning_count ?? 0;
-  const warningCount = countWarning ? currentWarningCount + 1 : currentWarningCount;
+  let warningStateAvailable = state !== null;
+  let warningCount: number | null = state
+    ? (countWarning ? state.warning_count + 1 : state.warning_count)
+    : null;
   const nowIso = new Date().toISOString();
-  if (countWarning) {
-    await params.adminClient
+  if (countWarning && state && warningCount !== null) {
+    const warningUpdate = await params.adminClient
       .from("telegram_community_user_state")
       .update({ warning_count: warningCount })
       .eq("group_id", params.chatId)
       .eq("telegram_user_id", userId);
+    const warningStateCheck = warningUpdate.error
+      ? null
+      : await params.adminClient
+        .from("telegram_community_user_state")
+        .select("warning_count")
+        .eq("group_id", params.chatId)
+        .eq("telegram_user_id", userId)
+        .maybeSingle();
+    if (warningUpdate.error || warningStateCheck?.error || warningStateCheck?.data?.warning_count !== warningCount) {
+      warningStateAvailable = false;
+      warningCount = null;
+      const errorCode = warningUpdate.error?.code ?? warningStateCheck?.error?.code ?? "row_not_updated";
+      console.warn("[moderation] warning count update failed", { error_code: errorCode });
+      await logModeration(params.adminClient, {
+        groupId: params.chatId,
+        userId,
+        username: params.user.username ?? null,
+        action: "moderation_state_update_failed",
+        reason: `warning_count:${errorCode}`,
+        messageId: params.messageId,
+      });
+    }
   }
 
-  await deleteMessage(params.chatId, params.messageId);
+  let deleted = false;
+  let deleteErrorCode: number | undefined;
+  try {
+    const result = await deleteMessage(params.chatId, params.messageId);
+    deleted = result.ok;
+    deleteErrorCode = result.data?.error_code;
+  } catch (error) {
+    console.warn("[moderation] delete request threw", { error_name: error instanceof Error ? error.name : "unknown" });
+  }
 
-  let action = countWarning ? "deleted_warned" : "deleted_warned_no_escalation";
-  if (countWarning && warningCount >= params.settings.warning_before_ban) {
-    await banChatMember(params.chatId, userId);
-    await params.adminClient
-      .from("telegram_community_user_state")
-      .update({ banned_at: nowIso })
-      .eq("group_id", params.chatId)
-      .eq("telegram_user_id", userId);
-    action = "banned";
-  } else if (countWarning && warningCount >= params.settings.warning_before_mute) {
+  let banAttempted = false;
+  let banSucceeded = false;
+  let banErrorCode: number | undefined;
+  let muteAttempted = false;
+  let muteSucceeded = false;
+  let muteErrorCode: number | undefined;
+  if (warningStateAvailable && countWarning && warningCount !== null && warningCount >= params.settings.warning_before_ban) {
+    banAttempted = true;
+    try {
+      const result = await banChatMember(params.chatId, userId);
+      banSucceeded = result.ok;
+      banErrorCode = result.data?.error_code;
+      if (banSucceeded) {
+        const update = await params.adminClient
+          .from("telegram_community_user_state")
+          .update({ banned_at: nowIso })
+          .eq("group_id", params.chatId)
+          .eq("telegram_user_id", userId);
+        if (update.error) console.warn("[moderation] banned state update failed", { error_code: update.error.code ?? "unknown" });
+      }
+    } catch (error) {
+      console.warn("[moderation] ban request threw", { error_name: error instanceof Error ? error.name : "unknown" });
+    }
+  } else if (warningStateAvailable && countWarning && warningCount !== null && warningCount >= params.settings.warning_before_mute) {
+    muteAttempted = true;
     const untilUnix = Math.floor(Date.now() / 1000) + params.settings.mute_duration_minutes * 60;
-    await restrictChatMember(params.chatId, userId, untilUnix);
-    await params.adminClient
-      .from("telegram_community_user_state")
-      .update({ muted_until: new Date(untilUnix * 1000).toISOString() })
-      .eq("group_id", params.chatId)
-      .eq("telegram_user_id", userId);
-    action = "muted";
+    try {
+      const result = await restrictChatMember(params.chatId, userId, untilUnix);
+      muteSucceeded = result.ok;
+      muteErrorCode = result.data?.error_code;
+      if (muteSucceeded) {
+        const update = await params.adminClient
+          .from("telegram_community_user_state")
+          .update({ muted_until: new Date(untilUnix * 1000).toISOString() })
+          .eq("group_id", params.chatId)
+          .eq("telegram_user_id", userId);
+        if (update.error) console.warn("[moderation] muted state update failed", { error_code: update.error.code ?? "unknown" });
+      }
+    } catch (error) {
+      console.warn("[moderation] restrict request threw", { error_name: error instanceof Error ? error.name : "unknown" });
+    }
   }
+
+  const action = violationActionOutcome({
+    deleted,
+    countWarning,
+    banAttempted,
+    banSucceeded,
+    muteAttempted,
+    muteSucceeded,
+    warningStateAvailable,
+  });
+  const reasonDetails = [
+    params.reason,
+    !warningStateAvailable ? "warning_state_unavailable" : null,
+    !deleted ? `delete_failed:${deleteErrorCode ?? "unknown"}` : null,
+    banAttempted && !banSucceeded ? `ban_failed:${banErrorCode ?? "unknown"}` : null,
+    muteAttempted && !muteSucceeded ? `mute_failed:${muteErrorCode ?? "unknown"}` : null,
+  ].filter(Boolean).join(";").slice(0, 240);
+  await logModeration(params.adminClient, {
+    groupId: params.chatId,
+    userId,
+    username: params.user.username ?? null,
+    action,
+    reason: reasonDetails,
+    messageText: params.messageText,
+    messageId: params.messageId,
+  });
 
   const label = params.user.username ? `@${params.user.username}` : fullName(params.user);
-  if (action === "banned") {
-    await sendMessage(
-      params.chatId,
-      `🚫 <b>${escapeHtml(label)}</b> was banned after repeated violations.`,
-    );
-  } else if (action === "muted") {
-    await sendMessage(
-      params.chatId,
-      `🔇 <b>${escapeHtml(label)}</b> was muted for ${params.settings.mute_duration_minutes} minutes after repeated violations.`,
-    );
+  if (action === "banned" || action === "banned_message_delete_failed") {
+    await sendMessage(params.chatId, `🚫 <b>${escapeHtml(label)}</b> was banned after repeated violations.`);
+  } else if (action === "muted" || action === "muted_message_delete_failed") {
+    await sendMessage(params.chatId, `🔇 <b>${escapeHtml(label)}</b> was muted for ${params.settings.mute_duration_minutes} minutes after repeated violations.`);
+  } else if (!deleted) {
+    await sendMessage(params.chatId, "⚠️ Automatic moderation could not remove this message. An admin should review it.");
+  } else if (action === "deleted_ban_failed" || action === "deleted_mute_failed") {
+    await sendMessage(params.chatId, "⚠️ The message was removed, but the follow-up restriction failed. An admin should review it.");
+  } else if (action === "deleted_warning_state_unavailable") {
+    await sendMessage(params.chatId, "⚠️ The message was removed, but warning history could not be verified. No automatic escalation was attempted.");
+  } else if (warningCount === null) {
+    await sendMessage(params.chatId, "⚠️ The message was removed, but warning history is unavailable. An admin should review it.");
   } else {
     await sendMessage(
       params.chatId,
@@ -5104,15 +5220,6 @@ export async function applyViolation(params: {
     );
   }
 
-  await logModeration(params.adminClient, {
-    groupId: params.chatId,
-    userId,
-    username: params.user.username ?? null,
-    action,
-    reason: params.reason,
-    messageText: params.messageText,
-    messageId: params.messageId,
-  });
 }
 
 // ─── FUN spiritual content whitelist ─────────────────────────────────────────
@@ -5213,39 +5320,12 @@ export type MemberEventInput = {
   metadata?: Record<string, unknown>;
 };
 
-const PRESENT_STATUSES = new Set(["member", "restricted", "administrator", "creator"]);
-const ABSENT_STATUSES = new Set(["left", "kicked"]);
-
-function classifyMemberTransition(oldStatus: string | undefined, newStatus: string | undefined, actorIsSelf: boolean): string | null {
-  const o = oldStatus ?? "";
-  const n = newStatus ?? "";
-  if (!n) return null;
-  if (PRESENT_STATUSES.has(n) && (o === "" || ABSENT_STATUSES.has(o))) return "join";
-  if (PRESENT_STATUSES.has(o) && n === "left") return "left";
-  if (PRESENT_STATUSES.has(o) && n === "kicked") return actorIsSelf ? "left" : "kicked";
-  if (o === "" && n === "kicked") return "banned";
-  if (o === "kicked" && n === "left") return "unbanned";
-  return null;
-}
-
-export async function logMemberEvent(admin: SupabaseClient, input: MemberEventInput): Promise<{ eventType: string | null; inserted: boolean }> {
+export async function logMemberEvent(admin: SupabaseClient, input: MemberEventInput): Promise<MemberEventWriteResult> {
   const { chatId, user } = input;
-  if (!chatId || !user?.id || user.is_bot) return { eventType: null, inserted: false };
+  if (!chatId || !user?.id || user.is_bot) return { kind: "not_applicable", eventType: null };
   const actorIsSelf = !input.fromActor?.id || input.fromActor.id === user.id;
-  let eventType = classifyMemberTransition(input.oldStatus, input.newStatus, actorIsSelf);
-  if (!eventType) return { eventType: null, inserted: false };
-
-  // Promote join → rejoined if user has a prior left/kicked/banned event in this chat.
-  if (eventType === "join") {
-    const { data: prior } = await admin
-      .from("telegram_member_events")
-      .select("event_type")
-      .eq("chat_id", chatId)
-      .eq("tg_user_id", user.id)
-      .in("event_type", ["left", "kicked", "banned"])
-      .limit(1);
-    if (prior && prior.length > 0) eventType = "rejoined";
-  }
+  const eventType = classifyMemberEventType(input.oldStatus, input.newStatus, actorIsSelf);
+  if (!eventType) return { kind: "not_applicable", eventType: null };
 
   const displayName = fullName(user) || user.username || `id:${user.id}`;
   const occurredAt = (input.occurredAt ?? new Date()).toISOString();
@@ -5268,41 +5348,100 @@ export async function logMemberEvent(admin: SupabaseClient, input: MemberEventIn
     metadata: input.metadata ?? {},
   };
 
-  const { error } = await admin
-    .from("telegram_member_events")
-    .upsert(row, { onConflict: "chat_id,tg_user_id,event_type,occurred_at", ignoreDuplicates: true });
-  if (error) {
-    console.error("[telegram-community] logMemberEvent insert failed", error);
-    return { eventType, inserted: false };
+  let writeResult: MemberEventWriteResult;
+  if (eventType === "join" || eventType === "rejoined") {
+    const { data, error } = await admin.rpc("tg_record_join_event", {
+      p_chat_id: chatId,
+      p_tg_user_id: user.id,
+      p_event_type: eventType,
+      p_occurred_at: occurredAt,
+      p_row: row,
+    });
+    const recorded = parseJoinEventRecordResult(data);
+    if (error || !recorded) {
+      const errorCode = typeof error?.code === "string" ? error.code : "invalid_record_result";
+      console.error("[telegram-community] logMemberEvent insert failed", {
+        chat_id: chatId,
+        error_code: errorCode,
+      });
+      return { kind: "error", eventType, errorCode };
+    }
+    writeResult = {
+      kind: recorded.inserted ? "inserted" : "duplicate",
+      eventType,
+      eventId: recorded.id,
+      processingStatus: recorded.status,
+    };
+  } else {
+    const { data: insertedRows, error } = await admin
+      .from("telegram_member_events")
+      .upsert(row, { onConflict: "chat_id,tg_user_id,event_type,occurred_at", ignoreDuplicates: true })
+      .select("event_type");
+    writeResult = resolveMemberEventWrite(eventType, insertedRows, error);
+  }
+  if (writeResult.kind === "error") {
+    console.error("[telegram-community] logMemberEvent insert failed", {
+      chat_id: chatId,
+      error_code: writeResult.errorCode,
+    });
+    return writeResult;
+  }
+  if (writeResult.kind === "duplicate" || writeResult.kind === "not_applicable") {
+    return writeResult;
   }
 
   // Update invite link rolling stats for joins.
   if ((eventType === "join" || eventType === "rejoined") && row.invite_link) {
-    await admin
-      .from("telegram_invite_link_stats")
-      .upsert(
-        {
-          chat_id: chatId,
-          invite_link: row.invite_link,
-          invite_link_name: row.invite_link_name,
-          total_joins: 1,
-          last_used_at: occurredAt,
-        },
-        { onConflict: "chat_id,invite_link" },
-      );
-    // Atomic-ish increment via RPC isn't available; fallback to select+update.
-    const { data: cur } = await admin
-      .from("telegram_invite_link_stats")
-      .select("total_joins")
-      .eq("chat_id", chatId)
-      .eq("invite_link", row.invite_link)
-      .maybeSingle();
-    if (cur && typeof cur.total_joins === "number") {
-      await admin
+    try {
+      const statsUpsert = await admin
         .from("telegram_invite_link_stats")
-        .update({ total_joins: cur.total_joins + 1, last_used_at: occurredAt, invite_link_name: row.invite_link_name ?? null })
-        .eq("chat_id", chatId)
-        .eq("invite_link", row.invite_link);
+        .upsert(
+          {
+            chat_id: chatId,
+            invite_link: row.invite_link,
+            invite_link_name: row.invite_link_name,
+            total_joins: 1,
+            last_used_at: occurredAt,
+          },
+          { onConflict: "chat_id,invite_link" },
+        );
+      if (statsUpsert.error) {
+        console.warn("[telegram-community] invite link stats upsert failed", {
+          chat_id: chatId,
+          error_code: statsUpsert.error.code ?? "unknown",
+        });
+      } else {
+        // Keep optional invite analytics failures separate from the persisted join event.
+        const statsLookup = await admin
+          .from("telegram_invite_link_stats")
+          .select("total_joins")
+          .eq("chat_id", chatId)
+          .eq("invite_link", row.invite_link)
+          .maybeSingle();
+        if (statsLookup.error) {
+          console.warn("[telegram-community] invite link stats lookup failed", {
+            chat_id: chatId,
+            error_code: statsLookup.error.code ?? "unknown",
+          });
+        } else if (statsLookup.data && typeof statsLookup.data.total_joins === "number") {
+          const statsUpdate = await admin
+            .from("telegram_invite_link_stats")
+            .update({ total_joins: statsLookup.data.total_joins + 1, last_used_at: occurredAt, invite_link_name: row.invite_link_name ?? null })
+            .eq("chat_id", chatId)
+            .eq("invite_link", row.invite_link);
+          if (statsUpdate.error) {
+            console.warn("[telegram-community] invite link stats update failed", {
+              chat_id: chatId,
+              error_code: statsUpdate.error.code ?? "unknown",
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("[telegram-community] invite link stats operation threw", {
+        chat_id: chatId,
+        error_name: error instanceof Error ? error.name : "unknown",
+      });
     }
   }
 
@@ -5343,7 +5482,7 @@ export async function logMemberEvent(admin: SupabaseClient, input: MemberEventIn
     console.error("[telegram-community] member alert failed", e);
   }
 
-  return { eventType, inserted: true };
+  return writeResult;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -5437,10 +5576,11 @@ export async function loadTrustedTelegramHandles(
   const now = Date.now();
   const cached = trustedHandlesCache.get(key);
   if (cached && cached.expiresAt > now) return cached.allowed;
-  const { data } = await adminClient
+  const result = await adminClient
     .from("trusted_telegram_handles")
     .select("handle, chat_id")
     .or(`chat_id.is.null,chat_id.eq.${chatId}`);
+  const data = assertQuerySucceeded(result, "trusted Telegram handles");
   const set = new Set<string>(
     (data ?? []).map((r: { handle: string }) => r.handle.toLowerCase().replace(/^@/, "")),
   );
@@ -5459,10 +5599,11 @@ export async function loadTrustedBotUsernames(
   const now = Date.now();
   const cached = trustedBotsCache.get(key);
   if (cached && cached.expiresAt > now) return cached.allowed;
-  const { data } = await adminClient
+  const result = await adminClient
     .from("trusted_bot_usernames")
     .select("username, chat_id")
     .or(`chat_id.is.null,chat_id.eq.${chatId}`);
+  const data = assertQuerySucceeded(result, "trusted bot usernames");
   const set = new Set<string>(
     (data ?? []).map((r: { username: string }) => r.username.toLowerCase().replace(/^@/, "")),
   );

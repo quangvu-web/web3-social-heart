@@ -217,3 +217,52 @@ export function joinGuardNameOptions(settings: JoinGuardSettingsLike) {
     allowlist: splitList(settings.join_guard_name_allowlist),
   };
 }
+
+
+export function joinGateRemovalOutcome(ok: boolean): "removed" | "failed" {
+  return ok ? "removed" : "failed";
+}
+
+export type JoinGateAttempt = {
+  outcome: "removed" | "failed";
+  failure: "telegram_rejected" | "telegram_exception" | null;
+  errorCode: number | null;
+};
+
+export async function attemptJoinGateRemoval(
+  remove: () => Promise<{ ok: boolean; error_code?: number }>,
+): Promise<JoinGateAttempt> {
+  try {
+    const result = await remove();
+    return result.ok
+      ? { outcome: "removed", failure: null, errorCode: null }
+      : {
+        outcome: "failed",
+        failure: "telegram_rejected",
+        errorCode: typeof result.error_code === "number"
+          ? result.error_code
+          : null,
+      };
+  } catch {
+    return { outcome: "failed", failure: "telegram_exception", errorCode: null };
+  }
+}
+
+export async function attemptJoinGateAction(
+  action: "kick" | "ban",
+  handlers: {
+    kick: () => Promise<{ ok: boolean; error_code?: number }>;
+    ban: () => Promise<{ ok: boolean; error_code?: number }>;
+  },
+): Promise<JoinGateAttempt> {
+  return await attemptJoinGateRemoval(handlers[action]);
+}
+
+export function joinGateFailureDisposition(
+  outcome: "not_required" | "removed" | "failed",
+  verificationEnabled: boolean,
+): "continue_join_flow" | "continue_to_verification" | "stop_removed" | "stop_unremoved" {
+  if (outcome === "removed") return "stop_removed";
+  if (outcome === "failed") return verificationEnabled ? "continue_to_verification" : "stop_unremoved";
+  return "continue_join_flow";
+}

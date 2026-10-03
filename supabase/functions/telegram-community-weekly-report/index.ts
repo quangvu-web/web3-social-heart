@@ -3,6 +3,7 @@
 // an AI-generated loss-cause analysis from Lovable AI Gateway.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { callCommunityTelegram, communityCorsHeaders, json } from "../_shared/telegram-community.ts";
+import { assertQuerySucceeded, assertTelegramActionSucceeded } from "../_shared/telegram-query.ts";
 
 type EventRow = {
   tg_user_id: number;
@@ -42,19 +43,21 @@ async function runWeekly(admin: ReturnType<typeof createClient>, chatId: number,
   const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const { data: thisWeek } = await admin
+  const thisWeekResult = await admin
     .from("telegram_member_events")
     .select("tg_user_id, event_type, invite_link, invite_link_name, invited_by_username, occurred_at")
     .eq("chat_id", chatId)
     .gte("occurred_at", weekAgo.toISOString());
 
-  const { data: prevWeek } = await admin
+  const prevWeekResult = await admin
     .from("telegram_member_events")
     .select("event_type")
     .eq("chat_id", chatId)
     .gte("occurred_at", twoWeeksAgo.toISOString())
     .lt("occurred_at", weekAgo.toISOString());
 
+  const thisWeek = assertQuerySucceeded(thisWeekResult, "current week member events");
+  const prevWeek = assertQuerySucceeded(prevWeekResult, "previous week member events");
   const tw = (thisWeek ?? []) as EventRow[];
   const pw = (prevWeek ?? []) as Array<{ event_type: string }>;
 
@@ -113,20 +116,22 @@ async function runWeekly(admin: ReturnType<typeof createClient>, chatId: number,
       : "—",
   ];
 
-  await callCommunityTelegram("sendMessage", {
+  const reportSend = await callCommunityTelegram("sendMessage", {
     chat_id: alertChatId,
     text: lines.join("\n"),
     parse_mode: "HTML",
     disable_web_page_preview: true,
   });
+  assertTelegramActionSucceeded(reportSend, "weekly report Telegram send");
 
   // AI loss-cause analysis (uses last 30 days daily stats)
-  const { data: stats } = await admin
+  const statsResult = await admin
     .from("telegram_member_daily_stats")
     .select("stat_date, joined_count, left_count, kicked_count, banned_count, net_growth, total_members")
     .eq("chat_id", chatId)
     .gte("stat_date", monthAgo.toISOString().slice(0, 10))
     .order("stat_date");
+  const stats = assertQuerySucceeded(statsResult, "monthly member stats");
 
   const prompt = `Dữ liệu 30 ngày của group ${chatId}:\n` +
     (stats ?? []).map((s) => `${s.stat_date}: +${s.joined_count} / -${s.left_count} kick:${s.kicked_count} ban:${s.banned_count} net:${s.net_growth} total:${s.total_members ?? "?"}`).join("\n") +
@@ -135,12 +140,13 @@ async function runWeekly(admin: ReturnType<typeof createClient>, chatId: number,
   const ai = await aiLossAnalysis(prompt);
   if (ai) {
     const text = `🧠 <b>Loss-cause analysis</b>\n\n${ai.slice(0, 3500)}`;
-    await callCommunityTelegram("sendMessage", {
+    const analysisSend = await callCommunityTelegram("sendMessage", {
       chat_id: alertChatId,
       text,
       parse_mode: "HTML",
       disable_web_page_preview: true,
     });
+    assertTelegramActionSucceeded(analysisSend, "weekly AI analysis Telegram send");
   }
 }
 
@@ -158,7 +164,12 @@ Deno.serve(async (req) => {
     .from("telegram_community_settings")
     .select("group_id, member_alerts_enabled, member_alerts_chat_id");
   if (chatIdParam) query = query.eq("group_id", Number(chatIdParam));
-  const { data: groups } = await query;
+  const groupsResult = await query;
+  if (groupsResult.error) {
+    console.error("[weekly-report] managed group lookup failed", { error_code: groupsResult.error.code ?? "unknown" });
+    return json({ ok: false, error: "Không tải được cấu hình nhóm để lập báo cáo." }, 500);
+  }
+  const groups = groupsResult.data;
 
   const targets = (groups ?? []).filter(
     (g) => g.member_alerts_chat_id && (g.member_alerts_enabled || chatIdParam),
@@ -174,5 +185,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ ok: true, processed: results });
+  const ok = results.every((result) => result.ok);
+  return json({ ok, processed: results }, ok ? 200 : 502);
 });

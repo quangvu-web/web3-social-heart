@@ -1,4 +1,5 @@
-﻿import { resolveDeletePermission } from "../_shared/telegram-moderation-notice.ts";
+﻿import { handleBotInvite } from "../_shared/telegram-unauthorized-invite.ts";
+import { resolveDeletePermission } from "../_shared/telegram-moderation-notice.ts";
 import {
   activeDomains,
   activeKeywords,
@@ -5442,37 +5443,40 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
 
 async function handleUnauthorizedGroup(
   adminClient: ReturnType<typeof getClients>["adminClient"],
-  chatId: number,
-  reason: string,
-  opts: { sendNotice?: boolean; messageId?: number | null; groupName?: string | null } = {},
+  update: TelegramUpdate,
 ): Promise<void> {
-  console.warn("[webhook] unauthorized group access", { chat_id: chatId, reason });
-  await logModeration(adminClient, {
-    groupId: chatId,
-    action: "unauthorized_group_left",
-    reason,
-    messageId: opts.messageId ?? null,
-  }).catch((error) => console.warn("[webhook] unauthorized group log failed", error));
-
-  if (opts.sendNotice) {
-    const groupName = (opts.groupName ?? "").trim() || "(unknown)";
-    const escapeHtml = (s: string) =>
-      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    await callCommunityTelegram("sendMessage", {
-      chat_id: chatId,
+  await handleBotInvite(update, {
+    lookup: async () => "unmanaged", // Caller has successfully read settings; RPC rechecks settings before the atomic invitation claim.
+    claim: async (event) => {
+      const result = await adminClient.rpc("tg_claim_unauthorized_bot_invite", {
+        p_group_id: event.chatId, p_bot_id: event.botId,
+        p_update_id: event.updateId, p_event_date: event.eventDate,
+      });
+      return !result.error && typeof result.data === "string" ? result.data : null;
+    },
+    send: async (event) => callCommunityTelegram("sendMessage", {
+      chat_id: event.chatId,
       text: [
-        "⚠️ <b>Angel AI is not authorized to operate in this group.</b>",
-        `Group ID: <code>${chatId}</code>`,
-        `Group Name: <b>${escapeHtml(groupName)}</b>`,
-        "Please add this Group ID to the Managed Groups list, then re-invite the bot.",
+        "⚠️ <b>Angel AI chưa được phép hoạt động trong nhóm này.</b>",
+        `Group ID: <code>${event.chatId}</code>`,
+        `Tên nhóm: <b>${escapeHtml(event.groupName?.trim() || "(chưa xác định)")}</b>`,
+        "Vui lòng thêm Group ID vào Managed Groups rồi mời lại bot.",
       ].join("\n"),
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    }).catch((error) => console.warn("[webhook] unauthorized group notice failed", error));
-  }
-
-
-  await leaveChat(chatId).catch((error) => console.warn("[webhook] unauthorized group leave failed", error));
+      parse_mode: "HTML", disable_web_page_preview: true,
+    }),
+    leave: async (event) => {
+      const result = await leaveChat(event.chatId);
+      return { ok: result.ok && result.data?.result === true };
+    },
+    audit: async (action, reason, event) => {
+      const metadata = { action, reason, chat_id: event.chatId, update_id: event.updateId, event_date: event.eventDate };
+      console.log("[TELEGRAM_UNAUTHORIZED_INVITE]", metadata);
+      await logModeration(adminClient, {
+        groupId: event.chatId, action,
+        reason: `my_chat_member;update:${event.updateId};date:${event.eventDate};${reason}`,
+      });
+    },
+  });
 }
 
 async function handleMyChatMemberUpdate(update: TelegramUpdate, req: Request): Promise<void> {
@@ -5498,11 +5502,11 @@ async function handleMyChatMemberUpdate(update: TelegramUpdate, req: Request): P
   const settingsLookup = await loadGroupSettings(adminClient, evt.chat.id);
   if (!settingsLookup.ok) {
     console.error("[webhook] my_chat_member skipped: settings lookup failed", { chat_id: evt.chat.id, error_code: settingsLookup.errorCode });
-    return;
+    throw new Error("my_chat_member_settings_unverified");
   }
   const settings = settingsLookup.settings;
   if (!settings) {
-    await handleUnauthorizedGroup(adminClient, evt.chat.id, "my_chat_member_no_settings", { sendNotice: true, groupName: evt.chat.title ?? null });
+    await handleUnauthorizedGroup(adminClient, update);
     return;
   }
 
@@ -5528,6 +5532,10 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
     emitModerationPipelineEvent("telegram_message_received", receivedMessage);
   }
   try {
+    if (update.my_chat_member) {
+      await handleMyChatMemberUpdate(update, req);
+      return;
+    }
     const _adminForRules = getClients(req).adminClient;
     await loadAngelRuleOverrides(_adminForRules);
     await processExpiredVerifications(_adminForRules);
@@ -5535,11 +5543,6 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
 
     if (update.callback_query) {
       await handleCallback(update);
-      return;
-    }
-
-    if (update.my_chat_member) {
-      await handleMyChatMemberUpdate(update, req);
       return;
     }
 
@@ -5625,14 +5628,14 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
       scam_strict_mode: settings?.scam_strict_mode ?? null,
     });
     if (!settings) {
-      const botJoinedThisMessage = message.new_chat_members?.some((member) => member.is_bot) ?? false;
-      if (botJoinedThisMessage) {
-        await handleUnauthorizedGroup(adminClient, message.chat.id, "new_chat_members_bot_no_settings", {
-          sendNotice: true,
+      // A service message may accompany my_chat_member, but cannot own invite effects.
+      // Also do not treat the invitation of an unrelated bot as our own invitation.
+      if (message.new_chat_members?.some((member) => member.is_bot)) {
+        await logModeration(adminClient, {
+          groupId: message.chat.id, action: "unauthorized_group_secondary_update",
+          reason: "new_chat_members;effects_owned_by_my_chat_member",
           messageId: message.message_id ?? null,
-          groupName: message.chat.title ?? null,
         });
-
         return;
       }
 
@@ -5654,7 +5657,9 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
         }
       }
       // Group nÃ y chÆ°a Ä‘Æ°á»£c Cha thÃªm trong admin panel â†’ bá» qua hoÃ n toÃ n.
-      await handleUnauthorizedGroup(adminClient, message.chat.id, "message_no_settings", {
+      await logModeration(adminClient, {
+        groupId: message.chat.id, action: "unauthorized_group_message_ignored",
+        reason: "message_no_settings;effects_owned_by_my_chat_member",
         messageId: message.message_id ?? null,
       });
       return;
@@ -5886,7 +5891,7 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
   } catch {
     // Keep stable even if logging fails.
   }
-  if (update.chat_member) throw new Error("chat_member_processing_failed");
+  if (update.chat_member || update.my_chat_member) throw new Error("membership_update_processing_failed");
 }
 }
 
@@ -5911,7 +5916,7 @@ Deno.serve(withUsage('telegram-community-webhook', 'Angel AI · Telegram', async
   const message = update.message ?? update.edited_message;
   const text = message ? extractText(message) : "";
   const shouldRunInline = Boolean(
-    update.chat_member ||
+    update.chat_member || update.my_chat_member ||
       message?.new_chat_members?.length ||
       (message?.chat?.type && isGroup(message.chat.type) && /^\/(?:welcome|id|aitest|angel[-_]?debug|register_sender_chat)(@|\s|$)/i.test(text)),
   );
@@ -5921,8 +5926,8 @@ Deno.serve(withUsage('telegram-community-webhook', 'Angel AI · Telegram', async
     try {
       await processUpdate(update, req);
     } catch (error) {
-      if (update.chat_member) {
-        console.error("[telegram-community-webhook] chat_member not durably accepted", {
+      if (update.chat_member || update.my_chat_member) {
+        console.error("[telegram-community-webhook] membership update not durably accepted", {
           update_id: update.update_id ?? null,
           error_name: error instanceof Error ? error.name : "unknown",
         });

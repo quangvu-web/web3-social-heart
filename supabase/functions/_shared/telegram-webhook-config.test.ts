@@ -16,7 +16,7 @@ Deno.test("missing allowed_updates uses Telegram defaults and flags chat_member 
 });
 
 Deno.test("each required update is reported when omitted", () => {
-  const required = ["message", "chat_member", "callback_query"];
+  const required = ["message", "chat_member", "callback_query", "my_chat_member"];
   for (const missing of required) {
     const actual = required.filter((update) => update !== missing);
     assert.deepStrictEqual(missingCommunityWebhookUpdates({ ...validWebhookInfo, result: { ...validWebhookInfo.result, allowed_updates: actual } }), [missing]);
@@ -38,10 +38,11 @@ Deno.test("safe webhook status confirms update readiness without returning webho
   const urlWithQueryMarker = "https://example.invalid/functions/v1/telegram-community-webhook?marker=fixture";
   const status = safeCommunityWebhookStatus({
     ok: true,
-    data: { ok: true, result: { url: urlWithQueryMarker, pending_update_count: 2, allowed_updates: ["message", "chat_member", "callback_query"] } },
+    data: { ok: true, result: { url: urlWithQueryMarker, pending_update_count: 2, allowed_updates: ["message", "chat_member", "callback_query", "my_chat_member"] } },
   }, "https://example.invalid/functions/v1/telegram-community-webhook");
 
   assert.strictEqual(status.verified, true);
+  if (!("missing_updates" in status)) throw new Error("expected verified webhook metadata");
   assert.strictEqual(status.endpoint_matches, true);
   assert.deepStrictEqual(status.missing_updates, []);
   assert.strictEqual(JSON.stringify(status).includes(urlWithQueryMarker), false);
@@ -73,4 +74,10 @@ Deno.test("verification requires the matching endpoint and all required updates"
     assert.strictEqual(status.verified, false);
     assert.strictEqual(status.error_code, expected);
   }
+});
+
+Deno.test("primary bot invite source must be enabled for verified webhook readiness", () => {
+  assert.deepStrictEqual(missingCommunityWebhookUpdates({ ...validWebhookInfo, result: {
+    ...validWebhookInfo.result, allowed_updates: ["message", "chat_member", "callback_query"],
+  } }), ["my_chat_member"]);
 });

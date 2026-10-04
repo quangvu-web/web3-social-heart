@@ -3,7 +3,7 @@ import { diagnoseCommunityWebhook } from "./telegram-webhook-diagnostics.ts";
 const endpoint = "https://fixture.invalid/functions/v1/telegram-community-webhook";
 const marker = "NEVER_OUTPUT_FIXTURE_SECRET";
 const info = (overrides = {}) => ({ ok: true, result: { url: `${endpoint}?secret=${marker}`,
-  pending_update_count: 0, allowed_updates: ["message", "chat_member", "callback_query"], ...overrides } });
+  pending_update_count: 0, allowed_updates: ["message", "chat_member", "callback_query", "my_chat_member"], ...overrides } });
 function harness(replies: (Response | Error)[], action: "get_webhook_info" | "register_webhook" = "get_webhook_info") {
   const calls: { method: string; body: Record<string, unknown> }[] = [];
   const logs: unknown[] = [];

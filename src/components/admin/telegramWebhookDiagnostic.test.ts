@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { requestWebhookDiagnostic, webhookDiagnosticView } from "./telegramWebhookDiagnostic";
 const valid = { verified: true, response_valid: true, endpoint_matches: true, pending_update_count: 0,
-  allowed_updates: ["message", "chat_member", "callback_query"] };
+  allowed_updates: ["message", "chat_member", "callback_query", "my_chat_member"] };
 test("registration and verification have separate UI outcomes", () => {
   const failed = webhookDiagnosticView({ registration: "failed", stage: "set_webhook", code: "telegram_api_rejected" }, true);
   expect(failed.state).toBe("error"); expect(failed.message).toContain("Đăng ký thất bại");

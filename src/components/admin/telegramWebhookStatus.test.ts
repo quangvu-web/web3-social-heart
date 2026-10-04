@@ -19,7 +19,14 @@ describe("Telegram join and CAPTCHA webhook checklist", () => {
     }
   });
 
-  it("reports ready only when message, chat_member, and callback_query are enabled", () => {
+  it("reports ready only when all required membership and callback updates are enabled", () => {
     expect(resolveWebhookUpdatesStatus({ loading: false, verified: true, allowedUpdates: [...REQUIRED_JOIN_WEBHOOK_UPDATES] })).toEqual({ state: "ready", missing: [] });
   });
+});
+
+it("requires the primary bot-invite update", () => {
+  expect(REQUIRED_JOIN_WEBHOOK_UPDATES).toContain("my_chat_member");
+  expect(resolveWebhookUpdatesStatus({ loading: false, verified: true,
+    allowedUpdates: ["message", "chat_member", "callback_query"],
+  })).toEqual({ state: "missing", missing: ["my_chat_member"] });
 });

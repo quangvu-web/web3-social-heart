@@ -1,4 +1,4 @@
-export const REQUIRED_JOIN_WEBHOOK_UPDATES = ["message", "chat_member", "callback_query"] as const;
+export const REQUIRED_JOIN_WEBHOOK_UPDATES = ["message", "chat_member", "callback_query", "my_chat_member"] as const;
 
 export type WebhookUpdatesStatus = {
   state: "loading" | "unverified" | "missing" | "ready";

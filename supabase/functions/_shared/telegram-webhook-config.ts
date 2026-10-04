@@ -8,7 +8,7 @@ export const COMMUNITY_WEBHOOK_ALLOWED_UPDATES = [
   "my_chat_member",
 ] as const;
 
-const REQUIRED_JOIN_UPDATES = ["message", "chat_member", "callback_query"] as const;
+const REQUIRED_JOIN_UPDATES = ["message", "chat_member", "callback_query", "my_chat_member"] as const;
 
 export function missingCommunityWebhookUpdates(webhookInfo: unknown): string[] | null {
   if (!webhookInfo || typeof webhookInfo !== "object") return null;

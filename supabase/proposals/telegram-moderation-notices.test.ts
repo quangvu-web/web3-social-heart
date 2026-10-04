@@ -17,7 +17,7 @@ Deno.test("durable notice claims prevent concurrent/retried sends and apply roll
     await command("pg_ctl", ["-D", data, "-l", `${temp}/server.log`, "-o", `-F -k ${temp} -h '' -p 6547`, "-w", "start"]);
     started = true;
     await sql("CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;");
-    await sql(await Deno.readTextFile(new URL("./telegram-moderation-notices.sql", import.meta.url)));
+    await sql(await Deno.readTextFile(new URL("../migrations/20261005010000_telegram_moderation_notice_dedupe.sql", import.meta.url)));
     let sends = 0;
     const events: string[] = [];
     const run = (groupId: number, messageId: number) => sendModerationFailureNotice({

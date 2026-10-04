@@ -1,4 +1,7 @@
--- PROPOSAL ONLY. Operator reviews/applies before deploying the dependent code.
+-- Historical review copy. Canonical SQL is now in
+-- ../migrations/20261005010000_telegram_moderation_notice_dedupe.sql.
+-- Applied to funprofile-production through the Dashboard; migration history
+-- was recorded separately so the DDL was not executed twice.
 -- Existing AI locks have no verified rolling group cooldown contract.
 -- Metadata only; no message body, username, bot token or webhook URL.
 BEGIN;

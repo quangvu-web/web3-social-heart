@@ -50,6 +50,6 @@ Giới hạn: bảo đảm tối đa một **lần thử gửi** cho mỗi tin, 
 2. Đối chiếu group/message/time với Edge delete event. Log cũ thiếu description/category có thể không phân biệt được nguyên nhân chỉ từ mã 400; không suy diễn giới hạn thời gian từ mã đó.
 3. Người vận hành xác minh quyền bot đúng group từ snapshot admin có thời điểm: status và can_delete_messages; không có snapshot hoặc lỗi truy vấn phải báo chưa xác minh. Chỉ gọi API khi có phê duyệt riêng. Không thay quyền để thử.
 4. Nếu có false positive xác nhận, tạo fixture đã sạch cho đúng rule/pipeline và regression trước khi sửa detector.
-5. Duyệt SQL đề xuất, áp dụng bởi người vận hành trước khi deploy code phụ thuộc RPC. Nếu deploy code trước SQL, thông báo lỗi bị giữ lại và audit sẽ báo unavailable. Kiểm tra quyền/RLS và log trong staging, không gửi tin thử lên group production.
+5. SQL đã được áp dụng trực tiếp trên `funprofile-production` ngày 2026-10-05 (MYT). Migration `20261005010000_telegram_moderation_notice_dedupe` được ghi nhận là applied bằng `supabase migration repair`, không chạy DDL lần hai. Bảng bật RLS; chỉ `service_role` có quyền bảng và gọi RPC. Trước khi deploy, kiểm tra lại migration list và xác nhận phiên bản Edge Function mục tiêu.
 
-Không chạy migration production, sửa quyền/dữ liệu, đăng ký webhook, gửi thử Telegram, deploy, merge hoặc push.
+Chưa deploy/merge/push code tại thời điểm ghi báo cáo này. Không gửi tin thử Telegram production.

@@ -6434,7 +6434,10 @@ export type Database = {
           admin_actor_tg_id: number | null
           admin_actor_username: string | null
           chat_id: number
+          claimed_at: string | null
           created_at: string
+          delivery_started_at: string | null
+          delivery_state: string | null
           display_name: string | null
           event_type: string
           id: string
@@ -6442,10 +6445,17 @@ export type Database = {
           invite_link_name: string | null
           invited_by_tg_id: number | null
           invited_by_username: string | null
+          join_outcome: string | null
+          last_error: string | null
+          lease_token: string | null
+          lease_until: string | null
           metadata: Json
           new_status: string | null
           occurred_at: string
           old_status: string | null
+          processed_at: string | null
+          processing_attempts: number
+          processing_status: string | null
           tg_user_id: number
           username: string | null
         }
@@ -6453,7 +6463,10 @@ export type Database = {
           admin_actor_tg_id?: number | null
           admin_actor_username?: string | null
           chat_id: number
+          claimed_at?: string | null
           created_at?: string
+          delivery_started_at?: string | null
+          delivery_state?: string | null
           display_name?: string | null
           event_type: string
           id?: string
@@ -6461,10 +6474,17 @@ export type Database = {
           invite_link_name?: string | null
           invited_by_tg_id?: number | null
           invited_by_username?: string | null
+          join_outcome?: string | null
+          last_error?: string | null
+          lease_token?: string | null
+          lease_until?: string | null
           metadata?: Json
           new_status?: string | null
           occurred_at?: string
           old_status?: string | null
+          processed_at?: string | null
+          processing_attempts?: number
+          processing_status?: string | null
           tg_user_id: number
           username?: string | null
         }
@@ -6472,7 +6492,10 @@ export type Database = {
           admin_actor_tg_id?: number | null
           admin_actor_username?: string | null
           chat_id?: number
+          claimed_at?: string | null
           created_at?: string
+          delivery_started_at?: string | null
+          delivery_state?: string | null
           display_name?: string | null
           event_type?: string
           id?: string
@@ -6480,10 +6503,17 @@ export type Database = {
           invite_link_name?: string | null
           invited_by_tg_id?: number | null
           invited_by_username?: string | null
+          join_outcome?: string | null
+          last_error?: string | null
+          lease_token?: string | null
+          lease_until?: string | null
           metadata?: Json
           new_status?: string | null
           occurred_at?: string
           old_status?: string | null
+          processed_at?: string | null
+          processing_attempts?: number
+          processing_status?: string | null
           tg_user_id?: number
           username?: string | null
         }
@@ -7706,6 +7736,48 @@ export type Database = {
         Args: { p_group_id: number; p_mode: string }
         Returns: undefined
       }
+      tg_begin_join_delivery: {
+        Args: { p_id: string; p_token: string }
+        Returns: boolean
+      }
+      tg_claim_join_event: {
+        Args: { p_id: string; p_lease_seconds?: number }
+        Returns: string
+      }
+      tg_finish_join_event: {
+        Args: {
+          p_delivery?: string
+          p_error?: string
+          p_id: string
+          p_outcome: string
+          p_status: string
+          p_token: string
+        }
+        Returns: boolean
+      }
+      tg_mark_join_event_review: {
+        Args: { p_id: string; p_reason: string }
+        Returns: boolean
+      }
+      tg_record_join_event: {
+        Args: {
+          p_chat_id: number
+          p_event_type: string
+          p_occurred_at: string
+          p_row: Json
+          p_tg_user_id: number
+        }
+        Returns: {
+          id: string
+          inserted: boolean
+          processing_status: string
+        }[]
+      }
+      tg_renew_join_lease: {
+        Args: { p_id: string; p_seconds: number; p_token: string }
+        Returns: boolean
+      }
+      tg_sweep_join_events: { Args: never; Returns: number }
       unpin_message: { Args: { p_message_id: string }; Returns: undefined }
       upsert_live_recording_row: {
         Args: {

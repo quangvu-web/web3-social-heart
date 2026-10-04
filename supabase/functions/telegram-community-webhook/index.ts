@@ -5121,13 +5121,24 @@ async function closePendingChallengesOnLeave(
   member: { id?: number; username?: string },
 ): Promise<void> {
   if (!member.id) return;
-  const { data, error } = await adminClient
+  const lookup = await adminClient
     .from("telegram_community_verification_challenges")
-    .update({ status: "failed", updated_at: new Date().toISOString() })
+    .select("id, captcha_message_id")
     .eq("group_id", chatId)
     .eq("telegram_user_id", member.id)
-    .eq("status", "pending")
-    .select("id, captcha_message_id");
+    .eq("status", "pending");
+  let error = lookup.error;
+  const closed: Array<{ captcha_message_id: number | null }> = [];
+  for (const row of (lookup.data ?? []) as Array<{ id: string; captcha_message_id: number | null }>) {
+    if (error) break;
+    const update = await adminClient
+      .from("telegram_community_verification_challenges")
+      .update({ status: "failed", updated_at: new Date().toISOString() }, { count: "exact" })
+      .eq("id", row.id)
+      .eq("status", "pending");
+    if (update.error) error = update.error;
+    else if (update.count === 1) closed.push(row);
+  }
   if (error) {
     console.error("[verification] close pending challenge on leave failed", {
       chat_id: chatId,
@@ -5143,7 +5154,7 @@ async function closePendingChallengesOnLeave(
     }).catch(() => undefined);
     return;
   }
-  for (const row of (data ?? []) as Array<{ captcha_message_id: number | null }>) {
+  for (const row of closed) {
     if (row.captcha_message_id) {
       await deleteMessage(chatId, row.captcha_message_id).catch(() => undefined);
     }

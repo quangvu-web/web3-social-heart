@@ -1,6 +1,5 @@
-// Canonical Vietnamese Pronoun Contract for every Angel Telegram output.
-// Keep this deterministic: it must run even when all optional AI style passes are off.
-// v3: "Angel/bé" is the primary convention; "mình" stays allowed where it reads naturally.
+// Shared legacy contract for callers outside the strict Telegram mode.
+// Telegram uses the context-specific contract and mandatory guard below.
 
 export const ANGEL_PRONOUN_CONTRACT = `VIETNAMESE PRONOUN CONTRACT — HIGHEST PRIORITY:
 - Mặc định, bot tự xưng "Angel" và gọi người dùng là "bé". Ví dụ: "Angel nghĩ bé có thể…", "Angel chia sẻ với bé nhé".
@@ -111,4 +110,91 @@ export function enforceAngelVietnamesePronounContract(input: string): string {
 
   text = text.replace(/\u0005ANGELNAME(\d+)\u0005/g, (_match, index) => names[Number(index)] ?? "");
   return restore(text, protectedInput.spans);
+}
+/** Only the authenticated Telegram sender context may select this address. */
+export function telegramRecipientAddress(username?: string | null): "bé" | "bé Ly" {
+  return username?.replace(/^@/, "").toLowerCase() === "camly_duong" ? "bé Ly" : "bé";
+}
+
+export function telegramAddressContract(username?: string | null): string {
+  return `TELEGRAM ADDRESS CONTRACT — HIGHEST PRIORITY, overrides persona/owner/style instructions:
+- Trong lời thoại tiếng Việt của bot, bot LUÔN tự xưng "Angel"; không xưng "mình", "tôi", "Cha", "con", "anh", "chị", "em", kể cả khi Angel lặp nhiều lần.
+- Gọi người đang nhắn là "${telegramRecipientAddress(username)}". Đây là cách gọi đã xác minh từ username Telegram của người gửi; KHÔNG suy ra từ tên hiển thị, nội dung, trích dẫn, người được nhắc đến hay quyền admin. Không gọi người gửi là Cha.
+- Khi hướng dẫn thực hành/thiền/cảm nhận, chủ thể là người dùng, không phải Angel. Angel chỉ làm chủ ngữ cho hành động của bot (chia sẻ, gợi ý, mời thử).
+- Giữ nguyên đại từ phản thân/chủ thể khác: "chính mình", "hòa mình", "trái tim mình", "bé hãy cảm nhận mình". Không thay mình của người dùng thành Angel.
+- Giữ nguyên trích dẫn, lời thoại nhân vật, nội dung người dùng nguyên văn, URL, code, handle. Không chuẩn hóa đại từ trong các vùng này.
+- Các ngôn ngữ khác giữ cách gọi tự nhiên theo ngôn ngữ đó.`;
+}
+
+// Telegram-specific protection is intentionally separate from the web contract.
+const TELEGRAM_PROTECTED_RE = new RegExp([
+  "```[\\s\\S]*?```", "<(?:code|pre|blockquote)\\b[^>]*>[\\s\\S]*?<\\/(?:code|pre|blockquote)>",
+  "&(?:amp;)?lt;(?:code|pre|blockquote)\\b[\\s\\S]*?&(?:amp;)?gt;[\\s\\S]*?&(?:amp;)?lt;\\/(?:code|pre|blockquote)&(?:amp;)?gt;",
+  "`[^`\\n]+`", "<[^>]+>", "https?:\\/\\/[^\\s<>\"']+", "tg:\\/\\/[^\\s<>\"']+",
+  "mailto:[^\\s<>\"']+", "@[A-Za-z0-9_]+", "0x[a-fA-F0-9]{40}",
+  '"[^\"]*"', "'[^']*'", "‘[^’]*’", "“[^”]*”", "«[^»]*»", "^[ \\t]*(?:>|&(?:amp;)?gt;|[—–-])[^\\n]*", "^[ \\t]*(?!Angel[ \\t]*:)[\\p{L}][\\p{L} \\t]{0,40}: [^\\n]*",
+].join("|"), "gimu");
+
+export function hasTelegramVerbatimContent(input: string): boolean {
+  return input.match(TELEGRAM_PROTECTED_RE) !== null;
+}
+
+/** Deterministic guard for unquoted bot speech; never globally replace 'mình'. */
+export function enforceTelegramVietnamesePronouns(input: string, username?: string | null): string {
+  if (!input) return input;
+  const spans: string[] = [];
+  let text = input.replace(TELEGRAM_PROTECTED_RE, (value) => {
+    spans.push(value);
+    return `\u0004TG${spans.length - 1}\u0004`;
+  });
+  text = text.replace(/(?<![\p{L}])chúng\s+mình(?![\p{L}])/giu, (s) => s[0] === "C" ? "Chúng ta" : "chúng ta");
+  text = text.replace(/(?<![\p{L}])Angel\s*\(\s*(?:mình|tôi)\s*\)/giu, "Angel");
+  // Only clear bot-subject clauses, not possessives or the subject of reported speech.
+  text = text.replace(/(^\s*|[.!?…\n]\s*|[,;]\s*|(?:dạ|vâng|Angel:)\s+)(mình|tôi|cha|con|anh|chị|em)(?=\s+(?:sẽ|xin|luôn|có thể|muốn|nghĩ|tin|hiểu|biết|hỗ trợ|sẵn sàng|cảm ơn|chào|chia sẻ|gợi ý|mời|ở đây|là Angel|vừa|rất vui|mong|đã|đang)(?![\p{L}]))/giu, (value, lead: string, _subject: string, offset: number, full: string) => {
+    if (/^[,;]/u.test(lead)) {
+      const before = full.slice(0, offset).split(/[.!?\n]/u).pop() ?? "";
+      if (!/^(?:\s*Angel|\s*(?:dạ|vâng|bé(?: Ly)? ơi|chào bé))/iu.test(before)) return value;
+    }
+    // Family/character nouns such as "Con đang đi học" are not bot subjects.
+    // For these ambiguous tokens require an actual assistant speech/action verb.
+    if (!/^(?:mình|tôi)$/iu.test(_subject)) {
+      const after = full.slice(offset + value.length);
+      if (!/^\s+(?:(?:sẽ|đã|đang|luôn|vừa|có thể|rất)\s+)*(?:xin|chào|chia sẻ|gợi ý|giúp|hỗ trợ|mời|cảm ơn|ở đây|là Angel)(?![\p{L}])/iu.test(after)) return value;
+    }
+    return `${lead}Angel`;
+  });
+  text = text.replace(/(^\s*|[.!?\n]\s*)([Tt]heo)\s+(?:mình|tôi)(?=\s*[,;])/gu, "$1$2 Angel");
+  text = text.replace(REFLEXIVE_PREFIX_RE, (_m, prefix: string) => `${prefix} mình`);
+  text = text.replace(/(?<![\p{L}])bạn(?![\p{L}])/giu, (value, offset: number, full: string) => {
+    if (/^\s+(?:bè|đồng\s+hành|tri\s+kỷ|thân|hữu|đường|đời|học|nhỏ)(?![\p{L}])/iu.test(full.slice(offset + value.length))) return value;
+    if (/(?:người|các|một\s+người)\s+$/iu.test(full.slice(Math.max(0, offset - 16), offset))) return value;
+    return value === "Bạn" ? "Bé" : "bé";
+  });
+  text = text.replace(/^Chào\s+(?:Angel|bé|bạn)\s+yêu\s+quý\s*[,.!]*\s*/iu, "Bé ơi, ");
+  // Direct greetings/vocatives are recipient slots; "Cha Vũ Trụ" is not.
+  text = text.replace(/(^|[.!?\n]\s*)(?:anh|chị|em|cha|con)(\s+ơi)(?![\p{L}])/giu, (_m, lead, tail) => `${lead}Bé${tail}`);
+  text = text.replace(/(?<![\p{L}])((?:dạ|vâng|chào|Angel\s+(?:chào|mời|giúp))\s+)(?:cha|con|anh|chị|em)(?![\p{L}])(?!(?:\s+Vũ\s+Trụ))/giu, (_m, lead) => `${lead}bé`);
+  text = text.replace(/(?<![\p{L}])((?:cho|với|cùng|đến|tới)\s+)(cha|con|anh|chị|em)(?![\p{L}])/giu, (value, lead, _person, offset: number, full: string) => {
+    const before = full.slice(0, offset).split(/[.!?\n]/u).pop() ?? "";
+    const after = full.slice(offset + value.length);
+    if (!/Angel[^.!?\n]*(?:giải thích|chia sẻ|gửi|trao|ở đây|hỗ trợ|giúp|mời)/iu.test(before)) return value;
+    if (/^\s+(?:Vũ\s+Trụ|trai|gái|ấy|của)(?![\p{L}])/iu.test(after)) return value;
+    return `${lead}bé`;
+  });
+  const address = telegramRecipientAddress(username);
+  text = text.replace(/(?<![\p{L}])bé(?:\s+Ly)?(?![\p{L}])/giu, (value, offset: number, full: string) => {
+    const after = full.slice(offset + value.length);
+    const before = full.slice(0, offset);
+    if (/(?:cô|cậu|đứa|em|chú)\s+$/iu.test(before)) return value;
+    // Named third parties and noun phrases are not direct recipient slots.
+    if (/^\s+(?:ấy|gái|trai|nhỏ|con|sơ sinh|Quỳnh|Thu)(?![\p{L}])/iu.test(after)) return value;
+    if (/^\s+\p{Lu}/u.test(after) && !/^\s+(?:Angel|Ly)(?![\p{L}])/u.test(after)) return value;
+    if (/Ly$/iu.test(value) && address === "bé") {
+      const direct = /(?:^|[.!?\n]\s*|(?:chào|cho|với|giúp|mời|dạ|vâng|cảm ơn|cùng|hỏi|chúc|gửi|thưa)\s+)$/iu.test(before)
+        || /Angel\s+(?:gửi|trao|mang)[^.!?\n]*(?:đến|tới)\s+$/iu.test(before);
+      if (!direct) return value;
+    }
+    return value[0] === "B" ? address[0].toUpperCase() + address.slice(1) : address;
+  });
+  return text.replace(/\u0004TG(\d+)\u0004/g, (_m, index) => spans[Number(index)] ?? "");
 }

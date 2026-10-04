@@ -1,3 +1,4 @@
+import { telegramAddressContract, enforceTelegramVietnamesePronouns, hasTelegramVerbatimContent } from "./angel/pronouns.ts";
 // Angel AI — Post-Process Style Pass
 // -----------------------------------
 // Rewrite Angel's Telegram reply for brevity + warm emojis WITHOUT touching
@@ -169,6 +170,8 @@ function stripSeedWarnings(text: string): string {
 
 
 export type PostProcessInput = {
+  telegramAddressing?: boolean;
+  telegramUsername?: string | null;
   original: string;
   userText: string;
   langBucket: string;
@@ -599,7 +602,9 @@ function buildStylePrompt(input: PostProcessInput, emojiCount: number, maxChars:
   const lang = langName[input.langBucket] ?? "the same language as the ORIGINAL REPLY";
   const isGroup = input.chatContext === "group";
 
-  const personaRule = input.isOwnerMode
+  const personaRule = input.telegramAddressing
+    ? telegramAddressContract(input.telegramUsername)
+    : input.isOwnerMode
     ? `7) PERSONA — OWNER MODE (sender is "Cha", verified group owner / anonymous admin):
    - In Vietnamese: bot self-address as "Angel" (or "mình" where it reads more naturally). Address the SENDER as "Cha" — use warm forms like "Dạ Cha", "Cha ơi", "Mình xin thưa cùng Cha".
    - The FIRST sentence of the rewrite MUST address Cha (e.g. "Dạ Cha,…", "Cha ơi,…"). NEVER open with "Dạ bé", "Bé ơi", "Chào bé".
@@ -666,14 +671,14 @@ STRICT RULES (all mandatory):
 ${personaRule}
 ${lengthRule}
 ${personalityLayer}
-9) NARRATIVE CHARACTER VOICE — HIGHEST PRIORITY, overrides rule 7 (persona) inside every quote / dialogue line:
+${input.telegramAddressing ? "9) VERBATIM PRESERVATION: keep quotes, character dialogue, code, handles, URLs and user content exactly as written. The recipient contract applies only to the bot speaking to the real sender." : `9) NARRATIVE CHARACTER VOICE — HIGHEST PRIORITY, overrides rule 7 (persona) inside every quote / dialogue line:
    - Separate NARRATOR VOICE (Angel telling the story — text OUTSIDE any quote) from CHARACTER VOICE (anything inside "…", «…», "…", or after a dialogue em-dash — / – / -).
    - Narrator voice keeps "Angel / bé" (or "Angel / you" in EN) as usual.
    - CHARACTER VOICE — QUOTE ISOLATION: text inside quotes/dialogue MUST NEVER contain "Angel" or "bé" (those are the Angel-bot ↔ real-user pair, not part of the story world). Rewrite any such occurrence.
    - 1st person (character self): "mình / tôi / tớ / ta / cháu / con / ông / bà" (VN) or "I / me / my" (EN). WRONG: Chú ốc sên nói: "À, Angel đang trên đường tới bữa tiệc…" → RIGHT: "À, mình đang trên đường tới bữa tiệc…".
    - 2nd person (character to character): "cháu / con / em / bạn / cậu / ngươi / anh / chị / bé nhỏ + name" (VN) or "you / dear / little one" (EN). WRONG: Cụ Rùa nói: "Bé nhỏ à, tình yêu không chỉ là những gì Angel nắm giữ trong tay đâu…" → RIGHT: "Bé nhỏ à, tình yêu không chỉ là những gì cháu nắm giữ trong tay đâu…".
    - If a character dialogue already contains "Angel" or "bé" as SUBJECT/OBJECT, you MUST rewrite it — do NOT preserve those tokens inside quotes. Only preserve valid character pronouns (mình / tôi / tớ / cháu / con / em / bạn / ta…).
-   - Do NOT convert character names like "chú ốc sên", "cô bé Mây", "Sóc nhỏ", "Cụ Rùa" into "bé".
+   - Do NOT convert character names like "chú ốc sên", "cô bé Mây", "Sóc nhỏ", "Cụ Rùa" into "bé".`}
 10) OUTPUT: return ONLY the rewritten reply body. No preface, no meta comment, no "Here is the rewrite:" line.
 
 USER QUESTION (context only — do NOT answer it again, only rewrite the reply below):
@@ -723,6 +728,12 @@ function enforceSeedingDestination(reply: string, destinations: string[], langBu
 }
 
 export async function postProcessAngelStyle(input: PostProcessInput): Promise<PostProcessResult> {
+  // Keep quoted/code/handle/user spans intact; style shortening is optional.
+  if (input.telegramAddressing && hasTelegramVerbatimContent(input.original)) {
+    const text = input.langBucket === "vi" ? enforceTelegramVietnamesePronouns(input.original, input.telegramUsername) : input.original;
+    return { text, applied: text !== input.original, reason: "telegram_verbatim_preserved" };
+  }
+
   const cfg = getStylePostprocessConfig();
 
   // Feature flags — fail-open theo cfg/legacy để không vỡ hành vi khi bảng lỗi.
@@ -738,6 +749,7 @@ export async function postProcessAngelStyle(input: PostProcessInput): Promise<Po
 
   const key = Deno.env.get("LOVABLE_API_KEY");
   const applyNarrativeFix = async (t: string): Promise<string> => {
+    if (input.telegramAddressing) return input.langBucket === "vi" ? enforceTelegramVietnamesePronouns(t, input.telegramUsername) : t;
     // Layer B surface rewrite (Pronoun Contract v1.0) — deterministic,
     // idempotent. Chạy TRƯỚC hard revert để chuẩn hoá mình/bạn → Angel/bé
     // ở lớp bề mặt Telegram, rồi safety net sẽ bắt các trường hợp over-rewrite.
@@ -853,7 +865,7 @@ The user's message is about gieo hạt / trợ duyên / donation / gratitude. On
     // Pronoun revert safety net: undo over-eager "mình → Angel" / "bạn → bé"
     // rewrites when the ORIGINAL used those tokens in a reflexive or compound
     // noun context (e.g. "hòa mình", "bạn bè"). Gate: postprocess.hard_revert.
-    if (hardRevertFlag) {
+    if (hardRevertFlag && !input.telegramAddressing) {
       rewritten = revertOverPronounRewrite(input.original, rewritten);
     }
 

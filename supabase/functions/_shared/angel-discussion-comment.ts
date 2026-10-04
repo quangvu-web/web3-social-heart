@@ -216,6 +216,7 @@ async function generate(
   question: string,
   chatId: number,
   messageId: number,
+  sender: AnyMessage["from"],
   variationHint = "",
 ): Promise<string> {
   return await deps.askAngel({
@@ -235,6 +236,8 @@ async function generate(
       groupId: chatId,
       messageId,
       triggerSource: "discussion_comment",
+      userId: sender?.id ?? null,
+      username: sender?.username ?? null,
     },
   });
 }
@@ -294,9 +297,11 @@ export async function handleDiscussionComment(
         .replace("{{USER}}", message.from?.first_name || message.from?.username || "thành viên")
         .replace("{{COMMENT}}", textOf(message).slice(0, 1500));
 
+  // Channel forwards / anonymous channel senders have no real Telegram recipient.
+  const sender = !isPost && !message.sender_chat && !message.from?.is_bot ? message.from : undefined;
   let reply = "";
   try {
-    reply = (await generate(deps, admin, brief, discussionChatId, message.message_id)).trim();
+    reply = (await generate(deps, admin, brief, discussionChatId, message.message_id, sender)).trim();
     if (reply && tooSimilar(reply, gate.recent)) {
       const retry = await generate(
         deps,
@@ -304,6 +309,7 @@ export async function handleDiscussionComment(
         brief,
         discussionChatId,
         message.message_id,
+        sender,
         "LƯU Ý: hãy chọn một góc nhìn KHÁC HẲN và cách mở đầu khác với các bình luận trước của Angel.",
       );
       reply = tooSimilar(retry.trim(), gate.recent) ? "" : retry.trim();

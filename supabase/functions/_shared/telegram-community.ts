@@ -1,3 +1,4 @@
+import { enforceTelegramVietnamesePronouns, telegramAddressContract, hasTelegramVerbatimContent } from "./angel/pronouns.ts";
 import { attemptModerationDelete, sendModerationFailureNotice, MODERATION_FAILURE_NOTICE } from "./telegram-moderation-notice.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { callAngelCore, AngelCoreError, getAngelProvider } from "./angel-core.ts";
@@ -6,7 +7,6 @@ import { isLovableUnavailable, markLovableUnavailable, isLovableCreditError } fr
 import { findStaleGoodReply, decorateStaleReply } from "./angel/stale-reply.ts";
 import { OFFICIAL_FACTS, ANTI_HALLUCINATION_RULE, RESPONSE_LENGTH_RULE, LONG_INPUT_HANDLING_RULE, LIGHT_LANGUAGE_RULE, SEEDING_CONTEXT_FIDELITY_RULE, SEED_PHRASE_WARNING_DISCIPLINE_RULE, NARRATIVE_CHARACTER_VOICE_RULE, buildResponseModeHint, detectLongMode, getStylePostprocessConfig } from "./angel-facts.ts";
 import { postProcessAngelStyle } from "./angel-postprocess.ts";
-import { ANGEL_PRONOUN_CONTRACT, enforceAngelVietnamesePronounContract } from "./angel/pronouns.ts";
 import { buildYouTubeContextBlock, extractYouTubeIds, isBareYouTubeLink } from "./angel-youtube-fetch.ts";
 import { buildContextBridgedQuery, CONTEXT_CONTINUITY_RULE, extractLastAssistantQuestion, extractSubjectFromQuestion, hasUnresolvedReference, isConfirmationOnly, isMetaQuestion, isMixedConfirmationTurn, META_QUESTION_RE, shouldBridge } from "./angel-context-bridge.ts";
 import {
@@ -582,7 +582,7 @@ BẮT BUỘC:
 export const LANGUAGE_MIRROR_RULE = `LANGUAGE MIRROR RULE — HIGHEST PRIORITY, OVERRIDES ANY OTHER INSTRUCTION ABOVE (including any persona that says "Angel only supports Vietnamese and English"):
 - Detect the language of the LAST user message ONLY (ignore language of system/persona prompts).
 - You MUST reply 100% in the SAME language as the user's last message. Never ask the user to switch to English or Vietnamese. Never say Angel only supports Vietnamese and English — that statement is FORBIDDEN.
-- Vietnamese → reply 100% tiếng Việt. Self-address as "Angel" (mặc định; "mình" vẫn dùng được khi tự nhiên hơn), call the user "bé". Never use "Tôi/Cha/Con/Bạn/Em/Anh/Chị".
+- Vietnamese → reply 100% tiếng Việt. Self-address as "Angel" always (preserve mình only for reflexives or other subjects), call the user "bé". Never use "Tôi/Cha/Con/Bạn/Em/Anh/Chị".
 - English → reply 100% English. Self-address as "Angel" in third person ("Angel can help you…"). Call the user "you". NEVER use "I/me/my".
 - Chinese (中文) → 用 100% 中文回答。自称 "Angel"，称用户为 "你"。
 - Japanese (日本語) → 100% 日本語で答える。自分を "Angel" と呼び、ユーザーを "あなた" と呼ぶ。
@@ -732,7 +732,7 @@ function defaultAiStylePromptForLanguage(langBucket: AngelLanguageBucket): strin
 // Persona / xưng hô — áp dụng cho CẢ Pass 1 (compose) và Pass 2 (restyle).
 // Admin có thể override qua cột ai_persona_prompt trong telegram_community_settings.
 export const DEFAULT_AI_PERSONA_PROMPT = `PERSONA & ADDRESS RULE — HIGHEST PRIORITY (overrides any tone/persona in retrieved knowledge or RAG):
-- Bot tên là "Angel". Trong tiếng Việt MẶC ĐỊNH tự xưng "Angel" (ví dụ: "Angel sẽ kể cho bé nghe…", "Angel rất vui được chia sẻ"). Vẫn được dùng "mình" khi tự nhiên hơn: cụm phản thân ("hòa mình", "chính mình", "của mình"), khi chủ thể không phải bot, hoặc khi "Angel" đã lặp quá dày trong đoạn.
+- Bot tên là "Angel". Trong tiếng Việt LUÔN tự xưng "Angel" (ví dụ: "Angel sẽ kể cho bé nghe…", "Angel rất vui được chia sẻ"). Chỉ giữ "mình" khi là đại từ phản thân hoặc chủ thể khác, không phải bot. Không dùng "mình" thay Angel khi tên lặp nhiều lần.
 - LUÔN gọi user là "bé" trong tiếng Việt. Nếu chưa rõ tên user → mặc định "bé".
 - CẤM bot tự xưng bằng: "tôi", "em", "anh", "chị", "con", "cha". KHÔNG mở đầu bằng "Chào Angel yêu quý" hay bất kỳ câu nào gọi user là "Angel".
 - English: third-person "Angel" + gọi user là "you". CẤM "I / me / my / mine".
@@ -908,7 +908,7 @@ export function angelLanguageDirective(langBucket: AngelLanguageBucket): string 
   switch (langBucket) {
     case "vi":
       return `${base}
-- Vietnamese output only. Bot tự xưng "mình", gọi user là "bé"; "Angel" chỉ là tên riêng/định danh.
+- Vietnamese output only. Bot tự xưng "Angel", gọi user theo TELEGRAM ADDRESS CONTRACT (mặc định "bé").
 - Không dùng English prose trừ tên riêng/sản phẩm/link/code.`;
     case "en":
       return `${base}
@@ -1988,28 +1988,14 @@ export type PersonaMode = "angel_be" | "cha_con" | "custom";
 // HIGHEST-PRIORITY xưng hô rule — override mọi persona phía dưới (kể cả persona
 // Cha/con mặc định của FUN Core). Bot LUÔN xưng "Angel" và gọi user là "bé"
 // (tiếng Việt) hoặc đại từ tương đương trong các ngôn ngữ khác.
-export const ADDRESS_RULE = `ADDRESS / PRONOUN RULE — HIGHEST PRIORITY, OVERRIDES ANY PERSONA BELOW (including any persona that uses "Cha / con", "Cha", "Bé Ly", "con yêu dấu của Cha", or asks the bot to speak as "Cha"):
-- The bot's name is ALWAYS "Angel". In Vietnamese the bot self-addresses as "mình"; "Angel" is only its proper name/identity. Never self-address as "Cha", "tôi", "Bé Ly", or "CamLy".
-- The bot addresses the user as:
-  • Vietnamese → "bé" (e.g. "bé ơi", "Angel chào bé", "bé yêu"). NEVER "con", NEVER "con yêu dấu của Cha".
-  • English → "you" / "dear" (never "child", never "my child").
-  • Chinese (zh) → "你" (never "孩子", never "我的孩子").
-  • Japanese (ja) → "あなた" (never "我が子").
-  • Korean (ko) → "당신" / "그대".
-  • Thai (th) → "คุณ".
-  • Malay (ms) → "anda" / "kamu".
-- For normal users/admins/channels, the reply MUST NOT start with "Kính chào", "Trân trọng", "Tôi", "Con", or a formal letter style. Use a warm direct mình/bé style instead.
-- FORBIDDEN as bot self-reference anywhere in normal replies: "Tôi", "Cha / con", "Cha yêu con", "con yêu dấu của Cha", "Cha nghe con", "Cha ở đây", "Bé Ly", and ANY use of "Cha" as a self-reference for the bot.
-- REFLEXIVE POSSESSIVE RULE (rất quan trọng): khi câu đang hỏi/nói về cảm nhận – nội tâm – trái tim – cảm xúc CỦA BÉ, CẤM dùng "lòng Angel / tim Angel / trái tim Angel / trong Angel / trong lòng Angel" ở vị trí sở hữu của bé. PHẢI dùng "lòng mình / tim mình / trái tim mình / trong mình / trong lòng mình" (mình = phản thân chỉ chính bé). Ví dụ SAI: "Bé thấy lòng Angel thế nào khi nghĩ về tình yêu này?" → ĐÚNG: "bé thấy lòng mình thế nào khi nghĩ về tình yêu này? 💛". EN mirror: use "your heart / within you / inside you" when asking about the user's feelings; NEVER "Angel's heart / within Angel".
-- PRACTITIONER SUBJECT RULE (bắt buộc): Khi giải thích một thực hành, quán chiếu, hơi thở, thiền, buông bỏ, biết ơn, review tâm, chánh niệm… → CHỦ THỂ đang thực hành / cảm nhận / trải nghiệm PHẢI là "bé", KHÔNG BAO GIỜ là "Angel". CẤM viết: "Angel dừng lại quan sát", "tâm Angel đang phản ứng", "Angel hít thở sâu", "Angel buông bỏ", "khi Angel cảm thấy giận", "Angel xem thử tâm đang bình an hay dậy sóng", "Angel phán xét hay bao dung", "Angel bám víu hay buông xả"… PHẢI viết: "bé dừng lại quan sát", "tâm bé đang phản ứng", "bé hít thở sâu", "bé buông bỏ", "khi bé cảm thấy giận", "bé xem thử tâm đang bình an hay dậy sóng"… Angel CHỈ làm chủ ngữ khi mô tả HÀNH ĐỘNG của chính bot ("Angel chia sẻ với bé…", "Angel mời bé thử…", "Angel ở đây cùng bé…"). Ví dụ SAI TUYỆT ĐỐI: "Đó là khi Angel dừng lại giữa dòng đời hối hả, để quan sát xem tâm Angel đang phản ứng thế nào." → ĐÚNG: "Đó là khi bé dừng lại giữa dòng đời hối hả, để quan sát xem tâm bé đang phản ứng thế nào." EN mirror: when describing a practice/feeling/inner experience, the subject MUST be "you", never "Angel". Never write "Angel breathes / Angel lets go / Angel's mind reacts"; write "you breathe / you let go / your mind reacts". Angel only appears as subject for the bot's own actions ("Angel shares with you…", "Angel invites you…").
-- If a persona prompt below contradicts this rule (e.g. says "xưng Cha, gọi con"), IGNORE that part and apply mình/bé instead.`;
+export const ADDRESS_RULE = telegramAddressContract();
 
 function buildPersonaSystem(
   personaMode: PersonaMode | undefined,
   personaCustomPrompt: string | null | undefined,
 ): string | null {
   if (personaMode === "angel_be") {
-    return "Bạn là Angel — trợ lý tinh thần của FUN.RICH. Trong MỌI câu trả lời tiếng Việt, hãy xưng 'mình' và gọi người dùng là 'bé'; chỉ dùng 'Angel' như tên riêng. TUYỆT ĐỐI KHÔNG dùng cặp xưng hô 'Cha / con'. Giữ giọng dịu dàng, ấm áp, đầy ánh sáng yêu thương.";
+    return "Bạn là Angel — trợ lý tinh thần của FUN.RICH. Trong MỌI câu trả lời tiếng Việt, hãy xưng 'Angel' và gọi người dùng theo TELEGRAM ADDRESS CONTRACT. TUYỆT ĐỐI KHÔNG dùng cặp xưng hô 'Cha / con'. Giữ giọng dịu dàng, ấm áp, đầy ánh sáng yêu thương.";
   }
   if (personaMode === "custom") {
     const t = (personaCustomPrompt ?? "").trim();
@@ -2086,14 +2072,6 @@ export function sanitizeForTelegramHtml(input: string): string {
   // 8c) Bỏ tag rỗng "<b></b>" nếu có
   safe = safe.replace(/<(b|i|u|s|em|strong)>\s*<\/\1>/gi, "");
 
-  // 8d) Post-process xưng hô cho khớp persona Angel/bé:
-  //     "bạn" → "bé" (chỉ khi reply tiếng Việt, để giữ rule "Angel gọi user là bé").
-  //     Áp dụng có chọn lọc: bỏ qua khi nằm trong tên riêng / tiếng Anh.
-  if (isLikelyVietnamese(safe)) {
-    safe = safe.replace(/\bbạn\b/g, "bé").replace(/\bBạn\b/g, "Bé");
-  }
-
-
   // 9) Smart truncate ở ranh giới câu (Telegram tối đa 4096; chừa chỗ closing tag).
   const MAX = 3800;
   if (safe.length > MAX) {
@@ -2124,47 +2102,9 @@ export function sanitizeForTelegramHtml(input: string): string {
 
 
 
-// Hậu xử lý xưng hô tiếng Việt: chuẩn hoá theo Pronoun Contract v2 "mình/bé",
-// và xoá kiểu mở đầu sai "Chào Angel yêu quý". Bảo vệ URL/HTML/code khỏi bị thay.
-export function enforceVietnamesePronouns(input: string): string {
-  if (!input) return input;
-  // Tách & bảo vệ vùng không được đụng (HTML tag, URL, code block).
-  const protectedRanges: { placeholder: string; original: string }[] = [];
-  let work = input.replace(/<[^>]+>|https?:\/\/\S+|<code>[\s\S]*?<\/code>/gi, (m) => {
-    const ph = `\u0001PROT${protectedRanges.length}\u0001`;
-    protectedRanges.push({ placeholder: ph, original: m });
-    return ph;
-  });
-
-  // 1) Xoá kiểu mở đầu sai "Chào Angel yêu quý" / "Chào bé yêu quý" → "Bé ơi,"
-  work = work.replace(/^[\s>]*Chào\s+(Angel|bé|bạn)\s+yêu\s+quý\s*[,.!]*\s*/i, "Bé ơi, ");
-
-  // 2) "chúng mình" → "chúng ta" (giữ vế tập thể tự nhiên)
-  work = work.replace(/\bchúng\s+mình\b/gi, (m) => (m[0] === "C" ? "Chúng ta" : "chúng ta"));
-
-  // 3) Pronoun Contract v2: bot tự xưng "mình". Không còn phép đổi tổng quát
-  //    "mình → Angel" vì đó là nguyên nhân tạo các câu sai ngữ nghĩa.
-
-  // 4) "bạn" → "bé" (chỉ khi là từ độc lập, không phá "bạn bè", "đối tác"...)
-  //    Giữ "bạn bè" nguyên dạng.
-  work = work.replace(/\bbạn\s+bè\b/gi, "\u0002BANBE\u0002");
-  work = work.replace(/\bbạn\b/g, "bé");
-  work = work.replace(/\bBạn\b/g, "Bé");
-  work = work.replace(/\u0002BANBE\u0002/g, "bạn bè");
-
-  // 4b) PRACTITIONER SUBJECT FIX: các cụm sở hữu / nội tâm của bé bị AI viết nhầm thành "Angel"
-  //     đều phải là "bé". Chỉ áp dụng cho các danh từ nội tâm rõ ràng để tránh sửa nhầm
-  //     câu như "Angel chia sẻ với bé".
-  const INNER_NOUNS = "tâm|lòng|tim|trái\\s+tim|hơi\\s+thở|cảm\\s+xúc|nội\\s+tâm|ý\\s+nghĩ|suy\\s+nghĩ|trí|thân|cơ\\s+thể";
-  work = work.replace(new RegExp(`\\b(${INNER_NOUNS})\\s+Angel\\b`, "gi"), (_m, n) => `${n} bé`);
-  
-
-
-  // 5) Khôi phục các vùng bảo vệ.
-  for (const { placeholder, original } of protectedRanges) {
-    work = work.replace(placeholder, original);
-  }
-  return enforceAngelVietnamesePronounContract(work);
+// Mandatory Telegram guard; context username alone selects the recipient.
+export function enforceVietnamesePronouns(input: string, username?: string | null): string {
+  return enforceTelegramVietnamesePronouns(input, username);
 }
 
 // Owner mode: chỉ sửa CÂU MỞ ĐẦU của reply — nếu bot lỡ mở đầu bằng "Dạ bé"/"Bé ơi"/"Chào bé"…
@@ -2206,12 +2146,10 @@ async function restyleWithAngel(params: {
 }): Promise<string> {
   const langName = LANG_NAME[params.langBucket];
   const languageDirective = angelLanguageDirective(params.langBucket);
-  const ownerOverride = params.ownerAddressOverride?.trim() || "";
-  const personaConstraint = ownerOverride && params.langBucket === "vi"
-    ? `STRICTLY follow the OWNER ADDRESS RULE below. Bot self-address = "mình"; address the sender per the OWNER ADDRESS RULE (thường là "Cha"), KHÔNG dùng "bé", "bạn", "con", "em", "Bé Ly" cho sender. Rewrite any wrong address term ("bé"/"bạn"/"con"/"em") → theo OWNER ADDRESS RULE. Keep "Angel" only as the bot's proper name/identity.\n\nOWNER ADDRESS RULE:\n${ownerOverride}`
-    : params.langBucket === "vi"
-    ? `STRICTLY follow the PERSONA RULE for Vietnamese self-address and how to address the user. Bot self-address = "mình"; "Angel" is only a proper name. Rewrite "tôi" → "mình", standalone user-address "bạn" → "bé", and "Chào Angel yêu quý" → "Bé ơi,".`
-    : `Apply persona only in the locked language. For English, rewrite any Vietnamese address term such as "bé", "cả nhà", "bạn", "mình", "con", or "Cha" into natural English with "you", and keep self-address as "Angel".`;
+  if (hasTelegramVerbatimContent(params.original)) return params.original;
+  const personaConstraint = params.langBucket === "vi"
+    ? `Bot tự xưng Angel, gọi người gửi theo TELEGRAM ADDRESS CONTRACT trong PERSONA RULE. Không thay đại từ phản thân của người dùng.`
+    : `Use the locked language with Angel as the bot name.`;
   const editorSystem = `EDITOR MODE. You will rewrite the assistant reply below to match the STYLE RULE and PERSONA RULE.
 CRITICAL CONSTRAINTS:
 - Preserve 100% of facts, names, numbers, URLs, lists, and key information from the original.
@@ -2229,8 +2167,8 @@ CRITICAL CONSTRAINTS:
     messages: [
       { role: "system", content: languageDirective },
       { role: "system", content: editorSystem },
-      { role: "system", content: params.personaPrompt },
       { role: "system", content: params.styleRule },
+      { role: "system", content: params.personaPrompt },
       { role: "system", content: languageDirective },
       { role: "user", content: userPayload },
     ],
@@ -2374,7 +2312,7 @@ export type AskAngelImageOut = {
   mode?: string | null;
 };
 
-export async function askAngel(params: {
+async function askAngelReply(params: {
   question: string;
   /** Original user text before any admin/template wrapper; used only for language locking. */
   originalUserMessage?: string | null;
@@ -2382,6 +2320,7 @@ export async function askAngel(params: {
   userLabel?: string;
   personaMode?: PersonaMode;
   personaCustomPrompt?: string | null;
+  /** Legacy caller field; cannot override Telegram sender addressing. */
   addressRuleOverride?: string | null;
   funCoreContextPrompt?: string | null;
   aiStylePrompt?: string | null;
@@ -2411,16 +2350,18 @@ export async function askAngel(params: {
   // Default đổi sang "angel_be" — khi DB chưa set, bot vẫn giữ giọng Angel/bé.
   const personaMode: PersonaMode = params.personaMode ?? "angel_be";
   const personaSystem = buildPersonaSystem(personaMode, params.personaCustomPrompt);
-  const addressRule = params.addressRuleOverride?.trim() || ADDRESS_RULE;
+  const senderUsername = params.conversationContext?.username;
+  const addressRule = telegramAddressContract(senderUsername);
   const funCoreContext = params.funCoreContextPrompt?.trim() || FUN_PROFILE_PLATFORM_FACTS;
   const funCorePlatformNote = buildFunCorePlatformNote(funCoreContext);
-  const ownerOverride = params.addressRuleOverride?.trim() || null;
   const globalPersona = await getGlobalPersonaOverride(params.adminClient ?? null);
-  const personaPrompt =
-    ownerOverride
-    || (params.aiPersonaPrompt?.trim())
-    || globalPersona
-    || DEFAULT_AI_PERSONA_PROMPT;
+  const personaPrompt = `${params.aiPersonaPrompt?.trim() || globalPersona || DEFAULT_AI_PERSONA_PROMPT}
+
+${addressRule}`;
+  const originalUserMessage = params.originalUserMessage?.trim() || q;
+  const langBucket = resolveAngelLanguageBucket(originalUserMessage, params.forcedLangBucket);
+  let _creativeOverride = false;
+  let _regenerateMode = false;
 
   const t0 = Date.now();
   // Bridged query để retry-1 strict-mirror (catch block) không strip bridge.
@@ -2541,8 +2482,6 @@ export async function askAngel(params: {
     // để không ghi đè system prompt và không chiếm chỗ context của RAG retrieval.
     // Lovable Gateway (fallback) thì cần wrapper persona + few-shot để giữ giọng Angel.
     let messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
-    const originalUserMessage = params.originalUserMessage?.trim() || q;
-    const langBucket = resolveAngelLanguageBucket(originalUserMessage, params.forcedLangBucket);
     const languageDirective = angelLanguageDirective(langBucket);
     const langHint = `USER_LANGUAGE_DETECTED=${langBucket} (${LANG_NAME[langBucket]}). You MUST reply 100% in ${LANG_NAME[langBucket]} only. Do NOT reply in Vietnamese unless the detected language is "vi".`;
     const forcedLanguageHint = params.forcedLangBucket
@@ -2580,8 +2519,8 @@ export async function askAngel(params: {
     }
 
     let _intent: AngelIntent = null;
-    let _regenerateMode = false;
-    let _creativeOverride = false;
+
+
     if (provider === "funcore") {
       // FUN Core đã có persona + RAG + multilingual riêng (giọng Angel chính chủ).
       // Mặc định mirror Angel web chính chủ: gửi user-only, KHÔNG system wrapper nào,
@@ -2937,7 +2876,7 @@ export async function askAngel(params: {
         { role: "assistant" as const, content: "Bé ơi, Angel mời bé cùng thực hành một bài thiền nhẹ 3 phút nhé ✨\n\n• Bé ngồi thoải mái, thả lỏng vai, khép mắt nhẹ nếu thấy dễ chịu.\n• Hít vào chậm 4 nhịp… thở ra chậm 6 nhịp…\n• Mỗi hơi thở, bé chỉ cần cảm nhận: \"Bé đang bình an. Bé đang được yêu thương.\"\n• Nếu tâm trí chạy đi, bé nhẹ nhàng quay về với hơi thở.\n\nAngel chúc bé thật bình an và đầy ánh sáng yêu thương nhé 💛" },
         // Few-shot TÓM TẮT — dạy model trả lời tinh gọn khi user hỏi nhiều chương/điều.
         { role: "user" as const, content: "tóm tắt Chương V và VI giúp Angel" },
-        { role: "assistant" as const, content: "Bé ơi ✨ Angel tóm tắt nhanh nhé:\n\n• <b>Chương V</b> — điều kiện trở thành Công Dân và con đường tỉnh thức (thiền, biết ơn, sám hối).\n• <b>Chương VI</b> — quyền đồng sáng tạo và trách nhiệm sống trung thực, bảo vệ môi trường.\n\nBé muốn mình đi sâu vào điều nào trước nè? 💛" },
+        { role: "assistant" as const, content: "Bé ơi ✨ Angel tóm tắt nhanh nhé:\n\n• <b>Chương V</b> — điều kiện trở thành Công Dân và con đường tỉnh thức (thiền, biết ơn, sám hối).\n• <b>Chương VI</b> — quyền đồng sáng tạo và trách nhiệm sống trung thực, bảo vệ môi trường.\n\nBé muốn Angel đi sâu vào điều nào trước nè? 💛" },
         { role: "system" as const, content: LANGUAGE_MIRROR_RULE },
         { role: "system" as const, content: CONCISENESS_RULE },
         { role: "system" as const, content: RESPONSE_LENGTH_RULE },
@@ -2984,6 +2923,8 @@ export async function askAngel(params: {
     if (_answerMode !== "auto") {
       console.log(`[askAngel] answer_mode=${_answerMode} qPreview="${(originalUserMessage || q).slice(0, 60).replace(/\n/g, " ")}"`);
     }
+    // Keep the factual user-only mirror intact; all composed prompts end with the verified contract.
+    if (messages.some((m) => m.role === "system")) messages.push({ role: "system", content: addressRule });
     const result = await callAngelCore({
       messages,
       ...(params.attachments && params.attachments.length > 0 ? { attachments: params.attachments } : {}),
@@ -3085,14 +3026,13 @@ export async function askAngel(params: {
       if (skipFactualRestyle) {
         console.log(`[askAngel] restyle skipped — factual concrete data reason=${factualLookupReason}`);
       }
-      if (styleRule && !skipFactualRestyle) {
+      if (styleRule && !skipFactualRestyle && !hasTelegramVerbatimContent(reply)) {
         try {
           const { text: restyled, cached } = await getOrSetRestyleCache({
             original: reply,
             styleRule,
             personaPrompt,
             langBucket,
-            ownerAddressOverride: ownerOverride,
             userQuestion: originalUserMessage,
             bypassCache: _regenerateMode || _creativeOverride,
           });
@@ -3114,7 +3054,7 @@ export async function askAngel(params: {
 
     // Language repair: chỉ khi reply THỰC SỰ vi phạm ngôn ngữ. Short DM skip đã ngầm
     // bảo đảm `_langOk`, nên guard `_shortDmSkip` cũng chặn ở đây.
-    if (!_shortDmSkip && replyViolatesAngelLanguageBucket(reply, langBucket)) {
+    if (!_shortDmSkip && !hasTelegramVerbatimContent(reply) && replyViolatesAngelLanguageBucket(reply, langBucket)) {
       try {
         const repaired = sanitizeForTelegramHtml(await repairLanguageWithAngel({
           reply,
@@ -3136,13 +3076,7 @@ export async function askAngel(params: {
     // An toàn vì chỉ thay từ độc lập, không đụng URL/HTML tag/code.
     // Pronoun Contract là guard bắt buộc cho mọi reply, kể cả owner mode.
     if (langBucket === "vi") {
-      reply = enforceVietnamesePronouns(reply);
-    }
-
-    // Owner mode safety: câu mở đầu PHẢI hướng về Cha, không được là "Dạ bé"/"Bé ơi"/"Chào bé".
-    // Bé thứ ba (ngôi thứ ba) trong nội dung reply thì vẫn giữ nguyên — chỉ sửa opening.
-    if (langBucket === "vi" && ownerOverride) {
-      reply = enforceOwnerOpening(reply);
+      reply = enforceVietnamesePronouns(reply, senderUsername);
     }
 
     // Post-Process Style Pass — brevity + emojis (Telegram only, non-long mode).
@@ -3166,7 +3100,8 @@ export async function askAngel(params: {
         userText: originalUserForMode,
         langBucket,
         isLongMode,
-        isOwnerMode: Boolean(ownerOverride),
+        telegramAddressing: true,
+        telegramUsername: senderUsername,
         chatContext,
       });
       if (styled.applied && styled.text && styled.text.length > 0) {
@@ -3174,10 +3109,7 @@ export async function askAngel(params: {
         if (!replyViolatesAngelLanguageBucket(sanitized, langBucket)) {
           reply = sanitized;
           if (langBucket === "vi") {
-            reply = enforceVietnamesePronouns(reply);
-          }
-          if (langBucket === "vi" && ownerOverride) {
-            reply = enforceOwnerOpening(reply);
+            reply = enforceVietnamesePronouns(reply, senderUsername);
           }
         } else {
           console.warn(`[askAngel] postprocess rejected — language mismatch lang=${langBucket}`);
@@ -3262,10 +3194,7 @@ export async function askAngel(params: {
             if (retryReply && retryReply.length >= 20) {
               if (!replyViolatesAngelLanguageBucket(retryReply, langBucket)) {
                 if (langBucket === "vi") {
-                  retryReply = enforceVietnamesePronouns(retryReply);
-                }
-                if (langBucket === "vi" && ownerOverride) {
-                  retryReply = enforceOwnerOpening(retryReply);
+                  retryReply = enforceVietnamesePronouns(retryReply, senderUsername);
                 }
                 const secondCheck = await isNearDuplicateOfLastBotReply(params.adminClient, {
                   chatId: _antiRepeatCtx.chatId as number,
@@ -3305,14 +3234,13 @@ export async function askAngel(params: {
       else reply = `${reply}\n\n${_neutral}`;
     }
 
-    // Pronoun Contract v2 — single final gate for every successful route,
+    // Telegram sender contract — mandatory final gate for every successful route,
     // including short DM, factual bypass, language repair and anti-repeat retry.
-    if (langBucket === "vi" && await getFlag("pronouns.contract_v2", true)) {
+    if (langBucket === "vi") {
       const beforePronouns = reply;
-      reply = enforceAngelVietnamesePronounContract(reply);
-      if (ownerOverride) reply = enforceOwnerOpening(reply);
+      reply = enforceVietnamesePronouns(reply, senderUsername);
       if (reply !== beforePronouns) {
-        console.log(`[askAngel] pronoun-contract-v2 corrected route=${provider} chars=${reply.length}`);
+        console.log(`[askAngel] telegram-addressing corrected route=${provider} chars=${reply.length}`);
       }
     }
 
@@ -3455,8 +3383,7 @@ export async function askAngel(params: {
         if (r1Text && r1Text.length >= 20) {
           retriedProvider = "funcore";
           _finalReason = "retry_funcore";
-          let out = enforceVietnamesePronouns(r1Text);
-          if (ownerOverride) out = enforceOwnerOpening(out);
+          let out = enforceVietnamesePronouns(r1Text, senderUsername);
           if (params.conversationContext) {
             runBackground(logAngelConversation(params.adminClient ?? null, params.conversationContext, {
               userMessage: cleanUserText,
@@ -3483,7 +3410,7 @@ export async function askAngel(params: {
           console.warn(`[askAngel] TIER1 retry-2 lovable gateway`);
           const r2 = await callAngelCore({
             messages: [
-              { role: "system", content: `${ANGEL_PRONOUN_CONTRACT}\nTrả lời ấm áp, ngắn gọn, 2-3 emoji.` },
+              { role: "system", content: `${addressRule}\nTrả lời ấm áp, ngắn gọn, 2-3 emoji.` },
               { role: "user", content: cleanUserText },
             ],
             forceProvider: "lovable",
@@ -3492,8 +3419,7 @@ export async function askAngel(params: {
           if (r2Text && r2Text.length >= 20) {
             retriedProvider = "lovable";
             _finalReason = "retry_lovable";
-            let out = enforceVietnamesePronouns(r2Text);
-            if (ownerOverride) out = enforceOwnerOpening(out);
+            let out = enforceVietnamesePronouns(r2Text, senderUsername);
             if (params.conversationContext) {
               runBackground(logAngelConversation(params.adminClient ?? null, params.conversationContext, {
                 userMessage: cleanUserText,
@@ -3538,8 +3464,7 @@ export async function askAngel(params: {
         });
         if (stale) {
           _finalReason = "stale";
-          let decorated = enforceVietnamesePronouns(decorateStaleReply(stale.reply, stale.ageMinutes));
-          if (ownerOverride) decorated = enforceOwnerOpening(decorated);
+          let decorated = enforceVietnamesePronouns(decorateStaleReply(stale.reply, stale.ageMinutes), senderUsername);
           console.warn(`[askAngel] STEP3 stale fallback ok sim=${stale.similarity.toFixed(2)} age=${stale.ageMinutes}min`);
           runBackground(logAngelConversation(params.adminClient ?? null, params.conversationContext, {
             userMessage: cleanUserText,
@@ -3560,10 +3485,11 @@ export async function askAngel(params: {
     else if (isAngelCore && errStatus === 402) fallback = fallbackRest(q);
     else if (isAngelCore && errStatus === 500 && /not configured/i.test(errMsg)) fallback = fallbackRest(q);
     else if (ytIds.length > 0) {
-      fallback = "Bé ơi, mình vừa thử đọc video YouTube này nhưng chưa lấy được nội dung (có thể video riêng tư, không có phụ đề, hoặc YouTube đang chặn tạm thời) 💛✨\n\nBé có thể tóm tắt hoặc dán transcript để mình cùng suy ngẫm với bé nhé.";
+      fallback = "Bé ơi, Angel vừa thử đọc video YouTube này nhưng chưa lấy được nội dung (có thể video riêng tư, không có phụ đề, hoặc YouTube đang chặn tạm thời) 💛✨\n\nBé có thể tóm tắt hoặc dán transcript để Angel cùng suy ngẫm với bé nhé.";
     }
     else fallback = fallbackBusy(q);
     _finalReason = "busy";
+    fallback = enforceVietnamesePronouns(fallback, senderUsername);
 
     if (params.conversationContext) {
       runBackground(logAngelConversation(params.adminClient ?? null, params.conversationContext, {
@@ -3574,8 +3500,6 @@ export async function askAngel(params: {
         error: buildLogPayload({ route: provider, reason: "busy", retry_count: retriedProvider ? 2 : (retriedError ? 2 : 1) }),
       }));
     }
-    fallback = enforceVietnamesePronouns(fallback);
-    if (ownerOverride) fallback = enforceOwnerOpening(fallback);
     return fallback;
   }
 }
@@ -5912,4 +5836,11 @@ export async function transcribeTelegramAudio(params: {
     console.error("[transcribeTelegramAudio] error", err);
     return null;
   }
+}
+
+/** All Telegram AI routes pass this mandatory, context-only addressing boundary. */
+export async function askAngel(params: Parameters<typeof askAngelReply>[0]): Promise<string> {
+  const reply = await askAngelReply(params);
+  const lang = resolveAngelLanguageBucket(params.originalUserMessage?.trim() || params.question, params.forcedLangBucket);
+  return lang === "vi" || isLikelyVietnamese(reply) ? enforceVietnamesePronouns(reply, params.conversationContext?.username) : reply;
 }

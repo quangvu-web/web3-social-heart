@@ -1,3 +1,4 @@
+import { telegramAddressContract, enforceTelegramVietnamesePronouns } from "../_shared/angel/pronouns.ts";
 // Weekly retention report for FunRich community: new vs lost members in last
 // 7 days, retention rate, top invite links by retention, top recruiters, plus
 // an AI-generated loss-cause analysis from Lovable AI Gateway.
@@ -14,7 +15,7 @@ type EventRow = {
   occurred_at: string;
 };
 
-async function aiLossAnalysis(promptText: string): Promise<string | null> {
+export async function aiLossAnalysis(promptText: string): Promise<string | null> {
   const key = Deno.env.get("LOVABLE_API_KEY");
   if (!key) return null;
   try {
@@ -25,13 +26,15 @@ async function aiLossAnalysis(promptText: string): Promise<string | null> {
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: "Bạn là community analyst của FUN.RICH. Quan sát dữ liệu, chỉ ra giai đoạn mất nhiều member và đưa 2–3 khuyến nghị ngắn, tiếng Việt, ấm áp, ngắn gọn (<=250 từ)." },
+          { role: "system", content: telegramAddressContract() },
           { role: "user", content: promptText },
         ],
       }),
     });
     if (!r.ok) return null;
     const data = await r.json();
-    return data?.choices?.[0]?.message?.content ?? null;
+    const reply = data?.choices?.[0]?.message?.content;
+    return typeof reply === "string" ? enforceTelegramVietnamesePronouns(reply) : null;
   } catch (_e) {
     return null;
   }

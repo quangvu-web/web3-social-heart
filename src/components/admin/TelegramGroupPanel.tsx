@@ -1,3 +1,4 @@
+import { requestWebhookDiagnostic, type WebhookInfo } from "./telegramWebhookDiagnostic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -210,17 +211,6 @@ type GroupRow = {
   created_at: string;
 };
 
-type WebhookInfo = {
-  verified: boolean;
-  endpoint_matches?: boolean;
-  pending_update_count?: number;
-  last_error_date?: number | null;
-  has_last_error?: boolean;
-  allowed_updates?: string[];
-  missing_updates?: string[] | null;
-  error_code?: string;
-};
-
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleString("vi-VN", { timeZone: "Asia/Kuala_Lumpur", hour12: false });
 
@@ -287,8 +277,10 @@ export default function TelegramGroupPanel() {
   const [quickReplyDraft, setQuickReplyDraft] = useState<QuickReplyDraft>(emptyQuickReply());
   const [savingQuickReply, setSavingQuickReply] = useState(false);
   const [logs, setLogs] = useState<LogRow[]>([]);
+  const [webhookDiagnosticMessage, setWebhookDiagnosticMessage] = useState("");
+  const webhookRequests = useRef(0);
   const [webhookInfo, setWebhookInfo] = useState<WebhookInfo | null>(null);
-  const [webhookLoadState, setWebhookLoadState] = useState<"loading" | "verified" | "unverified">("loading");
+  const [webhookLoadState, setWebhookLoadState] = useState<"loading" | "verified" | "unverified" | "error">("loading");
   const [showWebhookDiag, setShowWebhookDiag] = useState(false);
   const [checkingDeletePermission, setCheckingDeletePermission] = useState(false);
   const [deletePermission, setDeletePermission] = useState<{ status: string; can_delete_messages: boolean } | null>(null);
@@ -308,14 +300,14 @@ export default function TelegramGroupPanel() {
   const allowedUpdates = webhookInfo?.allowed_updates;
   const webhookUpdatesStatus = resolveWebhookUpdatesStatus({
     loading: webhookLoadState === "loading",
-    verified: webhookLoadState === "verified" && webhookInfo?.verified === true,
+    verified: webhookLoadState !== "loading" && webhookInfo?.response_valid === true,
     allowedUpdates,
   });
   const channelUpdates = ["channel_post", "edited_channel_post"];
   const channelUpdateEnabled = (update: string) =>
-    Array.isArray(allowedUpdates) && allowedUpdates.length > 0
+    webhookInfo?.response_valid === true && (Array.isArray(allowedUpdates) && allowedUpdates.length > 0
       ? allowedUpdates.includes(update)
-      : true;
+      : true);
   const hasChannelPost = channelUpdateEnabled("channel_post");
   const hasEditedChannelPost = channelUpdateEnabled("edited_channel_post");
   const statusOk = Boolean(
@@ -328,11 +320,11 @@ export default function TelegramGroupPanel() {
       : webhookUpdatesStatus.state === "unverified"
         ? "Không xác minh được từ Telegram. Hãy thử tải lại trạng thái."
         : missing
-          ? `Thiếu ${update}. Hãy bấm Register webhook để đăng ký đủ update.`
+          ? `Thiếu ${update}. Hãy bấm Đăng ký webhook để đăng ký đủ update.`
           : "Đã nhận theo cấu hình webhook hiện tại.";
     return {
       label: `Update ${update}`,
-      ok: webhookUpdatesStatus.state === "ready",
+      ok: webhookUpdatesStatus.state !== "loading" && webhookUpdatesStatus.state !== "unverified" && !missing,
       help,
       statusLabel: webhookUpdatesStatus.state === "loading"
         ? "Đang tải"
@@ -346,15 +338,15 @@ export default function TelegramGroupPanel() {
   const checklist = [
     {
       label: "Webhook trỏ đến Community Guard",
-      ok: Boolean(webhookInfo?.verified && webhookInfo.endpoint_matches),
+      ok: Boolean(webhookInfo?.response_valid && webhookInfo.endpoint_matches),
       help: webhookLoadState === "loading"
         ? "Đang tải trạng thái webhook…"
-        : webhookLoadState === "unverified"
+        : !webhookInfo?.response_valid
           ? "Không xác minh được cấu hình webhook từ Telegram. Hãy bấm Kiểm tra webhook để thử lại."
           : webhookInfo?.endpoint_matches
             ? "Endpoint đã khớp với Community Guard."
-            : "Webhook đang trỏ đến endpoint khác. Hãy bấm Register webhook nếu cần cập nhật.",
-      statusLabel: webhookLoadState === "loading" ? "Đang tải" : webhookLoadState === "unverified" ? "Chưa xác minh" : webhookInfo?.endpoint_matches ? "Đúng" : "Sai",
+            : "Webhook đang trỏ đến endpoint khác. Hãy bấm Đăng ký webhook nếu cần cập nhật.",
+      statusLabel: webhookLoadState === "loading" ? "Đang tải" : !webhookInfo?.response_valid ? "Chưa xác minh" : webhookInfo?.endpoint_matches ? "Đúng" : "Sai",
     },
     ...requiredUpdateChecklist,
     {
@@ -429,19 +421,25 @@ export default function TelegramGroupPanel() {
     }
   };
 
-  const loadWebhookInfo = async () => {
+  const runWebhookDiagnostic = async (registering: boolean) => {
+    const requestId = ++webhookRequests.current;
+    setWebhookInfo(null);
+    setWebhookDiagnosticMessage("");
     setWebhookLoadState("loading");
-    try {
-      const data = await invokeAdmin("get_webhook_info");
-      const info = data.webhook as WebhookInfo | undefined;
-      setWebhookInfo(info ?? null);
-      setWebhookLoadState(info?.verified ? "verified" : "unverified");
-    } catch {
-      setWebhookInfo(null);
-      setWebhookLoadState("unverified");
-      toast.error("Không xác minh được trạng thái webhook. Hãy thử tải lại.");
+    const view = await requestWebhookDiagnostic(() => supabase.functions.invoke("telegram-community-admin", {
+      body: { action: registering ? "register_webhook" : "get_webhook_info", payload: {} },
+    }), registering);
+    if (requestId !== webhookRequests.current) return;
+    setWebhookInfo(view.webhook);
+    setWebhookLoadState(view.state);
+    setWebhookDiagnosticMessage(view.message);
+    if (registering) {
+      if (view.state === "verified") toast.success(view.message);
+      else if (view.state === "unverified") toast.warning(view.message);
+      else toast.error(view.message);
     }
   };
+  const loadWebhookInfo = () => runWebhookDiagnostic(false);
 
   useEffect(() => {
     loadAll();
@@ -471,20 +469,7 @@ export default function TelegramGroupPanel() {
     }
   };
 
-  const registerWebhook = async () => {
-    setLoading(true);
-    try {
-      const data = await invokeAdmin("register_webhook");
-      const info = data.webhook as WebhookInfo | undefined;
-      setWebhookInfo(info ?? null);
-      setWebhookLoadState(info?.verified ? "verified" : "unverified");
-      toast.success("Đã gửi yêu cầu đăng ký webhook. Hãy kiểm tra trạng thái để xác nhận.");
-    } catch (error: unknown) {
-      toast.error("Không thể đăng ký webhook. Hãy kiểm tra cấu hình rồi thử lại.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const registerWebhook = () => runWebhookDiagnostic(true);
 
   const selectGroup = async (groupId: number) => {
     setSelectedGroupId(groupId);
@@ -810,19 +795,24 @@ export default function TelegramGroupPanel() {
           </div>
           <div className="rounded-lg border p-3 text-sm">
             <p className="text-muted-foreground">Endpoint webhook</p>
-            <p>{webhookLoadState === "loading" ? "Đang tải trạng thái…" : webhookLoadState === "unverified" ? "Không xác minh được" : webhookInfo?.endpoint_matches ? "Đúng Community Guard" : "Không khớp Community Guard"}</p>
+            <p>{webhookLoadState === "loading" ? "Đang tải trạng thái…" : !webhookInfo?.response_valid ? "Không xác minh được" : webhookInfo?.endpoint_matches ? "Đúng Community Guard" : "Không khớp Community Guard"}</p>
           </div>
           {webhookUpdatesStatus.state === "missing" && (
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
               <AlertTriangle className="inline h-4 w-4 mr-1" />
               Webhook thiếu update cần cho luồng join/CAPTCHA:
               <code className="mx-1 rounded bg-white px-1">{webhookUpdatesStatus.missing.join(", ")}</code>
-              Hãy bấm Register webhook để cập nhật.
+              Hãy bấm Đăng ký webhook để cập nhật.
             </div>
           )}
-          {webhookUpdatesStatus.state === "unverified" && (
-            <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              Không xác minh được danh sách update từ Telegram. Kiểm tra API hoặc thử lại; hệ thống không tự thay đổi webhook.
+          {webhookLoadState === "loading" ? (
+            <p role="status" className="text-sm text-muted-foreground">Đang tải trạng thái webhook…</p>
+          ) : webhookDiagnosticMessage && (
+            <div role={webhookLoadState === "error" ? "alert" : "status"} className="rounded-lg border p-3 text-sm">
+              <Badge variant={webhookLoadState === "error" ? "destructive" : "outline"}>
+                {webhookLoadState === "error" ? "Lỗi" : webhookLoadState === "verified" ? "Đã xác minh" : "Chưa xác minh"}
+              </Badge>
+              <p className="mt-2">{webhookDiagnosticMessage}</p>
             </div>
           )}
           {lastError && (
@@ -844,7 +834,7 @@ export default function TelegramGroupPanel() {
                       </span>
                     )}
                     <div className="mt-1 text-xs opacity-80">
-                      Telegram chỉ ghi nhớ lỗi giao tin gần nhất. Webhook hiện tại có thể đã khoẻ — bấm "Xoá lỗi cũ" để reset.
+                      Telegram chỉ ghi nhớ lỗi giao tin gần nhất. Webhook hiện tại có thể đã khoẻ — có thể kiểm tra trạng thái hoặc chủ động đăng ký lại.
                     </div>
                   </>
                 ) : (
@@ -855,19 +845,10 @@ export default function TelegramGroupPanel() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={async () => {
-                    try {
-                      const data = await invokeAdmin("clear_webhook_error");
-                      const info = data.webhook as WebhookInfo | undefined;
-                      setWebhookInfo(info ?? null);
-                      setWebhookLoadState(info?.verified ? "verified" : "unverified");
-                      toast.success("Đã xoá lỗi cũ — webhook đã được đăng ký lại");
-                    } catch (e: unknown) {
-                      toast.error(e instanceof Error ? e.message : "Clear error failed");
-                    }
-                  }}
+                  onClick={registerWebhook}
+                  disabled={webhookLoadState === "loading"}
                 >
-                  <RefreshCw className="w-3 h-3 mr-1" /> Xoá lỗi cũ
+                  <RefreshCw className="w-3 h-3 mr-1" /> Đăng ký lại webhook
                 </Button>
               )}
             </div>
@@ -914,7 +895,7 @@ export default function TelegramGroupPanel() {
                       <div>
                         <p className="font-mono text-xs">{u}</p>
                         <p className="text-xs opacity-80">
-                          {enabled ? "Đang bật — Angel nhận được post từ channel" : "Chưa bật — bấm Register webhook để bật"}
+                          {enabled ? "Đang bật — Angel nhận được post từ channel" : "Chưa bật — bấm Đăng ký webhook để bật"}
                         </p>
                       </div>
                     </div>
@@ -927,19 +908,19 @@ export default function TelegramGroupPanel() {
                 </div>
               ) : (
                 <div className="rounded border border-amber-400 bg-amber-50 p-2 text-amber-800 text-xs flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" /> Thiếu {channelUpdates.filter((update) => !channelUpdateEnabled(update)).join(", ")} — bấm Register webhook để bật.
+                  <AlertTriangle className="w-4 h-4" /> Thiếu {channelUpdates.filter((update) => !channelUpdateEnabled(update)).join(", ")} — bấm Đăng ký webhook để bật.
                 </div>
               )}
             </div>
           )}
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={registerWebhook} disabled={loading}>
+            <Button onClick={registerWebhook} disabled={loading || webhookLoadState === "loading"}>
               {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-2" />}
-              Register webhook
+              Đăng ký webhook
             </Button>
             <Button variant="outline" onClick={loadWebhookInfo} disabled={webhookLoadState === "loading"}>
               <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh status
+              Tải lại trạng thái
             </Button>
             <Button
               variant="outline"

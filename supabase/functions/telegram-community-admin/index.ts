@@ -21,10 +21,7 @@ import {
 import { loadManagedGroupTitles } from "../_shared/managed-groups.ts";
 import { managedGroupSettingsInsert } from "../_shared/telegram-welcome-defaults.ts";
 import { assertQuerySucceeded } from "../_shared/telegram-query.ts";
-import {
-  COMMUNITY_WEBHOOK_ALLOWED_UPDATES,
-  safeCommunityWebhookStatus,
-} from "../_shared/telegram-webhook-config.ts";
+import { diagnoseCommunityWebhook } from "../_shared/telegram-webhook-diagnostics.ts";
 
 
 
@@ -88,46 +85,17 @@ Deno.serve(async (req) => {
   const groupId = Number(Deno.env.get("COMMUNITY_GUARD_GROUP_ID") ?? "0");
   const botUsername = Deno.env.get("COMMUNITY_GUARD_BOT_USERNAME") ?? null;
 
-  if (action === "get_webhook_info") {
-    const info = await callCommunityTelegram("getWebhookInfo");
-    const endpoint = `${supabaseUrl}/functions/v1/telegram-community-webhook`;
-    return json({ success: true, webhook: safeCommunityWebhookStatus(info, endpoint) });
+  if (action === "get_webhook_info" || action === "register_webhook" || action === "clear_webhook_error") {
+    // Legacy clear action now re-registers explicitly; never delete or drop updates.
+    // Handled diagnostic failures use a structured envelope, not generic non-2xx text.
+    return json(await diagnoseCommunityWebhook({
+      action: action === "get_webhook_info" ? action : "register_webhook",
+      token: Deno.env.get("COMMUNITY_GUARD_BOT_TOKEN"),
+      secret,
+      backendUrl: supabaseUrl,
+      log: ({ stage, code }) => console.warn("[community-webhook-diagnostic]", { stage, code }),
+    }));
   }
-
-  if (action === "register_webhook") {
-    if (!secret) return json({ success: false, error: "COMMUNITY_GUARD_WEBHOOK_SECRET is not configured" }, 500);
-    const webhookUrl = `${supabaseUrl}/functions/v1/telegram-community-webhook?secret=${encodeURIComponent(secret)}`;
-    const result = await callCommunityTelegram("setWebhook", {
-      url: webhookUrl,
-      allowed_updates: [...COMMUNITY_WEBHOOK_ALLOWED_UPDATES],
-      secret_token: secret,
-      drop_pending_updates: false,
-    });
-    if (!result.ok) return json({ success: false, error: "Không thể đăng ký webhook Telegram." }, 502);
-    const info = await callCommunityTelegram("getWebhookInfo");
-    return json({
-      success: true,
-      webhook: safeCommunityWebhookStatus(info, `${supabaseUrl}/functions/v1/telegram-community-webhook`),
-    });
-  }
-
-  if (action === "clear_webhook_error") {
-    if (!secret) return json({ success: false, error: "COMMUNITY_GUARD_WEBHOOK_SECRET is not configured" }, 500);
-    // deleteWebhook → setWebhook lại → Telegram reset last_error_message
-    await callCommunityTelegram("deleteWebhook", { drop_pending_updates: false });
-    const webhookUrl = `${supabaseUrl}/functions/v1/telegram-community-webhook?secret=${encodeURIComponent(secret)}`;
-    const result = await callCommunityTelegram("setWebhook", {
-      url: webhookUrl,
-      allowed_updates: [...COMMUNITY_WEBHOOK_ALLOWED_UPDATES],
-      secret_token: secret,
-      drop_pending_updates: false,
-    });
-    if (!result.ok) return json({ success: false, error: "Không thể đăng ký lại webhook Telegram." }, 502);
-    const info = await callCommunityTelegram("getWebhookInfo");
-    return json({ success: true, webhook: safeCommunityWebhookStatus(info, `${supabaseUrl}/functions/v1/telegram-community-webhook`) });
-  }
-
-
 
   if (action === "list_groups") {
     const result = await loadManagedGroups(adminClient);

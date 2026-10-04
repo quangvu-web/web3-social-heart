@@ -51,13 +51,26 @@ Deno.test("safe webhook status confirms update readiness without returning webho
 Deno.test("failed getWebhookInfo remains unverified in the admin-safe response", () => {
   assert.deepStrictEqual(safeCommunityWebhookStatus({ ok: false, data: null }, "https://example.invalid/hook"), {
     verified: false,
-    error_code: "telegram_api_error",
+    error_code: "telegram_api_rejected",
   });
   assert.deepStrictEqual(safeCommunityWebhookStatus({
     ok: true,
     data: { ok: true, result: { url: "https://example.invalid/hook", pending_update_count: 0, allowed_updates: [null] } },
   }, "https://example.invalid/hook"), {
     verified: false,
-    error_code: "invalid_telegram_response",
+    error_code: "telegram_response_invalid",
   });
+});
+
+Deno.test("verification requires the matching endpoint and all required updates", () => {
+  for (const [url, updates, expected] of [
+    ["https://other.invalid/hook", COMMUNITY_WEBHOOK_ALLOWED_UPDATES, "endpoint_mismatch"],
+    ["https://example.invalid/hook", [], "required_updates_missing"],
+  ] as const) {
+    const status = safeCommunityWebhookStatus({ ok: true, data: { ok: true, result: {
+      url, pending_update_count: 0, allowed_updates: updates,
+    } } }, "https://example.invalid/hook");
+    assert.strictEqual(status.verified, false);
+    assert.strictEqual(status.error_code, expected);
+  }
 });

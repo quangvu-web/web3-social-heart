@@ -101,6 +101,8 @@ import {
   releaseVerifiedMember,
   resolveJoinFlow,
   shouldProcessChatMemberJoin,
+  effectiveMemberStatus,
+  isMemberLeaveTransition,
   shouldSendVerifiedWelcome,
   startVerificationDelivery,
   verificationClaimOutcome,
@@ -5113,6 +5115,49 @@ function scheduleVerificationExpiryCheck(challengeId: string, delayMs: number) {
   }
 }
 
+async function closePendingChallengesOnLeave(
+  adminClient: ReturnType<typeof getClients>["adminClient"],
+  chatId: number,
+  member: { id?: number; username?: string },
+): Promise<void> {
+  if (!member.id) return;
+  const { data, error } = await adminClient
+    .from("telegram_community_verification_challenges")
+    .update({ status: "failed", updated_at: new Date().toISOString() })
+    .eq("group_id", chatId)
+    .eq("telegram_user_id", member.id)
+    .eq("status", "pending")
+    .select("id, captcha_message_id");
+  if (error) {
+    console.error("[verification] close pending challenge on leave failed", {
+      chat_id: chatId,
+      user_id: member.id,
+      error_code: error.code ?? "unknown",
+    });
+    await logModeration(adminClient, {
+      groupId: chatId,
+      userId: member.id,
+      username: member.username ?? null,
+      action: "verification_close_on_leave_failed",
+      reason: `member_left:${error.code ?? "unknown"}`,
+    }).catch(() => undefined);
+    return;
+  }
+  for (const row of (data ?? []) as Array<{ captcha_message_id: number | null }>) {
+    if (row.captcha_message_id) {
+      await deleteMessage(chatId, row.captcha_message_id).catch(() => undefined);
+    }
+    await logModeration(adminClient, {
+      groupId: chatId,
+      userId: member.id,
+      username: member.username ?? null,
+      action: "verification_cancelled_member_left",
+      reason: "member_left",
+      messageId: row.captcha_message_id,
+    }).catch(() => undefined);
+  }
+}
+
 async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Promise<void> {
   const evt = update.chat_member;
   const { adminClient } = getClients(req);
@@ -5121,6 +5166,7 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
     chat_type: evt?.chat?.type,
     old: evt?.old_chat_member?.status,
     new: evt?.new_chat_member?.status,
+    old_is_member: evt?.old_chat_member?.is_member,
     is_member: evt?.new_chat_member?.is_member,
     user: evt?.new_chat_member?.user?.id,
     is_bot: evt?.new_chat_member?.user?.is_bot,
@@ -5129,8 +5175,10 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
   if (!isGroup(evt.chat.type)) { console.log("[webhook] skip: not group"); return; }
   const chatId = evt.chat.id;
 
-  const oldStatus = evt.old_chat_member?.status;
-  const newStatus = evt.new_chat_member?.status;
+  // A restricted user who leaves stays "restricted" with is_member=false;
+  // normalise so leave/rejoin is detected for every managed group.
+  const oldStatus = effectiveMemberStatus(evt.old_chat_member?.status, evt.old_chat_member?.is_member);
+  const newStatus = effectiveMemberStatus(evt.new_chat_member?.status, evt.new_chat_member?.is_member);
   const member = evt.new_chat_member?.user;
   if (!member?.id || member.is_bot) { console.log("[webhook] skip: no member or is_bot"); return; }
 
@@ -5199,6 +5247,10 @@ async function handleChatMemberUpdate(update: TelegramUpdate, req: Request): Pro
       }).catch(() => undefined);
     }
     throw new Error("member_event_persist_failed");
+  }
+
+  if (isMemberLeaveTransition(oldStatus, newStatus)) {
+    await closePendingChallengesOnLeave(adminClient, chatId, member);
   }
 
   if (!isNewJoin) {

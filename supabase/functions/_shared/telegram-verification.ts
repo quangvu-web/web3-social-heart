@@ -55,6 +55,30 @@ export function isJoinedMembershipState(
   return status === "restricted" && isMember !== false;
 }
 
+/**
+ * Telegram keeps a user's status as "restricted" after they leave if the user
+ * still has a per-chat restriction (e.g. after CAPTCHA permissions were
+ * restored via restrictChatMember). Presence is then only signalled by
+ * `is_member`. Normalise that to "left" so leave/rejoin transitions are
+ * classified the same way for every group.
+ */
+export function effectiveMemberStatus(
+  status: string | null | undefined,
+  isMember: boolean | undefined,
+): string | undefined {
+  if (!status) return undefined;
+  if (status === "restricted" && isMember === false) return "left";
+  return status;
+}
+
+export function isMemberLeaveTransition(
+  oldStatus: string | null | undefined,
+  newStatus: string | null | undefined,
+): boolean {
+  const present = new Set(["member", "restricted", "administrator", "creator"]);
+  return present.has(oldStatus ?? "") && (newStatus === "left" || newStatus === "kicked");
+}
+
 export function shouldProcessChatMemberJoin(input: {
   oldStatus?: string | null;
   newStatus?: string | null;

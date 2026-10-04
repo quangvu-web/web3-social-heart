@@ -1,3 +1,4 @@
+import { attemptModerationDelete, sendModerationFailureNotice, MODERATION_FAILURE_NOTICE } from "./telegram-moderation-notice.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { callAngelCore, AngelCoreError, getAngelProvider } from "./angel-core.ts";
 import { getFlag } from "./angel/flags.ts";
@@ -1407,6 +1408,31 @@ export async function sendMessage(chatId: number | string, text: string, extra: 
     console.error("[telegram-community] failed to enqueue auto-delete", err);
   }
   return result;
+}
+
+/** Metadata-only Edge event matches the error category written to moderation reason. */
+export async function deleteModerationMessage(chatId: number, messageId: number) {
+  const outcome = await attemptModerationDelete(() => deleteMessage(chatId, messageId));
+  console.log("[TELEGRAM_MODERATION_DELETE]", {
+    chat_id: chatId, message_id: messageId, deleted: outcome.deleted,
+    error_code: outcome.errorCode ?? null, failure: outcome.failure ?? null,
+  });
+  return outcome;
+}
+
+export async function notifyModerationDeleteFailure(adminClient: SupabaseClient, chatId: number, messageId: number) {
+  await sendModerationFailureNotice({
+    groupId: chatId, messageId,
+    claim: async () => {
+      const result = await adminClient.rpc("tg_claim_moderation_failure_notice", { p_group_id: chatId, p_message_id: messageId });
+      return !result.error && typeof result.data === "string" ? result.data : null;
+    },
+    send: () => sendMessage(chatId, MODERATION_FAILURE_NOTICE, { skipAutoDelete: true }),
+    audit: async (event) => {
+      console.log("[TELEGRAM_MODERATION_NOTICE]", { chat_id: chatId, message_id: messageId, ...event });
+      return await logModeration(adminClient, { groupId: chatId, messageId, ...event });
+    },
+  });
 }
 
 export async function sendChatAction(
@@ -5114,15 +5140,9 @@ export async function applyViolation(params: {
     }
   }
 
-  let deleted = false;
-  let deleteErrorCode: number | undefined;
-  try {
-    const result = await deleteMessage(params.chatId, params.messageId);
-    deleted = result.ok;
-    deleteErrorCode = result.data?.error_code;
-  } catch (error) {
-    console.warn("[moderation] delete request threw", { error_name: error instanceof Error ? error.name : "unknown" });
-  }
+  const deletion = await deleteModerationMessage(params.chatId, params.messageId);
+  const deleted = deletion.deleted;
+  const deleteErrorCode = deletion.errorCode;
 
   let banAttempted = false;
   let banSucceeded = false;
@@ -5177,9 +5197,9 @@ export async function applyViolation(params: {
     warningStateAvailable,
   });
   const reasonDetails = [
-    params.reason,
+    params.reason.slice(0, 120),
     !warningStateAvailable ? "warning_state_unavailable" : null,
-    !deleted ? `delete_failed:${deleteErrorCode ?? "unknown"}` : null,
+    !deleted ? `delete_failed:${deleteErrorCode ?? "unknown"}:${deletion.failure}` : null,
     banAttempted && !banSucceeded ? `ban_failed:${banErrorCode ?? "unknown"}` : null,
     muteAttempted && !muteSucceeded ? `mute_failed:${muteErrorCode ?? "unknown"}` : null,
   ].filter(Boolean).join(";").slice(0, 240);
@@ -5194,12 +5214,12 @@ export async function applyViolation(params: {
   });
 
   const label = params.user.username ? `@${params.user.username}` : fullName(params.user);
-  if (action === "banned" || action === "banned_message_delete_failed") {
+  if (!deleted) {
+    await notifyModerationDeleteFailure(params.adminClient, params.chatId, params.messageId);
+  } else if (action === "banned" || action === "banned_message_delete_failed") {
     await sendMessage(params.chatId, `🚫 <b>${escapeHtml(label)}</b> was banned after repeated violations.`);
   } else if (action === "muted" || action === "muted_message_delete_failed") {
     await sendMessage(params.chatId, `🔇 <b>${escapeHtml(label)}</b> was muted for ${params.settings.mute_duration_minutes} minutes after repeated violations.`);
-  } else if (!deleted) {
-    await sendMessage(params.chatId, "⚠️ Automatic moderation could not remove this message. An admin should review it.");
   } else if (action === "deleted_ban_failed" || action === "deleted_mute_failed") {
     await sendMessage(params.chatId, "⚠️ The message was removed, but the follow-up restriction failed. An admin should review it.");
   } else if (action === "deleted_warning_state_unavailable") {

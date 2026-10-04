@@ -211,3 +211,16 @@ Deno.test("account_shop: câu lành tính KHÔNG bị chặn", async () => {
   assertEquals(detectAccountShopPromo("Nhóm mình có bao nhiêu tài khoản đang online vậy?"), null);
   assertEquals(detectAccountShopPromo("Buổi thiền hôm nay bắt đầu lúc 20h nhé cả nhà"), null);
 });
+
+import funFixture from "./fixtures/telegram-fun-moderation.json" with { type: "json" };
+import { findBlockedKeyword, isFunSpiritualContent, isTrustedFunCommunityContent } from "./telegram-community.ts";
+Deno.test("synthetic valid FUN text and OCR retain exemptions despite an isolated keyword collision", () => {
+  // Characterization of existing whitelist, not evidence of a production false positive.
+  const keywords = [{ keyword: funFixture.fixtureKeyword, severity: "high" }];
+  assertEquals(findBlockedKeyword(funFixture.text, keywords)?.keyword, funFixture.fixtureKeyword);
+  assertEquals(isFunSpiritualContent(funFixture.text), true);
+  assertEquals(isTrustedFunCommunityContent(funFixture.text), true);
+  const combined = [funFixture.ocrCaption, funFixture.ocrText].join("\n");
+  assertEquals(findBlockedKeyword(funFixture.ocrText, keywords)?.keyword, funFixture.fixtureKeyword);
+  assertEquals(isFunSpiritualContent(combined) || isTrustedFunCommunityContent(combined), true);
+});

@@ -1,8 +1,11 @@
-﻿import {
+﻿import { resolveDeletePermission } from "../_shared/telegram-moderation-notice.ts";
+import {
   activeDomains,
   activeKeywords,
   answerCallbackQuery,
   applyViolation,
+  deleteModerationMessage,
+  notifyModerationDeleteFailure,
   askAngel,
   callCommunityTelegram,
   communityCorsHeaders,
@@ -2001,29 +2004,25 @@ async function handleTelegramScamDetection(params: {
     antiSpamEnabled: params.settings.anti_spam_enabled,
     scamProtectionEnabled: true,
   };
+  let scamDeleteDiagnostic = "";
   const deleteOutcome = await enforceScamDeletion({
     context: moderationContext,
     assessment: finalAssessment,
     deleteMessage: async () => {
-      const result = await deleteMessage(chatId, messageId);
-      const data = result.data as { error_code?: number; description?: string; ok?: boolean } | undefined;
-      return {
-        ok: result.ok === true,
-        errorCode: data?.error_code,
-        errorDescription: data?.description ?? (result.ok ? undefined : JSON.stringify(data ?? result).slice(0, 240)),
-      };
+      const result = await deleteModerationMessage(chatId, messageId);
+      scamDeleteDiagnostic = result.deleted ? "" : `;delete_failed:${result.errorCode ?? "unknown"}:${result.failure}`;
+      return { ok: result.deleted, errorCode: result.errorCode, errorDescription: result.failure };
     },
     checkDeletePermission: async () => {
       const bot = await getBotInfo();
       if (!bot) return { canDeleteMessages: null, status: "unknown", errorDescription: "getMe failed" };
       const result = await getChatMember(chatId, bot.id);
       if (!result.ok) {
-        const data = result.data as { description?: string } | undefined;
-        return { canDeleteMessages: null, status: "unknown", errorDescription: data?.description ?? "getChatMember failed" };
+        return { canDeleteMessages: null, status: "unknown", errorDescription: "permission_check_unverified" };
       }
       const member = result.data?.result as { status?: string; can_delete_messages?: boolean } | undefined;
       const status = member?.status ?? "unknown";
-      const canDeleteMessages = status === "creator" || (status === "administrator" && member?.can_delete_messages === true);
+      const canDeleteMessages = resolveDeletePermission(result.ok, member);
       return { canDeleteMessages, status };
     },
     log: (event) => console.log("[TELEGRAM_MODERATION]", event),
@@ -2044,9 +2043,9 @@ async function handleTelegramScamDetection(params: {
     userId: user?.id ?? params.message.sender_chat?.id ?? null,
     username: user?.username ?? params.message.sender_chat?.username ?? null,
     action: deleteOutcome === "deleted" ? "scam_deleted" : "scam_detected_delete_failed",
-    reason: detection.reason === "referral_cashback_promo"
+    reason: (detection.reason === "referral_cashback_promo"
       ? "REFERRAL_CASHBACK_PROMO"
-      : `SCAM_RISK:${matchedRules.slice(0, 8).join(",")}`,
+      : `SCAM_RISK:${matchedRules.slice(0, 8).join(",")}`.slice(0, 120)) + scamDeleteDiagnostic,
     messageText: JSON.stringify({
       matched_rules: matchedRules,
       risk_score: finalAssessment.riskScore,
@@ -2061,7 +2060,9 @@ async function handleTelegramScamDetection(params: {
     messageId,
   });
 
-  if (detection.reason !== "referral_cashback_promo") {
+  if (deleteOutcome === "delete_failed") {
+    await notifyModerationDeleteFailure(params.adminClient, chatId, messageId);
+  } else if (detection.reason !== "referral_cashback_promo") {
     await sendScamWarningIfAllowed(chatId, params.settings);
   }
   return true;
@@ -2142,20 +2143,11 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
   if (automatedCjkScam.isScam) {
     const actorId = user?.id ?? message.via_bot?.id ?? null;
     const actorUsername = user?.username ?? message.via_bot?.username ?? null;
-    let deleted = false;
+    const deletion = await deleteModerationMessage(chatId, messageId);
+    const deleted = deletion.deleted;
     let banned = false;
-    let deleteErrorCode: number | null = null;
+    const deleteErrorCode = deletion.errorCode ?? null;
     let banErrorCode: number | null = null;
-
-    try {
-      const result = await deleteMessage(chatId, messageId);
-      deleted = result.ok === true;
-      if (!deleted) deleteErrorCode = result.data?.error_code ?? null;
-    } catch (error) {
-      console.warn("[AUTOMATED_CJK_SCAM] message deletion threw", {
-        error_name: error instanceof Error ? error.name : "unknown",
-      });
-    }
 
     // A direct foreign bot can continuously flood the group, so remove it at
     // once. For inline-bot messages, punish the sending user through the normal
@@ -2175,7 +2167,7 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
         userId: actorId,
         username: actorUsername,
         action: banned ? "automated_bot_banned" : (deleted ? "automated_scam_deleted_ban_failed" : "automated_scam_action_failed"),
-        reason: "automated_cjk_scam",
+        reason: ["automated_cjk_scam", !deleted ? `delete_failed:${deleteErrorCode ?? "unknown"}:${deletion.failure}` : null, !banned ? `ban_failed:${banErrorCode ?? "unknown"}` : null].filter(Boolean).join(";"),
         messageText: JSON.stringify({
           sender_kind: automatedCjkScam.senderKind,
           has_inline_keyboard: automatedCjkScam.hasInlineKeyboard,
@@ -2267,7 +2259,7 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
           !warningStateAvailable ? `warning_state:${warningStateErrorCode ?? "unknown"}` : null,
           inlineBanAttempted && !inlineBanSucceeded ? `ban_failed:${inlineBanErrorCode ?? "unknown"}` : null,
           inlineMuteAttempted && !inlineMuteSucceeded ? `mute_failed:${inlineMuteErrorCode ?? "unknown"}` : null,
-          !deleted ? `delete_failed:${deleteErrorCode ?? "unknown"}` : null,
+          !deleted ? `delete_failed:${deleteErrorCode ?? "unknown"}:${deletion.failure}` : null,
         ].filter(Boolean).join(";").slice(0, 240),
         messageText: automatedCjkScam.payload,
         messageId,
@@ -2528,21 +2520,15 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
   const countWarning = shouldEscalateModeration(reason, rawKeyword, matchedKeywordRow);
 
   console.log(
-    `[MODERATION] chat_id=${chatId} user_id=${violatingUserId} message_id=${messageId} message_type=${msgType} reason=${reason} count_warning=${countWarning} escalated_ban=${escalatedBan} detected_text=${JSON.stringify((detectedText || "").slice(0, 200))}`,
+    `[MODERATION] chat_id=${chatId} message_id=${messageId} message_type=${msgType} rule=${reason.split(":")[0]} count_warning=${countWarning} escalated_ban=${escalatedBan}`,
   );
 
   if (escalatedBan) {
-    let messageDeleted = false;
+    const deletion = await deleteModerationMessage(chatId, messageId);
+    const messageDeleted = deletion.deleted;
     let memberBanned = false;
-    let deleteErrorCode: number | undefined;
+    const deleteErrorCode = deletion.errorCode;
     let banErrorCode: number | undefined;
-    try {
-      const deletion = await deleteMessage(chatId, messageId);
-      messageDeleted = deletion.ok;
-      deleteErrorCode = deletion.data?.error_code;
-    } catch (error) {
-      console.warn("[MODERATION] delete request threw", { error_name: error instanceof Error ? error.name : "unknown" });
-    }
     try {
       const ban = await banChatMember(chatId, violatingUserId);
       memberBanned = ban.ok;
@@ -2564,20 +2550,22 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
       groupId: chatId,
       userId: violatingUserId,
       username: user?.username ?? null,
-      action: outcome === "ban_succeeded" ? "banned" : outcome,
-      reason: `coordinated_spam_escalation:delete_${messageDeleted ? "success" : `failed_${deleteErrorCode ?? "unknown"}`}:ban_${memberBanned ? "success" : `failed_${banErrorCode ?? "unknown"}`}`,
+      action: outcome === "ban_succeeded" ? (messageDeleted ? "banned" : "banned_message_delete_failed") : outcome,
+      reason: `${reason.slice(0, 100)};coordinated_spam_escalation:delete_${messageDeleted ? "success" : `failed_${deleteErrorCode ?? "unknown"}_${deletion.failure}`}:ban_${memberBanned ? "success" : `failed_${banErrorCode ?? "unknown"}`}`,
       messageId,
     });
     const label = user?.username ? `@${user.username}` : (user?.first_name ?? String(violatingUserId));
     try {
-      await sendMessage(
-        chatId,
-        outcome === "ban_succeeded"
-          ? `🚫 <b>${label}</b> was permanently banned — coordinated spam pattern (mention-bait + scam follow-up).`
-          : messageDeleted
-            ? `⚠️ The suspicious message was removed, but the account could not be banned automatically.`
-            : `⚠️ Automatic moderation could not remove the message or ban the account. An admin should review it.`,
-      );
+      if (!messageDeleted) {
+        await notifyModerationDeleteFailure(adminClient, chatId, messageId);
+      } else {
+        await sendMessage(
+          chatId,
+          outcome === "ban_succeeded"
+            ? `🚫 <b>${label}</b> was permanently banned — coordinated spam pattern (mention-bait + scam follow-up).`
+            : `⚠️ The suspicious message was removed, but the account could not be banned automatically.`,
+        );
+      }
     } catch (error) {
       console.warn("[MODERATION] notify failed", { error_name: error instanceof Error ? error.name : "unknown" });
     }

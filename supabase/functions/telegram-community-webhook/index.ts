@@ -3684,7 +3684,7 @@ function isContextReferenceQuestion(text: string): boolean {
     && /\b(la\s+gi|nghia\s+la\s+gi|what|mean|means)\b/.test(norm);
 }
 
-function buildGroupAiQuestion(params: {
+export function buildGroupAiQuestion(params: {
   message: TelegramMessage;
   botUsername: string;
   isReplyToBot: boolean;
@@ -3776,6 +3776,7 @@ type TelegramEventRecord = {
   raw_text: string;
   language: string | null;
   status: string;
+  created_at?: string;
 };
 
 type TelegramEventDetection = {
@@ -3835,7 +3836,7 @@ function isSocialLinkWithoutEventSignal(message: TelegramMessage): boolean {
   return !SOCIAL_EVENT_SIGNAL_RE.test(rawText);
 }
 
-function detectTelegramEvent(message: TelegramMessage): TelegramEventDetection | null {
+export function detectTelegramEvent(message: TelegramMessage): TelegramEventDetection | null {
   const chatId = message.chat?.id;
   const messageId = message.message_id;
   const rawText = normalizeEventText(extractText(message));
@@ -3905,7 +3906,12 @@ function detectTelegramEvent(message: TelegramMessage): TelegramEventDetection |
   else if (/livestream|youtube|facebook|live/i.test(rawText)) eventType = "livestream";
   else if (hasKeyword || hasEventLink) eventType = "community_event";
 
-  const isEvent = hasJoinSignal && (hasEventLink || hasKeyword || Boolean(topic) || Boolean(eventTime) || hasZoomCredential);
+  // Mentions of Zoom + join/register alone are ordinary prose, not an event.
+  // Missing access details are allowed only for a concrete scheduled invitation.
+  const hasConcreteTime = Boolean(eventTime && /\d{1,2}\s*(?:h|:)\s*\d{0,2}|\d{1,2}\s*(?:am|pm)\b/i.test(eventTime));
+  const hasScheduledInvitation = hasKeyword && hasJoinSignal && hasConcreteTime && Boolean(topic || eventDate);
+  const hasAccessDetails = hasZoom || Boolean(zoomId && /\b(?:zoom|meeting)\b/i.test(rawText)) || hasLivestreamSignal;
+  const isEvent = hasJoinSignal && (hasAccessDetails || hasScheduledInvitation);
   if (!isEvent) return null;
   const isShortReplyComment = Boolean(message.reply_to_message) && rawText.length < 180 && !hasZoom && !hasLivestreamSignal && !hasZoomCredential;
   // Bước 3A: bỏ hasLivestreamSignal khỏi auto-reply — chỉ auto-summary cho
@@ -4193,7 +4199,7 @@ async function handleMeditationSummaryInvite(
   return { matched: true, handled: true };
 }
 
-async function handleEventAssistant(message: TelegramMessage, settings: CommunitySettings): Promise<boolean> {
+export async function handleEventAssistant(message: TelegramMessage, settings: CommunitySettings): Promise<boolean> {
   const chatId = message.chat?.id;
   const messageId = message.message_id;
   if (!chatId || !messageId) return false;
@@ -4236,7 +4242,12 @@ async function handleEventAssistant(message: TelegramMessage, settings: Communit
 
 
   const detection = detectTelegramEvent(message);
-  if (!detection?.isEvent) return false;
+  if (!detection?.isEvent) {
+    if (EVENT_KEYWORD_RE.test(directTelegramText(message))) console.log("[EVENT_DETECT]", {
+      chat_id: chatId, message_id: messageId, reason: "insufficient_event_evidence",
+    });
+    return false;
+  }
 
   const { adminClient } = getClients();
   const trustedSender = await isTrustedEventSender(adminClient, message, chatId);
@@ -4333,46 +4344,93 @@ function convertEventTime(originalTime: string | null, sourceTimezone: string | 
   });
 }
 
-function detectEventFollowupIntent(prompt: string): "zoom" | "password" | "time_vi" | "time_my" | "livestream" | "topic" | "host" | null {
-  const norm = prompt.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const hasQuestionSignal = /\?|(\b(?:dau|o\s*dau|la\s*gi|gi\s*vay|co\s*khong|co\s+.*\s+khong|cho\s*(?:xin|angel|be)|gui\s*lai|xin\s+link|can\s+link|may\s*gio|bao\s*nhieu|what|where|when|which|is\s+there|do\s+we\s+have|please)\b)/.test(norm);
-  const hasTimeQuestionSignal = hasQuestionSignal || /\b(?:may\s*gio|gio\s*nao|doi\s*(?:sang|qua)\s*gio|chuyen\s*(?:sang|qua)\s*gio|time\s*(?:in|for)|convert\s*time|what\s*time|when)\b/.test(norm);
-  if (/\b(pw|pass|password|mat\s*khau)\b/.test(norm)) return "password";
-  if (/\b(link\s*)?zoom\b|vao\s*zoom|phong\s*zoom/.test(norm)) return "zoom";
-  if (hasTimeQuestionSignal && /\b(?:viet\s*nam|vietnam|vn|gio\s*vn)\b/.test(norm)) return "time_vi";
-  if (hasTimeQuestionSignal && /\b(?:malaysia|myt|gio\s*ma)\b/.test(norm)) return "time_my";
-  if (hasQuestionSignal && /youtube|facebook|livestream|live\b/.test(norm)) return "livestream";
-  if (/chu\s*de|topic|hom\s*nay/.test(norm)) return "topic";
-  if (/ai\s*(huong\s*dan|dan)|host|guide|nguoi\s*huong\s*dan/.test(norm)) return "host";
+/** Sender-authored text only; Telegram entity offsets are UTF-16, like JS slices. */
+export function eventFollowupSenderText(message: TelegramMessage): string {
+  let text = message.text ?? message.caption ?? "";
+  const entities = message.text != null ? message.entities : message.caption_entities;
+  for (const entity of [...(entities ?? [])].sort((a, b) => b.offset - a.offset)) {
+    if (["blockquote", "expandable_blockquote", "code", "pre", "url"].includes(entity.type)) {
+      text = text.slice(0, entity.offset) + " ".repeat(entity.length) + text.slice(entity.offset + entity.length);
+    }
+  }
+  return text;
+}
+
+export function detectEventFollowupIntent(prompt: string): "zoom" | "password" | "time_vi" | "time_my" | "livestream" | "topic" | "host" | null {
+  const authored = prompt
+    .replace(/```[\s\S]*?```|<blockquote\b[^>]*>[\s\S]*?<\/blockquote>|<code\b[^>]*>[\s\S]*?<\/code>|`[^`\n]*`/gi, " ")
+    .replace(/^[ \t]*(?:>|[—–])[^\n]*/gm, " ")
+    .replace(/“[^”]*”|‘[^’]*’|"[^"\n]*"|'[^'\n]*'/g, " ")
+    .replace(/https?:\/\/\S+|@[a-z0-9_]+/gi, " ");
+  const norm = authored.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+  // A question elsewhere in an article does not turn a Zoom mention into a request.
+  for (const clause of norm.match(/[^.!?;\n]+[!?]?/g) ?? []) {
+    const request = /\b(?:dau|la\s*gi|gi\s*vay|co\s+.+\s+khong|cho\s+xin|xin\s+(?:link|id|mat\s*khau|thong\s*tin)|gui\s*(?:lai|link)|can\s+link|may\s*gio|gio\s*nao|bao\s*gio|bao\s*nhieu|what|where|when|which|who|how|is\s+there|do\s+we\s+have|(?:can|could)\s+(?:you|anyone)|please\s+(?:send|share|give|provide)|convert\s*time|doi\s*(?:sang|qua)\s*gio|chuyen\s*(?:sang|qua)\s*gio|ai\s+(?:la\s+)?(?:nguoi\s+)?(?:huong\s*dan|dan))\b/.test(clause)
+      || /^\s*(?:send|share|give|provide)\b/.test(clause)
+      || /^\s*(?:(?:zoom\s*)?(?:link|id|password|pw|pass|mat\s*khau)|link\s*zoom|topic|chu\s*de|host|guide)(?:\s+(?:hom\s*nay|today|for\s*today))?\s*\?\s*$/.test(clause);
+    if (!request || /\b(?:what\s+do\s+you\s+think|how\s+do\s+you\s+feel|your\s+(?:thoughts|opinion)|nghi\s*gi|cam\s*nhan)\b/.test(clause)) continue;
+    if (/\b(?:pw|pass|password|mat\s*khau)\b/.test(clause)) return "password";
+    if (/\b(?:may\s*gio|gio\s*nao|bao\s*gio|time|when|thoi\s*gian)\b/.test(clause)) {
+      return /\b(?:viet\s*nam|vietnam|vn|gio\s*vn)\b/.test(clause) ? "time_vi" : "time_my";
+    }
+    if (/\b(?:youtube|facebook|livestream|live)\b/.test(clause)) return "livestream";
+    if (/\b(?:chu\s*de|topic)\b/.test(clause)) return "topic";
+    if (/\b(?:host|hosting|guide|nguoi\s*huong\s*dan|ai\s*(?:huong\s*dan|dan))\b/.test(clause)) return "host";
+    const asksZoomAccess = /\b(?:link|id|details|access|room|vao|phong|gui)\b/.test(clause)
+      || /\b(?:can|could)\s+(?:you|anyone)\b.*\b(?:send|share|give|provide)\b|\bplease\s+(?:send|share|give|provide)\b|^\s*(?:send|share|give|provide)\b/.test(clause)
+      || /\bhow\b.*\bjoin\b|\bzoom\s*(?:o\s*)?dau\b|\bwhere\s+is\s+(?:the\s+)?zoom\s*\?\s*$/.test(clause);
+    if (asksZoomAccess && /\bzoom\b/.test(clause)) return "zoom";
+  }
   return null;
 }
 
-async function findEventForFollowup(
+function usableFollowupEvent(event: TelegramEventRecord, intent?: NonNullable<ReturnType<typeof detectEventFollowupIntent>>): boolean {
+  if (event.status !== "active") return false;
+  const detected = detectTelegramEvent({
+    chat: { id: event.chat_id, type: "supergroup" }, message_id: event.message_id, text: event.raw_text,
+  });
+  if (!event.zoom_link && !event.zoom_id && !detected?.isEvent) return false;
+  if (intent === "zoom" || intent === "password") return Boolean(event.zoom_link || event.zoom_id || /\bzoom\b/i.test(event.raw_text));
+  if (intent === "livestream") return Boolean(event.livestream_links?.length);
+  return true;
+}
+
+// Implicit references expire after a day; explicit replies can identify older events.
+const EVENT_FOLLOWUP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+export async function findEventForFollowup(
   adminClient: ReturnType<typeof getClients>["adminClient"],
   chatId: number,
   replyMessageId?: number | null,
+  intent?: NonNullable<ReturnType<typeof detectEventFollowupIntent>>,
 ): Promise<TelegramEventRecord | null> {
+  const audit = (reason: string, eventMessageId?: number) => console.log("[EVENT_FOLLOWUP_SELECT]", {
+    chat_id: chatId, reply_message_id: replyMessageId ?? null, event_message_id: eventMessageId ?? null, reason,
+  });
   if (replyMessageId) {
-    const { data } = await adminClient
-      .from("telegram_event_messages")
-      .select("*")
-      .eq("chat_id", chatId)
-      .eq("message_id", replyMessageId)
-      .maybeSingle();
-    if (data) return data as TelegramEventRecord;
+    const { data, error } = await adminClient.from("telegram_event_messages").select("*")
+      .eq("chat_id", chatId).eq("message_id", replyMessageId).maybeSingle();
+    const eligible = !error && data && usableFollowupEvent(data as TelegramEventRecord, intent);
+    audit(error ? "lookup_failed" : eligible ? "direct_reply" : "reply_not_eligible_event", eligible ? data.message_id : undefined);
+    // Never attach a reply to an unrelated latest announcement.
+    return eligible ? data as TelegramEventRecord : null;
   }
-  const { data } = await adminClient
-    .from("telegram_event_messages")
-    .select("*")
-    .eq("chat_id", chatId)
-    .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data as TelegramEventRecord | null) ?? null;
+  const cutoff = Date.now() - EVENT_FOLLOWUP_MAX_AGE_MS;
+  const { data, error } = await adminClient.from("telegram_event_messages").select("*")
+    .eq("chat_id", chatId).eq("status", "active").gte("created_at", new Date(cutoff).toISOString())
+    .order("created_at", { ascending: false }).limit(20);
+  if (error) { audit("lookup_failed"); return null; }
+  const rows = (data ?? []) as TelegramEventRecord[];
+  const eligible = rows.filter((event) => Date.parse(event.created_at ?? "") >= cutoff && usableFollowupEvent(event, intent));
+  // With several candidates, the sender must identify one (e.g. by replying).
+  if (rows.length >= 20 || eligible.length !== 1) {
+    audit(rows.length >= 20 ? "candidate_limit" : eligible.length > 1 ? "ambiguous_events" : "no_recent_eligible_event");
+    return null;
+  }
+  audit("single_recent_event", eligible[0].message_id);
+  return eligible[0];
 }
 
-function buildEventFollowupAnswer(
+export function buildEventFollowupAnswer(
   intent: NonNullable<ReturnType<typeof detectEventFollowupIntent>>,
   event: TelegramEventRecord,
   lang: AngelLanguageBucket = "vi",
@@ -4448,7 +4506,7 @@ function buildEventFollowupAiPrompt(params: {
   return rendered;
 }
 
-async function handleGroupAiMention(message: TelegramMessage, settings: CommunitySettings): Promise<void> {
+export async function handleGroupAiMention(message: TelegramMessage, settings: CommunitySettings): Promise<void> {
   const chatId = message.chat?.id;
   const user = message.from;
   const senderChat = message.sender_chat;
@@ -4775,9 +4833,12 @@ async function handleGroupAiMention(message: TelegramMessage, settings: Communit
   }
 
   const followupEnabled = settings.event_followup_enabled !== false;
-  const eventIntent = !followupEnabled || triggerSource === "positive_community" ? null : detectEventFollowupIntent(prompt);
+  const eventIntent = !followupEnabled || triggerSource === "positive_community" ? null : detectEventFollowupIntent(eventFollowupSenderText(message));
+  if (followupEnabled && triggerSource !== "positive_community") console.log("[EVENT_FOLLOWUP_INTENT]", {
+    chat_id: chatId, message_id: message.message_id ?? null, intent: eventIntent, has_reply: Boolean(message.reply_to_message),
+  });
   if (eventIntent) {
-    const event = await findEventForFollowup(adminClient, chatId, message.reply_to_message?.message_id ?? null);
+    const event = await findEventForFollowup(adminClient, chatId, message.reply_to_message?.message_id ?? null, eventIntent);
     if (event) {
       const deterministicAnswer = buildEventFollowupAnswer(eventIntent, event, userLangBucket);
       let followupAnswer = deterministicAnswer;

@@ -1,3 +1,4 @@
+import { withTelegramGroupContext, TELEGRAM_GROUP_RELATION_RULE, type TelegramGroupContext } from "./telegram-group-context.ts";
 import { enforceTelegramVietnamesePronouns, telegramAddressContract, hasTelegramVerbatimContent } from "./angel/pronouns.ts";
 import { attemptModerationDelete, sendModerationFailureNotice, MODERATION_FAILURE_NOTICE } from "./telegram-moderation-notice.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
@@ -1215,8 +1216,8 @@ export type TelegramMessage = {
   sender_chat?: TelegramSenderChat;
   text?: string;
   caption?: string;
-  entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
-  caption_entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
+  entities?: Array<{ type: string; offset: number; length: number; url?: string; user?: TelegramUser }>;
+  caption_entities?: Array<{ type: string; offset: number; length: number; url?: string; user?: TelegramUser }>;
   new_chat_members?: TelegramUser[];
   reply_to_message?: TelegramMessage;
   photo?: Array<{ file_id: string; file_unique_id?: string; file_size?: number; width?: number; height?: number }>;
@@ -1230,7 +1231,7 @@ export type TelegramMessage = {
     link_preview_options?: { url?: string };
     photo?: Array<{ file_id: string }>;
   };
-  quote?: { text?: string };
+  quote?: { text?: string; entities?: Array<{ type: string; offset: number; length: number; url?: string; user?: TelegramUser }>; position?: number; is_manual?: boolean };
   via_bot?: TelegramUser;
   checklist?: {
     title?: string;
@@ -2143,6 +2144,7 @@ async function restyleWithAngel(params: {
   personaPrompt: string;
   langBucket: AngelLanguageBucket;
   ownerAddressOverride?: string | null;
+  telegramGroupContext?: TelegramGroupContext | null;
 }): Promise<string> {
   const langName = LANG_NAME[params.langBucket];
   const languageDirective = angelLanguageDirective(params.langBucket);
@@ -2164,14 +2166,14 @@ CRITICAL CONSTRAINTS:
   const result = await callAngelCore({
     forceProvider: "funcore",
     max_tokens: 800,
-    messages: [
+    messages: withTelegramGroupContext([
       { role: "system", content: languageDirective },
       { role: "system", content: editorSystem },
       { role: "system", content: params.styleRule },
       { role: "system", content: params.personaPrompt },
       { role: "system", content: languageDirective },
       { role: "user", content: userPayload },
-    ],
+    ], params.telegramGroupContext),
   });
   return (result.text || "").trim();
 }
@@ -2180,13 +2182,14 @@ async function repairLanguageWithAngel(params: {
   reply: string;
   originalUserMessage: string;
   langBucket: AngelLanguageBucket;
+  telegramGroupContext?: TelegramGroupContext | null;
 }): Promise<string> {
   const langName = LANG_NAME[params.langBucket];
   const languageDirective = angelLanguageDirective(params.langBucket);
   const result = await callAngelCore({
     forceProvider: "funcore",
     max_tokens: 800,
-    messages: [
+    messages: withTelegramGroupContext([
       { role: "system", content: languageDirective },
       {
         role: "system",
@@ -2196,7 +2199,7 @@ async function repairLanguageWithAngel(params: {
         role: "user",
         content: `ORIGINAL USER MESSAGE:\n"""${params.originalUserMessage}"""\n\nASSISTANT_REPLY_TO_REPAIR:\n"""${params.reply}"""`,
       },
-    ],
+    ], params.telegramGroupContext),
   });
   return (result.text || "").trim();
 }
@@ -2224,12 +2227,14 @@ async function getOrSetRestyleCache(params: {
   userQuestion?: string | null;
   /** Khi true: bỏ qua đọc/ghi cache — dùng cho regenerate. */
   bypassCache?: boolean;
+  telegramGroupContext?: TelegramGroupContext | null;
 }): Promise<{ text: string; cached: boolean }> {
   const ownerSeg = params.ownerAddressOverride?.trim() || "";
   const qNorm = (params.userQuestion ?? "").toLowerCase().replace(/\s+/g, " ").trim().slice(0, 500);
   const qSeg = qNorm ? await sha256Hex(qNorm) : "no-q";
+  const relationshipSeg = params.telegramGroupContext ? `|reply:${await sha256Hex(JSON.stringify(params.telegramGroupContext))}` : "";
   const cacheKey = await sha256Hex(
-    `${params.langBucket}|${params.personaPrompt}|${params.styleRule}|owner:${ownerSeg}|q:${qSeg}|${params.original}`,
+    `${params.langBucket}|${params.personaPrompt}|${params.styleRule}|owner:${ownerSeg}|q:${qSeg}${relationshipSeg}|${params.original}`,
   );
 
 
@@ -2335,6 +2340,8 @@ async function askAngelReply(params: {
   conversationContext?: AngelConversationContext | null;
   /** Context tức thì từ Telegram reply_to_message — ưu tiên hơn DB để tránh race log async. */
   immediateAssistantContext?: string | null;
+  /** Structured Telegram reply speakers; independent from sender addressing/auth. */
+  telegramGroupContext?: TelegramGroupContext | null;
   /** Attachments (ảnh gửi kèm) — forward tới `/angel-router` để Angel gốc tự phân tích. */
   attachments?: Array<{ kind: "image"; url?: string; base64?: string; mime_type?: string }>;
   /** Out-param: nếu router trả ảnh (image_generate / image_analyze) → askAngel mutate object này. */
@@ -2662,7 +2669,7 @@ ${addressRule}`;
         // lệch turn) đã bị loại — chúng là 2 nguồn gây stale/mismatch trong các case
         // "Fun Cosmos → Dạ bé muốn → bot nhảy sang PLP/trí tuệ".
         let _contextBridged = false;
-        if (!_isFactualLookup && shouldBridge(originalUserMessage)) {
+        if (!_isFactualLookup && (!params.telegramGroupContext || params.telegramGroupContext.recipient.evidence === "verified_bot_reply") && shouldBridge(originalUserMessage)) {
           const _bridgeKind: "confirmation" | "mixed" | "unresolved_ref" = isConfirmationOnly(originalUserMessage)
             ? "confirmation"
             : isMixedConfirmationTurn(originalUserMessage)
@@ -2923,6 +2930,8 @@ ${addressRule}`;
     if (_answerMode !== "auto") {
       console.log(`[askAngel] answer_mode=${_answerMode} qPreview="${(originalUserMessage || q).slice(0, 60).replace(/\n/g, " ")}"`);
     }
+    // Reply relationships survive factual mirror, provider fallback and retries.
+    messages = withTelegramGroupContext(messages, params.telegramGroupContext);
     // Keep the factual user-only mirror intact; all composed prompts end with the verified contract.
     if (messages.some((m) => m.role === "system")) messages.push({ role: "system", content: addressRule });
     const result = await callAngelCore({
@@ -2969,6 +2978,7 @@ ${addressRule}`;
         const retryMessages = [
           ...messages,
           { role: "system" as const, content: INTERPRET_AND_ANSWER_RULE },
+          ...(params.telegramGroupContext ? [{ role: "system" as const, content: TELEGRAM_GROUP_RELATION_RULE }] : []),
         ];
         let retryResult;
         try {
@@ -3034,6 +3044,7 @@ ${addressRule}`;
             personaPrompt,
             langBucket,
             userQuestion: originalUserMessage,
+            telegramGroupContext: params.telegramGroupContext,
             bypassCache: _regenerateMode || _creativeOverride,
           });
           if (restyled && restyled.length > 0) {
@@ -3060,6 +3071,7 @@ ${addressRule}`;
           reply,
           originalUserMessage,
           langBucket,
+          telegramGroupContext: params.telegramGroupContext,
         }));
         if (repaired && !replyViolatesAngelLanguageBucket(repaired, langBucket)) {
           reply = repaired;
@@ -3083,7 +3095,8 @@ ${addressRule}`;
     // KHÔNG dính vào request gửi FUN Core → không ảnh hưởng RAG. Rewrite CHỈ chạy
     // trên reply output. Nếu miss fact hoặc lỗi → tự động fallback về reply gốc.
     // TẦNG B: skip toàn bộ khi short DM + lang ok (đã cover ở guard đầu block).
-    if (_shortDmSkip) {
+    if (_shortDmSkip || params.telegramGroupContext) {
+      // Structured replies keep their verified speaker relationships; skip a context-free style rewrite.
       // no-op — enforceVietnamesePronouns + hardRevert đã chạy ở trên, đủ an toàn.
     } else {
     try {
@@ -3172,7 +3185,7 @@ ${addressRule}`;
                 { role: "user" as const, content: ANTI_REPEAT_RULE },
               ];
               retry = await callAngelCore({
-                messages: funcoreRetryMsgs,
+                messages: withTelegramGroupContext(funcoreRetryMsgs, params.telegramGroupContext),
                 forceProvider: "funcore" as const,
                 strictMirror: true,
               });
@@ -3184,7 +3197,9 @@ ${addressRule}`;
               }
               _retryRoute = "lovable";
               retry = await callAngelCore({
-                messages: [...messages, { role: "system" as const, content: ANTI_REPEAT_RULE }, REGENERATE_PREFIX],
+                messages: params.telegramGroupContext
+                  ? [...messages, { role: "system" as const, content: ANTI_REPEAT_RULE }]
+                  : [...messages, { role: "system" as const, content: ANTI_REPEAT_RULE }, REGENERATE_PREFIX],
                 forceProvider: "lovable" as const,
                 temperature: 0.95,
               });
@@ -3375,7 +3390,7 @@ ${addressRule}`;
       try {
         console.warn(`[askAngel] TIER1 retry-1 funcore clean strict-mirror qLen=${cleanUserText.length}`);
         const r1 = await callAngelCore({
-          messages: [{ role: "user", content: cleanUserText }],
+          messages: withTelegramGroupContext([{ role: "user", content: cleanUserText }], params.telegramGroupContext),
           forceProvider: "funcore",
           strictMirror: true,
         });
@@ -3409,10 +3424,10 @@ ${addressRule}`;
         try {
           console.warn(`[askAngel] TIER1 retry-2 lovable gateway`);
           const r2 = await callAngelCore({
-            messages: [
+            messages: withTelegramGroupContext([
               { role: "system", content: `${addressRule}\nTrả lời ấm áp, ngắn gọn, 2-3 emoji.` },
               { role: "user", content: cleanUserText },
-            ],
+            ], params.telegramGroupContext),
             forceProvider: "lovable",
           });
           const r2Text = sanitizeForTelegramHtml((r2.text ?? "").trim());
@@ -3450,6 +3465,7 @@ ${addressRule}`;
     const _staleEnabled = await getFlag("router.stale_fallback_on_error", true);
     if (
       _staleEnabled
+      && !params.telegramGroupContext
       && params.conversationContext?.chatId != null
       && params.conversationContext?.userId != null
       && params.adminClient

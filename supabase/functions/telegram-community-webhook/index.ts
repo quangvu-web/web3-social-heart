@@ -1,4 +1,5 @@
-﻿import { handleBotInvite } from "../_shared/telegram-unauthorized-invite.ts";
+﻿import { buildTelegramGroupContext, type TelegramGroupContext } from "../_shared/telegram-group-context.ts";
+import { handleBotInvite } from "../_shared/telegram-unauthorized-invite.ts";
 import { resolveDeletePermission } from "../_shared/telegram-moderation-notice.ts";
 import {
   activeDomains,
@@ -3688,11 +3689,13 @@ export function buildGroupAiQuestion(params: {
   message: TelegramMessage;
   botUsername: string;
   isReplyToBot: boolean;
+  botId?: number | null;
   triggerSource: AiTriggerSource;
   settings?: CommunitySettings;
-}): { prompt: string; question: string; replyContextPreview?: string } {
+}): { prompt: string; question: string; replyContextPreview?: string; groupContext?: TelegramGroupContext } {
   const prompt = cleanGroupAiPrompt(directTelegramText(params.message), params.botUsername);
   const replyContext = directTelegramText(params.message.reply_to_message).slice(0, 1500);
+  const groupContext = buildTelegramGroupContext(params.message, params.botId, params.botUsername);
 
   if (params.triggerSource === "positive_community") {
     const template = params.settings?.positive_engagement_prompt?.trim()
@@ -3709,28 +3712,17 @@ export function buildGroupAiQuestion(params: {
     return {
       prompt,
       question,
+      ...(groupContext ? { groupContext } : {}),
       replyContextPreview: replyContext ? replyContext.slice(0, 200) : undefined,
     };
   }
 
-  if (replyContext) {
-    const contextLabel = params.isReplyToBot
-      ? "Previous Angel message (background only)"
-      : "Quoted Telegram message (background only)";
-    const promptIsContextDependent = isContextReferenceQuestion(prompt) || prompt.length < 15;
-    const contextInstruction = promptIsContextDependent
-      ? (params.isReplyToBot
-          ? `The user's new message is short or refers back ("cái này", "đó là gì"…). Use the previous Angel message to understand what "this/that" means, then answer.`
-          : `The user's new message is short or refers back. Use the quoted message to understand what "this/that" means, then answer.`)
-      : `PRIORITY: answer the "Original user question" as a NEW standalone question. The ${params.isReplyToBot ? "previous Angel message" : "quoted message"} is only background — do NOT continue its topic, do NOT re-summarize it, and do NOT answer as if the user asked about it. If the new question is unrelated to the background, ignore the background entirely.`;
+  if (groupContext) {
     return {
       prompt,
-      question:
-        `Context: the user is replying to a message in a Telegram group and mentioning Angel.\n` +
-        `${contextLabel}: """${replyContext}"""\n` +
-        `Original user question (ANSWER THIS): """${prompt}"""\n` +
-        `${contextInstruction} Do not infer facts from the group name, sender_chat, or channel name.`,
-      replyContextPreview: replyContext.slice(0, 200),
+      question: prompt,
+      groupContext,
+      replyContextPreview: replyContext.slice(0, 200) || undefined,
     };
   }
 
@@ -4649,7 +4641,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
     }
   }
 
-  const aiQuestion = buildGroupAiQuestion({ message, botUsername, isReplyToBot, triggerSource, settings });
+  const aiQuestion = buildGroupAiQuestion({ message, botUsername, botId: bot?.id, isReplyToBot, triggerSource, settings });
   const prompt = aiQuestion.prompt;
   if (!prompt) {
     await sendMessage(chatId, "💛 Bé yêu, gõ câu hỏi sau khi tag Angel nhé. Ví dụ: <code>@" + (botUsername || "bot") + " FUN.RICH là gì?</code>", {
@@ -4854,6 +4846,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
               deterministicAnswer,
             }),
             originalUserMessage: prompt,
+            telegramGroupContext: aiQuestion.groupContext,
             systemPrompt: settings.ai_system_prompt,
             userLabel: actorLabel,
             personaMode: (settings as any).persona_mode,
@@ -4970,6 +4963,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
   try {
     const reply = await withTyping(chatId, () => askAngel({
       question: aiQuestion.question,
+      telegramGroupContext: aiQuestion.groupContext,
       originalUserMessage: prompt,
       systemPrompt: settings.ai_system_prompt,
       userLabel: actorLabel,

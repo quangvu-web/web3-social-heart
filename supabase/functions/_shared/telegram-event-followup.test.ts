@@ -28,7 +28,7 @@ Deno.test("quoted keywords do not turn a new unrelated question into event follo
   reply.reply_to_message = message(realAnnouncement, 1);
   const question = buildGroupAiQuestion({ message: reply, botUsername: "funrich_community_bot", isReplyToBot: false, triggerSource: "admin_message" });
   assert.equal(detectEventFollowupIntent(question.prompt), null);
-  assert.ok(question.question.includes("background only"));
+  assert.equal(question.groupContext?.replied_message.text, realAnnouncement);
 });
 Deno.test("real scheduled Zoom announcement may lack credentials and answer honestly", () => {
   const detected = detectTelegramEvent(message(realAnnouncement));

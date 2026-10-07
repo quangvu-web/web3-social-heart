@@ -5592,7 +5592,6 @@ export function detectExternalBotPromotion(
 }
 
 // ---- OCR via Lovable AI Gateway ----
-const ocrCache = new Map<string, { text: string; expiresAt: number }>();
 
 export function pickLargestPhotoFileId(message: TelegramMessage): {
   fileId: string;
@@ -5708,50 +5707,7 @@ export function buildImageAnalysisContext(description: string, userCaption: stri
   ].join("\n");
 }
 
-export async function runOcrOnPhoto(fileId: string, uniq: string): Promise<string> {
-  const cached = ocrCache.get(uniq);
-  const now = Date.now();
-  if (cached && cached.expiresAt > now) return cached.text;
-
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) return "";
-  const media = await tryFetchTelegramMedia(fileId, "ocr", {
-    allowedMimePrefixes: ["image/"],
-    maxBytes: 10 * 1024 * 1024,
-  });
-  if (!media) return "";
-
-  try {
-    const result = await callAiGateway(
-      {
-        model: "google/gemini-3.1-flash-lite",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an OCR engine. Output ONLY the literal text visible in the image, preserving the original language. No commentary, no translation. If no text is visible, output an empty string.",
-          },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Extract all readable text from this image." },
-              { type: "image_url", image_url: { url: media.dataUrl } },
-            ],
-          },
-        ],
-      },
-      { apiKey, label: "ocr" },
-    );
-    if (!result.ok) return "";
-    const text = gatewayText(result);
-    // Cache 6h by file_unique_id — same spam image often re-posted within a day.
-    ocrCache.set(uniq, { text, expiresAt: now + 6 * 60 * 60_000 });
-    return text;
-  } catch (err) {
-    console.error("[telegram-community] OCR error", err);
-    return "";
-  }
-}
+export { runOcrOnPhoto, type OcrResult } from "./telegram-ocr.ts";
 
 export function classifyMessageType(message: TelegramMessage): string {
   if (message.forward_origin || message.forward_from_chat || message.forward_from) return "forward";

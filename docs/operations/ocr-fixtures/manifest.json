@@ -1,0 +1,106 @@
+[
+  {
+    "expectedText": "FUN Profile\nCộng đồng yêu thương và kết nối\nHẹn gặp lúc 19:00 MYT",
+    "fontSize": 36,
+    "height": 512,
+    "id": "vietnamese",
+    "width": 1024,
+    "file": "vietnamese.png",
+    "sha256": "91c90ac72a6a55b6700bc06016864223f91b72f5aa0a8468da1506e7d53ee1b1",
+    "bytes": 30608,
+    "evaluation": {
+      "gemini": {
+        "status": "not_run",
+        "cer": null,
+        "latency_ms": null,
+        "billed_tokens": null,
+        "credits": null
+      },
+      "openai": {
+        "status": "not_run",
+        "cer": null,
+        "latency_ms": null,
+        "billed_tokens": null,
+        "usd": null
+      }
+    }
+  },
+  {
+    "expectedText": "Nội dung kiểm thử, không phải lời mời thật\nhttps://example.invalid/fixture\n@fixture_bot\n123 456 789",
+    "fontSize": 30,
+    "height": 768,
+    "id": "synthetic-links",
+    "width": 1024,
+    "file": "synthetic-links.png",
+    "sha256": "d050bfceba1c2caa84167d9ab96eb28e9524078b8fd75bade7c767f960f0bd39",
+    "bytes": 40020,
+    "evaluation": {
+      "gemini": {
+        "status": "not_run",
+        "cer": null,
+        "latency_ms": null,
+        "billed_tokens": null,
+        "credits": null
+      },
+      "openai": {
+        "status": "not_run",
+        "cer": null,
+        "latency_ms": null,
+        "billed_tokens": null,
+        "usd": null
+      }
+    }
+  },
+  {
+    "expectedText": "Dòng 1: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 2: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 3: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 4: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 5: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 6: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 7: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 8: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 9: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 10: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 11: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 12: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 13: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 14: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 15: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 16: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 17: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 18: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 19: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 20: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 21: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 22: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 23: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.\nDòng 24: thực hành biết ơn, giữ tâm bình an, kết nối LoveHUB.",
+    "fontSize": 16,
+    "height": 1024,
+    "id": "dense-small",
+    "width": 1024,
+    "file": "dense-small.png",
+    "sha256": "61d3011b17794e03c8d433849a68e78f83089c68fcdaf45458a9fa959f45e79e",
+    "bytes": 166289,
+    "evaluation": {
+      "gemini": {
+        "status": "not_run",
+        "cer": null,
+        "latency_ms": null,
+        "billed_tokens": null,
+        "credits": null
+      },
+      "openai": {
+        "status": "not_run",
+        "cer": null,
+        "latency_ms": null,
+        "billed_tokens": null,
+        "usd": null
+      }
+    }
+  },
+  {
+    "expectedText": "",
+    "fontSize": 24,
+    "height": 512,
+    "id": "no-text",
+    "width": 512,
+    "file": "no-text.png",
+    "sha256": "501045c008f1cf295918a42835645093162202d12a6ba21399d513d92e3fa831",
+    "bytes": 5704,
+    "evaluation": {
+      "gemini": {
+        "status": "not_run",
+        "cer": null,
+        "latency_ms": null,
+        "billed_tokens": null,
+        "credits": null
+      },
+      "openai": {
+        "status": "not_run",
+        "cer": null,
+        "latency_ms": null,
+        "billed_tokens": null,
+        "usd": null
+      }
+    }
+  }
+]

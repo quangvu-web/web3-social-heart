@@ -2363,8 +2363,15 @@ async function evaluateModerationCore(message: TelegramMessage, settings: NonNul
   if (!reason && settings.enable_ocr_scan !== false && (isHighRiskContainer || isNewUser)) {
     const photo = pickLargestPhotoFileId(message);
     if (photo) {
-      const ocrText = await runOcrOnPhoto(photo.fileId, photo.uniq);
-      if (ocrText) {
+      const ocr = await runOcrOnPhoto(photo.fileId, photo.uniq);
+      if (ocr.status === "unavailable") {
+        // Not a clean scan or a violation: continue all remaining text/URL rules.
+        console.warn("[community] ocr_scan_unavailable", {
+          chatId, messageId, reason: ocr.reason, httpStatus: ocr.httpStatus,
+        });
+      }
+      if (ocr.status === "text") {
+        const ocrText = ocr.text;
         const combinedOcrText = [text, ocrText].filter(Boolean).join("\n");
         if (isTrustedFunCommunityContent(combinedOcrText) || isFunSpiritualContent(combinedOcrText)) {
           console.log("[community] fun_ocr_bypass", { chatId, messageId, userId: user?.id });

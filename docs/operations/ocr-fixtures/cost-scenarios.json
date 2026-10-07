@@ -1,0 +1,66 @@
+{
+  "as_of_myt": "2026-10-07",
+  "type": "offline_assumptions_not_billed_usage",
+  "sources": [
+    "https://developers.openai.com/api/docs/models/gpt-5.6-luna",
+    "https://developers.openai.com/api/docs/guides/images-vision"
+  ],
+  "rows": [
+    {
+      "fixture": "vietnamese",
+      "dimensions": [
+        1024,
+        512
+      ],
+      "model": "gpt-5.6-luna",
+      "detail": "original",
+      "image_tokens_estimate": 615,
+      "prompt_tokens_assumed": 100,
+      "output_tokens_assumed": 200,
+      "usd_scenario": 0.000383,
+      "measured": false
+    },
+    {
+      "fixture": "synthetic-links",
+      "dimensions": [
+        1024,
+        768
+      ],
+      "model": "gpt-5.6-luna",
+      "detail": "original",
+      "image_tokens_estimate": 922,
+      "prompt_tokens_assumed": 100,
+      "output_tokens_assumed": 200,
+      "usd_scenario": 0.00044439999999999996,
+      "measured": false
+    },
+    {
+      "fixture": "dense-small",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "model": "gpt-5.6-luna",
+      "detail": "original",
+      "image_tokens_estimate": 1229,
+      "prompt_tokens_assumed": 100,
+      "output_tokens_assumed": 1000,
+      "usd_scenario": 0.0014658,
+      "measured": false
+    },
+    {
+      "fixture": "no-text",
+      "dimensions": [
+        512,
+        512
+      ],
+      "model": "gpt-5.6-luna",
+      "detail": "original",
+      "image_tokens_estimate": 308,
+      "prompt_tokens_assumed": 100,
+      "output_tokens_assumed": 50,
+      "usd_scenario": 0.00014160000000000003,
+      "measured": false
+    }
+  ]
+}

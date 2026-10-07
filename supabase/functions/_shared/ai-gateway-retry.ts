@@ -23,7 +23,8 @@ export interface GatewayResult {
 
 export async function callAiGateway(
   body: Record<string, unknown>,
-  opts: { apiKey?: string | null; label?: string; timeoutMs?: number; maxAttempts?: number } = {},
+  // OCR disables upstream error details to keep provider bodies out of logs.
+  opts: { apiKey?: string | null; label?: string; timeoutMs?: number; maxAttempts?: number; logResponseDetails?: boolean } = {},
 ): Promise<GatewayResult> {
   const apiKey = opts.apiKey ?? Deno.env.get("LOVABLE_API_KEY");
   const label = opts.label ?? "ai-gateway";
@@ -53,7 +54,7 @@ export async function callAiGateway(
       const retryable = res.status === 408 || res.status === 429 || res.status >= 500;
       last = { ok: false, status: res.status, data: null, error: `${label} HTTP ${res.status}: ${text}`, retryable };
       if (!retryable) {
-        console.warn(`[ai-gateway] ${label} permanent failure`, { status: res.status, body: text });
+        console.warn(`[ai-gateway] ${label} permanent failure`, { status: res.status, ...(opts.logResponseDetails !== false ? { body: text } : {}) });
         return last;
       }
       const retryAfter = Number(res.headers.get("retry-after"));
@@ -74,7 +75,7 @@ export async function callAiGateway(
       clearTimeout(timer);
     }
   }
-  console.warn(`[ai-gateway] ${label} exhausted retries`, { status: last.status, error: last.error });
+  console.warn(`[ai-gateway] ${label} exhausted retries`, { status: last.status, ...(opts.logResponseDetails !== false ? { error: last.error } : {}) });
   return last;
 }
 

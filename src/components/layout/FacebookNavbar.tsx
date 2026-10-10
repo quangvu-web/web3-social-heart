@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   Gamepad2,
   RefreshCw,
+  Shield,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -60,6 +61,27 @@ export const FacebookNavbar = () => {
   const { count: liveCount, hasLive } = useFollowingLiveStatus();
   const appVersion = useAppVersion();
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Kiểm tra quyền admin qua RPC has_role; lỗi hoặc false → giữ isAdmin = false
+  useEffect(() => {
+    let cancelled = false;
+    setIsAdmin(false);
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('has_role', {
+          _user_id: user.id,
+          _role: 'admin',
+        });
+        if (cancelled) return;
+        if (!error && data === true) setIsAdmin(true);
+      } catch {
+        // lỗi mạng/RPC → ẩn mục, không coi lỗi là có quyền
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
   const mustVerifyEmail = isAuthenticated && (profile?.trust_level ?? 0) < 1;
 
   const handleCheckUpdate = async () => {
@@ -372,7 +394,18 @@ export const FacebookNavbar = () => {
                     <Settings className="w-4 h-4" />
                     <span>{t('accountSettings') || 'Account Settings'}</span>
                   </DropdownMenuItem>
-                  
+
+                  {/* Admin — Telegram Operations (chỉ hiện khi có quyền admin) */}
+                  {isAdmin && (
+                    <DropdownMenuItem
+                      onClick={() => navigate('/admin')}
+                      className="cursor-pointer gap-2"
+                    >
+                      <Shield className="w-4 h-4" />
+                      <span>Admin — Telegram Operations</span>
+                    </DropdownMenuItem>
+                  )}
+
                   {/* Logout */}
                   <DropdownMenuItem 
                     onClick={handleSignOut}

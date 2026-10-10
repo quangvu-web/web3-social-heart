@@ -6519,6 +6519,39 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_moderation_notice_events: {
+        Row: {
+          created_at: string
+          group_id: number
+          message_id: number
+        }
+        Insert: {
+          created_at?: string
+          group_id: number
+          message_id: number
+        }
+        Update: {
+          created_at?: string
+          group_id?: number
+          message_id?: number
+        }
+        Relationships: []
+      }
+      telegram_moderation_notice_groups: {
+        Row: {
+          group_id: number
+          last_claimed_at: string | null
+        }
+        Insert: {
+          group_id: number
+          last_claimed_at?: string | null
+        }
+        Update: {
+          group_id?: number
+          last_claimed_at?: string | null
+        }
+        Relationships: []
+      }
       telegram_otp_challenges: {
         Row: {
           attempts: number
@@ -6615,6 +6648,30 @@ export type Database = {
           kind?: string
           message_id?: number | null
           user_id?: number
+        }
+        Relationships: []
+      }
+      telegram_unauthorized_bot_invites: {
+        Row: {
+          bot_id: number
+          claimed_at: string
+          event_date: number
+          group_id: number
+          update_id: number
+        }
+        Insert: {
+          bot_id: number
+          claimed_at?: string
+          event_date: number
+          group_id: number
+          update_id: number
+        }
+        Update: {
+          bot_id?: number
+          claimed_at?: string
+          event_date?: number
+          group_id?: number
+          update_id?: number
         }
         Relationships: []
       }
@@ -7742,6 +7799,19 @@ export type Database = {
       }
       tg_claim_join_event: {
         Args: { p_id: string; p_lease_seconds?: number }
+        Returns: string
+      }
+      tg_claim_moderation_failure_notice: {
+        Args: { p_group_id: number; p_message_id: number }
+        Returns: string
+      }
+      tg_claim_unauthorized_bot_invite: {
+        Args: {
+          p_bot_id: number
+          p_event_date: number
+          p_group_id: number
+          p_update_id: number
+        }
         Returns: string
       }
       tg_finish_join_event: {

@@ -26,7 +26,7 @@ export function AuthTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-4 mb-6 bg-muted/50 p-1.5 rounded-full border border-[#166534]/30">
+      <TabsList className="grid w-full grid-cols-4 mb-6 bg-muted/50 p-1.5 rounded-full border border-primary/30">
         <TabsTrigger value="email" className="flex items-center gap-1.5 rounded-full text-sm sm:text-base font-semibold">
           <Mail size={16} />
           <span className="hidden sm:inline">OTP</span>

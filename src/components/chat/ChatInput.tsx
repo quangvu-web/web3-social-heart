@@ -163,7 +163,7 @@ export function ChatInput({
         <Button
           variant="ghost"
           size="icon"
-          className="flex-shrink-0 border border-[#C9A84C]/30 hover:border-[#C9A84C]/60 rounded-full"
+          className="flex-shrink-0 border border-gold/30 hover:border-gold/60 rounded-full"
           onClick={() => fileInputRef.current?.click()}
           disabled={isDisabled || mediaFiles.length >= 4}
         >

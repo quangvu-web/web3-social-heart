@@ -32,14 +32,14 @@ export function RedEnvelopeCard({
     <>
       <div
         className={cn(
-          'rounded-xl border bg-gradient-to-br from-[#C62828] via-[#B71C1C] to-[#7f1d1d] text-white p-3 shadow-sm',
+          'rounded-xl border bg-gradient-to-br from-destructive via-destructive to-destructive text-primary-foreground p-3 shadow-sm',
           compact && 'p-2'
         )}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="font-semibold truncate">Lì xì</div>
-            <div className="text-xs text-white/80">
+            <div className="text-xs text-primary-foreground/80">
               {isLoading || !envelope
                 ? 'Đang tải...'
                 : `${envelope.remaining_count}/${envelope.total_count} còn lại`}
@@ -50,7 +50,7 @@ export function RedEnvelopeCard({
               variant="secondary"
               size="sm"
               onClick={() => setOpenDetails(true)}
-              className="bg-white/15 hover:bg-white/20 text-white border-white/20"
+              className="bg-card/15 hover:bg-card/20 text-primary-foreground border-white/20"
             >
               Xem
             </Button>
@@ -58,19 +58,19 @@ export function RedEnvelopeCard({
               size="sm"
               onClick={() => claim.mutate()}
               disabled={!canClaim || claim.isPending}
-              className="bg-[#FFD700] hover:bg-[#FFC107] text-[#2E2A1F]"
+              className="bg-gold-line hover:bg-[hsl(var(--gold-hover))] text-[hsl(var(--foreground))]"
             >
               {claim.isPending ? '...' : hasClaimed ? 'Đã nhận' : 'Nhận'}
             </Button>
           </div>
         </div>
         {!isLoading && envelope && (
-          <div className="mt-2 text-xs text-white/80">
+          <div className="mt-2 text-xs text-primary-foreground/80">
             Còn lại: {envelope.remaining_amount} {envelope.token}
           </div>
         )}
         {!isLoading && envelope && !isActive && (
-          <div className="mt-2 text-xs text-white/80">Đã hết hạn hoặc đã hết.</div>
+          <div className="mt-2 text-xs text-primary-foreground/80">Đã hết hạn hoặc đã hết.</div>
         )}
       </div>
 

@@ -64,26 +64,26 @@ export const TopRanking = memo(() => {
   const UserRow = ({ user, rank }: { user: LeaderboardUser; rank: number }) => (
     <div
       onClick={() => handleUserClick(user.id)}
-      className="relative border-b border-gold/20 last:border-b-0 py-2 first:pt-0 last:pb-0 bg-white/60 hover:bg-white/80 transition-all cursor-pointer"
+      className="relative border-b border-gold/20 last:border-b-0 py-2 first:pt-0 last:pb-0 bg-card/60 hover:bg-card/80 transition-all cursor-pointer"
     >
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-3">
-          <span className="text-[#FFD700] font-bold text-lg w-5 text-center">{rank}</span>
-          <Avatar className="w-8 h-8 border-2 border-[#D4AF37]/60">
+          <span className="text-gold-line font-bold text-lg w-5 text-center">{rank}</span>
+          <Avatar className="w-8 h-8 border-2 border-gold/60">
             <AvatarImage src={user.avatar_url} />
-            <AvatarFallback className="text-xs bg-[#D4AF37]/10 text-primary">
+            <AvatarFallback className="text-xs bg-gold/10 text-primary">
               {user.username?.[0]?.toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <span className="text-primary text-sm font-medium truncate max-w-[120px]">{user.username}</span>
         </div>
-        <span className="text-[#FFD700] font-bold text-sm">{user.total_reward.toLocaleString("vi-VN")}</span>
+        <span className="text-gold-line font-bold text-sm">{user.total_reward.toLocaleString("vi-VN")}</span>
       </div>
     </div>
   );
 
   return (
-    <div className="rounded-2xl overflow-hidden border-2 border-gold/60 bg-white/80 backdrop-blur-xl shadow-lg">
+    <div className="rounded-2xl overflow-hidden border-2 border-gold/60 bg-card/80 backdrop-blur-xl shadow-lg">
       <div className="relative p-3 space-y-2">
         {/* Header with logo */}
         <div className="text-center space-y-1">
@@ -103,11 +103,11 @@ export const TopRanking = memo(() => {
             className="text-[22px] font-black tracking-wider uppercase"
             style={{
               fontFamily: "'Orbitron', 'Rajdhani', sans-serif",
-              background: 'linear-gradient(135deg, #FFD700 0%, #FFEC8B 15%, #FFD700 30%, #FFC125 50%, #FFD700 70%, #FFEC8B 85%, #FFD700 100%)',
+              background: 'linear-gradient(135deg, hsl(var(--gold-line)) 0%, hsl(var(--gold-light)) 15%, hsl(var(--gold-line)) 30%, hsl(var(--gold-line)) 50%, hsl(var(--gold-line)) 70%, hsl(var(--gold-light)) 85%, hsl(var(--gold-line)) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
-              filter: 'drop-shadow(0 1px 2px rgba(255, 215, 0, 0.5))',
+              filter: 'drop-shadow(0 1px 2px hsl(var(--gold-line) / 0.5))',
             }}
           >
             TOP RANKING
@@ -127,7 +127,7 @@ export const TopRanking = memo(() => {
         {/* View All Button */}
         <Button
           onClick={() => navigate("/leaderboard")}
-          className="w-full mt-3 bg-[#1a7d45] hover:bg-[#166534] text-white font-bold transition-all group border border-[#D4AF37]"
+          className="w-full mt-3 bg-primary hover:bg-primary text-primary-foreground font-bold transition-all group border border-gold"
         >
           Xem bảng xếp hạng đầy đủ
           <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />

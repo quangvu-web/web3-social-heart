@@ -108,14 +108,14 @@ export function AvatarEditor({
         <div 
           className="rounded-full p-1"
           style={{
-            background: 'linear-gradient(135deg, #166534 0%, #22c55e 50%, #16a34a 100%)'
+            background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 50%, hsl(var(--primary-hover)) 100%)'
           }}
         >
           <Avatar 
             className={`${sizeClasses} border-4 border-white`}
           >
             {currentAvatarUrl && <AvatarImage src={currentAvatarUrl} />}
-            <AvatarFallback className="text-4xl md:text-5xl bg-primary text-white">
+            <AvatarFallback className="text-4xl md:text-5xl bg-primary text-primary-foreground">
               {username?.[0]?.toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>

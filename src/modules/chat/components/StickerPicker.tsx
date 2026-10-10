@@ -26,7 +26,7 @@ export function StickerPicker({ onSelect, disabled, open, onOpenChange }: Sticke
             variant="ghost"
             size="sm"
             disabled={disabled}
-            className="flex-shrink-0 border border-[#C9A84C]/30 hover:border-[#C9A84C]/60 rounded-full px-3"
+            className="flex-shrink-0 border border-gold/30 hover:border-gold/60 rounded-full px-3"
             title="Stickers"
           >
             Stickers

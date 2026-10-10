@@ -34,7 +34,7 @@ export function GiftHistoryItem({ item, direction }: GiftHistoryItemProps) {
   const txUrl = item.tx_hash ? `https://bscscan.com/tx/${item.tx_hash}` : null;
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E7C76A]/30 bg-white/70 px-4 py-3 shadow-sm">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-gold-light/30 bg-card/70 px-4 py-3 shadow-sm">
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFF4D6] text-[#8B6B2E]">
           {direction === 'sent' ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
@@ -44,7 +44,7 @@ export function GiftHistoryItem({ item, direction }: GiftHistoryItemProps) {
             <span className="text-xs font-semibold uppercase text-[#8B7355]">
               {direction === 'sent' ? 'Sent' : 'Received'}
             </span>
-            <span className="font-semibold text-[#2E2A1F]">
+            <span className="font-semibold text-[hsl(var(--foreground))]">
               {item.amount_numeric} {item.token}
             </span>
             <Badge

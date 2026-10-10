@@ -87,8 +87,8 @@ export const MobileBottomNav = memo(() => {
                 item.isCenter
                   ? 'relative -mt-8 border-transparent'
                   : item.path && isActive(item.path)
-                  ? 'text-white bg-primary border-[#C9A84C]'
-                  : 'text-foreground hover:text-primary hover:bg-primary/10 border-transparent hover:border-[#C9A84C]/40 active:text-white active:bg-primary'
+                  ? 'text-primary-foreground bg-primary border-gold'
+                  : 'text-foreground hover:text-primary hover:bg-primary/10 border-transparent hover:border-gold/40 active:text-primary-foreground active:bg-primary'
               }`}
             >
               {item.isCenter ? (
@@ -98,10 +98,10 @@ export const MobileBottomNav = memo(() => {
                   <div className="absolute inset-0 w-16 h-16 rounded-full bg-gradient-to-br from-amber-400/40 to-yellow-500/40 blur-md animate-pulse" />
                   {/* Main button */}
                   <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 shadow-lg shadow-amber-500/50 flex items-center justify-center border-4 border-background active:scale-95 transition-transform">
-                    <item.icon className="w-7 h-7 text-white drop-shadow-md" strokeWidth={2.5} />
+                    <item.icon className="w-7 h-7 text-primary-foreground drop-shadow-md" strokeWidth={2.5} />
                   </div>
                   {/* Sparkle decorations */}
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full animate-ping opacity-75" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-card rounded-full animate-ping opacity-75" />
                   <div className="absolute -bottom-0.5 -left-0.5 w-2 h-2 bg-amber-200 rounded-full animate-pulse" />
                 </div>
               ) : (

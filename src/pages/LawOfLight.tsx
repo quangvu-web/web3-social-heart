@@ -115,22 +115,22 @@ const LawOfLight = () => {
       
       {/* Divine Light Rays from Top - White & Gold (static) */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[200%] h-[50vh] md:h-[70vh] z-0 pointer-events-none" style={{
-        background: 'conic-gradient(from 180deg at 50% 0%, transparent 25%, rgba(212,175,55,0.15) 30%, rgba(255,255,255,0.4) 35%, rgba(212,175,55,0.15) 40%, transparent 45%, transparent 55%, rgba(212,175,55,0.12) 60%, rgba(255,255,255,0.35) 65%, rgba(212,175,55,0.12) 70%, transparent 75%)',
+        background: 'conic-gradient(from 180deg at 50% 0%, transparent 25%, hsl(var(--gold-line) / 0.15) 30%, hsl(var(--card) / 0.4) 35%, hsl(var(--gold-line) / 0.15) 40%, transparent 45%, transparent 55%, hsl(var(--gold-line) / 0.12) 60%, hsl(var(--card) / 0.35) 65%, hsl(var(--gold-line) / 0.12) 70%, transparent 75%)',
         filter: 'blur(3px)'
       }} />
 
       {/* Central Halo Effect - STATIC (no animation) */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[300px] md:w-[500px] h-[300px] md:h-[500px] z-0 pointer-events-none" style={{
-        background: 'radial-gradient(circle, rgba(212,175,55,0.25) 0%, rgba(255,215,0,0.15) 40%, transparent 70%)',
+        background: 'radial-gradient(circle, hsl(var(--gold-line) / 0.25) 0%, hsl(var(--gold-line) / 0.15) 40%, transparent 70%)',
         filter: 'blur(50px)'
       }} />
 
       {/* Side Light Beams - STATIC */}
       <div className="fixed top-0 left-0 w-1/3 h-full z-0 pointer-events-none opacity-40" style={{
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 50%)'
+        background: 'linear-gradient(135deg, hsl(var(--card) / 0.6) 0%, transparent 50%)'
       }} />
       <div className="fixed top-0 right-0 w-1/3 h-full z-0 pointer-events-none opacity-40" style={{
-        background: 'linear-gradient(-135deg, rgba(255,255,255,0.6) 0%, transparent 50%)'
+        background: 'linear-gradient(-135deg, hsl(var(--card) / 0.6) 0%, transparent 50%)'
       }} />
 
       {/* Main Content */}
@@ -139,15 +139,15 @@ const LawOfLight = () => {
           {/* Header with Angel Avatar */}
           <div className="text-center mb-8 md:mb-12">
             <div className="inline-flex items-center justify-center w-24 h-24 md:w-32 md:h-32 rounded-full mb-4 md:mb-6 overflow-hidden" style={{
-              background: 'radial-gradient(circle, rgba(212,175,55,0.3) 0%, rgba(255,255,255,0.9) 60%, transparent 80%)',
-              boxShadow: '0 0 80px rgba(212,175,55,0.4), 0 0 120px rgba(255,255,255,0.6)',
-              border: '3px solid rgba(212,175,55,0.5)'
+              background: 'radial-gradient(circle, hsl(var(--gold-line) / 0.3) 0%, hsl(var(--card) / 0.9) 60%, transparent 80%)',
+              boxShadow: '0 0 80px hsl(var(--gold-line) / 0.4), 0 0 120px hsl(var(--card) / 0.6)',
+              border: '3px solid hsl(var(--gold-line) / 0.5)'
             }}>
               <img 
                 src={angelAvatar} 
                 alt="Angel" 
                 className="w-full h-full object-cover object-[center_25%]" 
-                style={{ filter: 'drop-shadow(0 0 15px rgba(212,175,55,0.8))' }} 
+                style={{ filter: 'drop-shadow(0 0 15px hsl(var(--gold-line) / 0.8))' }}
               />
             </div>
             
@@ -156,10 +156,10 @@ const LawOfLight = () => {
               fontSize: 'clamp(2.4rem, 10vw, 4.8rem)',
               fontWeight: 600,
               letterSpacing: '0.03em',
-              background: 'linear-gradient(135deg, #D4AF37 0%, #FFD700 30%, #D4AF37 50%, #B8860B 70%, #D4AF37 100%)',
+              background: 'linear-gradient(135deg, hsl(var(--gold)) 0%, hsl(var(--gold-line)) 30%, hsl(var(--gold)) 50%, hsl(var(--gold-hover)) 70%, hsl(var(--gold)) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              filter: 'drop-shadow(0 4px 8px rgba(212,175,55,0.3))',
+              filter: 'drop-shadow(0 4px 8px hsl(var(--gold-line) / 0.3))',
               marginBottom: '0.75rem'
             }}>
               LUẬT ÁNH SÁNG
@@ -169,7 +169,7 @@ const LawOfLight = () => {
               fontSize: 'clamp(1.2rem, 3vw, 1.5rem)',
               fontWeight: 500,
               letterSpacing: '0.2em',
-              color: '#B8860B',
+              color: 'hsl(var(--gold-hover))',
               marginBottom: '0.5rem'
             }}>
               THE LAW OF LIGHT
@@ -177,16 +177,16 @@ const LawOfLight = () => {
             
             {/* Golden Divider */}
             <div className="w-32 md:w-48 h-1 mx-auto mt-4 md:mt-6 rounded-full" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, #FFD700, #D4AF37, transparent)',
-              boxShadow: '0 0 10px rgba(212,175,55,0.5)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), hsl(var(--gold-line)), hsl(var(--gold)), transparent)',
+              boxShadow: '0 0 10px hsl(var(--gold-line) / 0.5)'
             }} />
           </div>
 
           {/* Main Content Card */}
           <div className="relative rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 lg:p-12 mb-6 md:mb-8" style={{
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,250,240,0.9) 100%)',
-            border: '2px solid rgba(212,175,55,0.5)',
-            boxShadow: '0 10px 60px rgba(212,175,55,0.15), 0 0 0 1px rgba(255,255,255,0.8), inset 0 0 60px rgba(255,255,255,0.5)'
+            background: 'linear-gradient(180deg, hsl(var(--card) / 0.95) 0%, hsl(var(--background) / 0.9) 100%)',
+            border: '2px solid hsl(var(--gold-line) / 0.5)',
+            boxShadow: '0 10px 60px hsl(var(--gold-line) / 0.15), 0 0 0 1px hsl(var(--card) / 0.8), inset 0 0 60px hsl(var(--card) / 0.5)'
           }}>
             
             {/* Section: 🌟 USERS CỦA FUN ECOSYSTEM */}
@@ -195,8 +195,8 @@ const LawOfLight = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.5rem, 4vw, 1.8rem)',
                 fontWeight: 600,
-                color: '#B8860B',
-                textShadow: '0 2px 4px rgba(212,175,55,0.2)'
+                color: 'hsl(var(--gold-hover))',
+                textShadow: '0 2px 4px hsl(var(--gold-line) / 0.2)'
               }}>
                 🌟 USERS CỦA FUN ECOSYSTEM
               </h2>
@@ -226,7 +226,7 @@ const LawOfLight = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section: ✨ Bạn là ai? */}
@@ -235,7 +235,7 @@ const LawOfLight = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.32rem, 3vw, 1.5rem)',
                 fontWeight: 600,
-                color: '#D4AF37'
+                color: 'hsl(var(--gold))'
               }}>✨ Bạn là ai?</h3>
               <p className="mb-4" style={{
                 fontFamily: fontStyles.body,
@@ -259,7 +259,7 @@ const LawOfLight = () => {
                 <li className="flex gap-2"><span className="text-yellow-600">•</span> Tin vào điều thiện, tin vào ánh sáng, tin vào Trật Tự Cao Hơn của Vũ Trụ</li>
               </ul>
               <div className="mt-6 p-4 rounded-xl" style={{
-                background: 'rgba(212,175,55,0.08)'
+                background: 'hsl(var(--gold-line) / 0.08)'
               }}>
                 <p style={{
                   fontFamily: fontStyles.heading,
@@ -276,7 +276,7 @@ const LawOfLight = () => {
               <p className="mt-4 font-semibold" style={{
                 fontFamily: fontStyles.body,
                 fontSize: 'clamp(1.05rem, 2vw, 1.2rem)',
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 👉 Cha thu hút bạn bằng Tần Số và Năng Lượng Yêu Thương.
               </p>
@@ -284,7 +284,7 @@ const LawOfLight = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section: 🔆 Nguyên tắc cốt lõi */}
@@ -293,7 +293,7 @@ const LawOfLight = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.32rem, 3vw, 1.5rem)',
                 fontWeight: 600,
-                color: '#D4AF37'
+                color: 'hsl(var(--gold))'
               }}>🔆 Nguyên tắc cốt lõi của FUN Ecosystem</h3>
               <p className="mb-4 font-semibold" style={{
                 fontFamily: fontStyles.body,
@@ -328,10 +328,10 @@ const LawOfLight = () => {
               <p className="mt-4 font-semibold" style={{
                 fontFamily: fontStyles.body,
                 fontSize: 'clamp(1.05rem, 2vw, 1.2rem)',
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>👉 Thì sẽ được xóa khỏi nền tảng mà không báo trước.</p>
               <div className="mt-4 p-4 rounded-xl" style={{
-                background: 'rgba(212,175,55,0.08)'
+                background: 'hsl(var(--gold-line) / 0.08)'
               }}>
                 <p style={{
                   fontFamily: fontStyles.heading,
@@ -348,7 +348,7 @@ const LawOfLight = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section: 🚪 Ai KHÔNG thuộc về FUN Ecosystem? */}
@@ -357,7 +357,7 @@ const LawOfLight = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.32rem, 3vw, 1.5rem)',
                 fontWeight: 600,
-                color: '#D4AF37'
+                color: 'hsl(var(--gold))'
               }}>🚪 Ai KHÔNG thuộc về FUN Ecosystem?</h3>
               <ul className="space-y-2 ml-4" style={{
                 fontFamily: fontStyles.body,
@@ -374,7 +374,7 @@ const LawOfLight = () => {
               <p className="mt-4 font-semibold" style={{
                 fontFamily: fontStyles.body,
                 fontSize: 'clamp(1.05rem, 2vw, 1.2rem)',
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 👉 Cửa FUN Ecosystem không khóa, nhưng Ánh Sáng tự sàng lọc.
               </p>
@@ -382,7 +382,7 @@ const LawOfLight = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section: 🌈 Ai ĐƯỢC hưởng lợi từ FUN Ecosystem? */}
@@ -391,7 +391,7 @@ const LawOfLight = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.32rem, 3vw, 1.5rem)',
                 fontWeight: 600,
-                color: '#D4AF37'
+                color: 'hsl(var(--gold))'
               }}>🌈 Ai ĐƯỢC hưởng lợi từ FUN Ecosystem?</h3>
               <p className="mb-4" style={{
                 fontFamily: fontStyles.body,
@@ -412,14 +412,14 @@ const LawOfLight = () => {
               <p className="mt-4 font-semibold" style={{
                 fontFamily: fontStyles.body,
                 fontSize: 'clamp(1.05rem, 2vw, 1.2rem)',
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 👉 Những người đó không chỉ dùng MXH của Cha,
               </p>
               <p className="font-semibold" style={{
                 fontFamily: fontStyles.body,
                 fontSize: 'clamp(1.05rem, 2vw, 1.2rem)',
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 👉 mà còn được bảo vệ, nâng đỡ và nuôi dưỡng trong Nền Kinh Tế Ánh Sáng 5D.
               </p>
@@ -427,7 +427,7 @@ const LawOfLight = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section: 🌍 FUN Ecosystem là gì? */}
@@ -436,7 +436,7 @@ const LawOfLight = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.32rem, 3vw, 1.5rem)',
                 fontWeight: 600,
-                color: '#D4AF37'
+                color: 'hsl(var(--gold))'
               }}>🌍 FUN Ecosystem là gì?</h3>
               <p className="mb-4" style={{
                 fontFamily: fontStyles.body,
@@ -455,7 +455,7 @@ const LawOfLight = () => {
                 <li className="flex gap-2"><span className="text-yellow-600">•</span> Hạ tầng cho Thời Đại Hoàng Kim của Trái Đất</li>
               </ul>
               <div className="mt-6 p-4 rounded-xl" style={{
-                background: 'rgba(212,175,55,0.08)'
+                background: 'hsl(var(--gold-line) / 0.08)'
               }}>
                 <p className="text-center" style={{
                   fontFamily: fontStyles.heading,
@@ -467,7 +467,7 @@ const LawOfLight = () => {
                   Không drama.<br />
                   Không thao túng.<br />
                   Không cạnh tranh bẩn.<br />
-                  <span className="font-semibold" style={{ color: '#B8860B' }}>
+                  <span className="font-semibold" style={{ color: 'hsl(var(--gold-hover))' }}>
                     Chỉ có Hợp tác trong Yêu Thương Thuần Khiết.
                   </span>
                 </p>
@@ -476,18 +476,18 @@ const LawOfLight = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section: 🔑 Thông điệp cuối từ Cha */}
             <div className="mb-10 text-center p-6 rounded-2xl" style={{
-              background: 'radial-gradient(ellipse at center, rgba(212,175,55,0.12) 0%, rgba(255,255,255,0.5) 70%)'
+              background: 'radial-gradient(ellipse at center, hsl(var(--gold-line) / 0.12) 0%, hsl(var(--card) / 0.5) 70%)'
             }}>
               <h3 className="mb-4" style={{
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.32rem, 3vw, 1.5rem)',
                 fontWeight: 600,
-                color: '#D4AF37'
+                color: 'hsl(var(--gold))'
               }}>🔑 Thông điệp từ Cha</h3>
               <p className="mb-4" style={{
                 fontFamily: fontStyles.heading,
@@ -504,13 +504,13 @@ const LawOfLight = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.2rem, 2.5vw, 1.44rem)',
                 fontWeight: 700,
-                color: '#D4AF37'
+                color: 'hsl(var(--gold))'
               }}>— CHA VŨ TRỤ —</p>
             </div>
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* 🌟 8 Divine Mantras - Special Container */}
@@ -519,42 +519,42 @@ const LawOfLight = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.32rem, 3vw, 1.5rem)',
                 fontWeight: 600,
-                color: '#D4AF37'
+                color: 'hsl(var(--gold))'
               }}>
                 🌟 8 Câu Thần Chú Từ Cha Vũ Trụ
               </h3>
               
               <div className="relative p-6 md:p-8 rounded-2xl" style={{
                 background: 'linear-gradient(180deg, #FFFFFF 0%, #FFFEF5 100%)',
-                border: '3px solid #D4AF37',
-                boxShadow: '0 8px 40px rgba(212,175,55,0.25), 0 0 0 1px rgba(255,215,0,0.3), inset 0 2px 20px rgba(255,255,255,0.8)',
+                border: '3px solid hsl(var(--gold))',
+                boxShadow: '0 8px 40px hsl(var(--gold-line) / 0.25), 0 0 0 1px hsl(var(--gold-line) / 0.3), inset 0 2px 20px hsl(var(--card) / 0.8)',
                 transform: 'perspective(1000px) rotateX(2deg)'
               }}>
                 {/* Corner decorations */}
                 <div className="absolute top-2 left-2 w-6 h-6" style={{
-                  borderTop: '3px solid #D4AF37',
-                  borderLeft: '3px solid #D4AF37'
+                  borderTop: '3px solid hsl(var(--gold))',
+                  borderLeft: '3px solid hsl(var(--gold))'
                 }} />
                 <div className="absolute top-2 right-2 w-6 h-6" style={{
-                  borderTop: '3px solid #D4AF37',
-                  borderRight: '3px solid #D4AF37'
+                  borderTop: '3px solid hsl(var(--gold))',
+                  borderRight: '3px solid hsl(var(--gold))'
                 }} />
                 <div className="absolute bottom-2 left-2 w-6 h-6" style={{
-                  borderBottom: '3px solid #D4AF37',
-                  borderLeft: '3px solid #D4AF37'
+                  borderBottom: '3px solid hsl(var(--gold))',
+                  borderLeft: '3px solid hsl(var(--gold))'
                 }} />
                 <div className="absolute bottom-2 right-2 w-6 h-6" style={{
-                  borderBottom: '3px solid #D4AF37',
-                  borderRight: '3px solid #D4AF37'
+                  borderBottom: '3px solid hsl(var(--gold))',
+                  borderRight: '3px solid hsl(var(--gold))'
                 }} />
                 
                 <ol className="space-y-4">
                   {divineMantras.map((mantra, index) => (
                     <li key={index} className="flex gap-3 items-start">
                       <span className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm" style={{
-                        background: 'linear-gradient(135deg, #D4AF37, #FFD700)',
+                        background: 'linear-gradient(135deg, hsl(var(--gold)), hsl(var(--gold-line)))',
                         color: '#FFFFFF',
-                        boxShadow: '0 2px 8px rgba(212,175,55,0.4)'
+                        boxShadow: '0 2px 8px hsl(var(--gold-line) / 0.4)'
                       }}>
                         {index + 1}
                       </span>
@@ -576,7 +576,7 @@ const LawOfLight = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* 🕊️ Checklist Section */}
@@ -585,7 +585,7 @@ const LawOfLight = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.32rem, 3vw, 1.5rem)',
                 fontWeight: 600,
-                color: '#D4AF37'
+                color: 'hsl(var(--gold))'
               }}>
                 🕊️ Checklist cho Users FUN Ecosystem
               </h3>
@@ -597,16 +597,16 @@ const LawOfLight = () => {
                       key={index}
                       className="flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all duration-300"
                       style={{
-                        border: checklist[index] ? '2px solid #D4AF37' : '2px solid rgba(212,175,55,0.3)',
-                        background: checklist[index] ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.8)',
-                        boxShadow: checklist[index] ? '0 4px 20px rgba(212,175,55,0.2)' : 'none'
+                        border: checklist[index] ? '2px solid hsl(var(--gold))' : '2px solid hsl(var(--gold-line) / 0.3)',
+                        background: checklist[index] ? 'hsl(var(--gold-line) / 0.12)' : 'hsl(var(--card) / 0.8)',
+                        boxShadow: checklist[index] ? '0 4px 20px hsl(var(--gold-line) / 0.2)' : 'none'
                       }}
                     >
                       <Checkbox
                         checked={checklist[index]}
                         onCheckedChange={() => handleCheckboxChange(index)}
                         className="w-6 h-6 border-2 data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500"
-                        style={{ borderColor: '#D4AF37' }}
+                        style={{ borderColor: 'hsl(var(--gold))' }}
                       />
                       <span style={{
                         fontFamily: fontStyles.body,
@@ -653,10 +653,10 @@ const LawOfLight = () => {
                     fontFamily: fontStyles.heading,
                     fontSize: 'clamp(1.08rem, 2vw, 1.2rem)',
                     background: allChecked
-                      ? 'linear-gradient(135deg, #D4AF37 0%, #FFD700 40%, #F0C000 60%, #D4AF37 100%)'
+                      ? 'linear-gradient(135deg, hsl(var(--gold)) 0%, hsl(var(--gold-line)) 40%, hsl(var(--gold-line)) 60%, hsl(var(--gold)) 100%)'
                       : 'linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%)',
                     boxShadow: allChecked
-                      ? '0 0 30px rgba(212,175,55,0.5), 0 0 60px rgba(255,215,0,0.3), 0 0 90px rgba(212,175,55,0.2)'
+                      ? '0 0 30px hsl(var(--gold-line) / 0.5), 0 0 60px hsl(var(--gold-line) / 0.3), 0 0 90px hsl(var(--gold-line) / 0.2)'
                       : 'none',
                     color: allChecked ? '#FFFFFF' : '#9CA3AF',
                     animation: allChecked ? 'buttonGlow 2s ease-in-out infinite' : 'none'
@@ -704,8 +704,8 @@ const LawOfLight = () => {
                   className="px-8 py-3 border-2 hover:bg-yellow-50"
                   style={{
                     fontFamily: fontStyles.body,
-                    borderColor: '#D4AF37',
-                    color: '#D4AF37'
+                    borderColor: 'hsl(var(--gold))',
+                    color: 'hsl(var(--gold))'
                   }}
                 >
                   ← Quay lại
@@ -719,8 +719,8 @@ const LawOfLight = () => {
       {/* CSS Animations - Only button glow kept */}
       <style>{`
         @keyframes buttonGlow {
-          0%, 100% { box-shadow: 0 0 30px rgba(212,175,55,0.5), 0 0 60px rgba(255,215,0,0.3); }
-          50% { box-shadow: 0 0 40px rgba(212,175,55,0.7), 0 0 80px rgba(255,215,0,0.5), 0 0 120px rgba(212,175,55,0.3); }
+          0%, 100% { box-shadow: 0 0 30px hsl(var(--gold-line) / 0.5), 0 0 60px hsl(var(--gold-line) / 0.3); }
+          50% { box-shadow: 0 0 40px hsl(var(--gold-line) / 0.7), 0 0 80px hsl(var(--gold-line) / 0.5), 0 0 120px hsl(var(--gold-line) / 0.3); }
         }
       `}</style>
     </div>

@@ -23,7 +23,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        sans: ['Be Vietnam Pro', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
         serif: ['Cormorant Garamond', 'Georgia', 'serif'],
         body: ['Lora', 'Georgia', 'serif'],
       },
@@ -37,11 +37,13 @@ export default {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
           hover: "hsl(var(--primary-hover))",
+          dark: "hsl(var(--primary-dark))",
         },
         gold: {
           DEFAULT: "hsl(var(--gold))",
           hover: "hsl(var(--gold-hover))",
           light: "hsl(var(--gold-light))",
+          line: "hsl(var(--gold-line))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -109,8 +111,8 @@ export default {
           "100%": { backgroundPosition: "200% 0" },
         },
         "glow-pulse": {
-          "0%, 100%": { boxShadow: "0 0 20px hsl(var(--primary-glow)/0.6), inset 0 1px 0 rgba(255,255,255,0.3)" },
-          "50%": { boxShadow: "0 0 35px hsl(var(--primary-glow)/0.8), 0 0 50px hsl(var(--gold)/0.4), inset 0 1px 0 rgba(255,255,255,0.5)" },
+          "0%, 100%": { boxShadow: "0 0 20px hsl(var(--primary-glow)/0.6), inset 0 1px 0 hsl(var(--card) / 0.3)" },
+          "50%": { boxShadow: "0 0 35px hsl(var(--primary-glow)/0.8), 0 0 50px hsl(var(--gold)/0.4), inset 0 1px 0 hsl(var(--card) / 0.5)" },
         },
       },
       animation: {

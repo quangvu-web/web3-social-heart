@@ -180,7 +180,7 @@ export const AppHonorBoard = memo(() => {
   ];
 
   return (
-    <div className="rounded-2xl overflow-hidden border-2 border-gold/60 bg-white/80 backdrop-blur-xl shadow-lg">
+    <div className="rounded-2xl overflow-hidden border-2 border-gold/60 bg-card/80 backdrop-blur-xl shadow-lg">
       <div className="relative p-3 space-y-3">
         {/* Header */}
         <div className="text-center">
@@ -196,11 +196,11 @@ export const AppHonorBoard = memo(() => {
               className="font-black text-[22px] tracking-wider uppercase"
               style={{
                 fontFamily: "'Orbitron', 'Rajdhani', sans-serif",
-                background: 'linear-gradient(135deg, #FFD700 0%, #FFEC8B 15%, #FFD700 30%, #FFC125 50%, #FFD700 70%, #FFEC8B 85%, #FFD700 100%)',
+                background: 'linear-gradient(135deg, hsl(var(--gold-line)) 0%, hsl(var(--gold-light)) 15%, hsl(var(--gold-line)) 30%, hsl(var(--gold-line)) 50%, hsl(var(--gold-line)) 70%, hsl(var(--gold-light)) 85%, hsl(var(--gold-line)) 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-                filter: 'drop-shadow(0 1px 2px rgba(255, 215, 0, 0.5))',
+                filter: 'drop-shadow(0 1px 2px hsl(var(--gold-line) / 0.5))',
               }}
             >
               {t('honorBoard')}
@@ -213,16 +213,16 @@ export const AppHonorBoard = memo(() => {
           {statItems.map((item, index) => (
             <div 
               key={index} 
-              className="flex items-center gap-3 py-2.5 px-4 rounded-full bg-gradient-to-b from-[#1a7d45] via-[#166534] to-[#0d4a2a] border-[3px] border-[#D4AF37] transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+              className="flex items-center gap-3 py-2.5 px-4 rounded-full bg-gradient-to-b from-primary via-primary to-primary-dark border-[3px] border-gold transition-all duration-300 hover:scale-[1.02] cursor-pointer"
             >
-              <div className="p-1.5 rounded-full bg-white/10 shrink-0">
-                <item.icon className="w-4 h-4 text-[#F5E6C8]" />
+              <div className="p-1.5 rounded-full bg-card/10 shrink-0">
+                <item.icon className="w-4 h-4 text-primary-foreground" />
               </div>
               <div className="flex-1 flex items-center justify-between gap-2 min-w-0 overflow-hidden">
-                <span className="text-[#F5E6C8] text-[10px] sm:text-xs uppercase font-semibold truncate flex-shrink min-w-0">
+                <span className="text-primary-foreground text-[10px] sm:text-xs uppercase font-semibold truncate flex-shrink min-w-0">
                   {item.label}
                 </span>
-                <span className="text-[#FFD700] font-bold text-[11px] sm:text-sm flex items-center gap-1 flex-shrink-0">
+                <span className="text-gold-line font-bold text-[11px] sm:text-sm flex items-center gap-1 flex-shrink-0">
                   <span className="tabular-nums">{formatNumber(item.value)}</span>
                   {item.showCamlyLogo && (
                     <img 
@@ -241,16 +241,16 @@ export const AppHonorBoard = memo(() => {
             stats.tokenBalances.map((token, index) => (
               <div 
                 key={token.symbol} 
-                className="flex items-center gap-3 py-2.5 px-4 rounded-full bg-gradient-to-b from-[#1a7d45] via-[#166534] to-[#0d4a2a] border-[3px] border-[#D4AF37] transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+                className="flex items-center gap-3 py-2.5 px-4 rounded-full bg-gradient-to-b from-primary via-primary to-primary-dark border-[3px] border-gold transition-all duration-300 hover:scale-[1.02] cursor-pointer"
               >
-                <div className="p-1.5 rounded-full bg-white/10 shrink-0">
-                  <Coins className="w-4 h-4 text-[#F5E6C8]" />
+                <div className="p-1.5 rounded-full bg-card/10 shrink-0">
+                  <Coins className="w-4 h-4 text-primary-foreground" />
                 </div>
                 <div className="flex-1 flex items-center justify-between gap-2 min-w-0 overflow-hidden">
-                  <span className="text-[#F5E6C8] text-[10px] sm:text-xs uppercase font-semibold truncate flex-shrink min-w-0">
+                  <span className="text-primary-foreground text-[10px] sm:text-xs uppercase font-semibold truncate flex-shrink min-w-0">
                     {index === 0 ? t('totalMoney') : `Circulating ${token.symbol}`}
                   </span>
-                  <span className="text-[#FFD700] font-bold text-[11px] sm:text-sm flex items-center gap-1 flex-shrink-0">
+                  <span className="text-gold-line font-bold text-[11px] sm:text-sm flex items-center gap-1 flex-shrink-0">
                     <span className="tabular-nums">{formatNumber(token.amount, token.symbol === 'CAMLY' ? 0 : 6)}</span>
                     <img 
                       src={token.logoPath} 

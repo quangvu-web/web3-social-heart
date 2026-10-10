@@ -82,8 +82,8 @@ export function ConversationList({
               key={conversation.id}
               onClick={() => onSelect(conversation.id)}
               className={cn(
-                'w-full flex items-center gap-3 p-3 rounded-full text-left transition-all duration-300 border hover:bg-white hover:shadow-[0_0_12px_rgba(34,197,94,0.5)]',
-                selectedId === conversation.id ? 'bg-primary/10 border-[#C9A84C]/60' : 'border-transparent hover:border-[#C9A84C]/40'
+                'w-full flex items-center gap-3 p-3 rounded-full text-left transition-all duration-300 border hover:bg-card hover:shadow-[0_0_12px_hsl(var(--primary)/0.5)]',
+                selectedId === conversation.id ? 'bg-primary/10 border-gold/60' : 'border-transparent hover:border-gold/40'
               )}
             >
               <div className="relative">

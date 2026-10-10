@@ -160,11 +160,11 @@ export const FacebookLeftSidebar = ({ onItemClick }: FacebookLeftSidebarProps) =
             className="font-black text-[22px] tracking-wider uppercase"
             style={{
               fontFamily: "'Orbitron', 'Rajdhani', sans-serif",
-              background: 'linear-gradient(135deg, #FFD700 0%, #FFEC8B 15%, #FFD700 30%, #FFC125 50%, #FFD700 70%, #FFEC8B 85%, #FFD700 100%)',
+              background: 'linear-gradient(135deg, hsl(var(--gold-line)) 0%, hsl(var(--gold-light)) 15%, hsl(var(--gold-line)) 30%, hsl(var(--gold-line)) 50%, hsl(var(--gold-line)) 70%, hsl(var(--gold-light)) 85%, hsl(var(--gold-line)) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
-              filter: 'drop-shadow(0 1px 2px rgba(255, 215, 0, 0.5))',
+              filter: 'drop-shadow(0 1px 2px hsl(var(--gold-line) / 0.5))',
             }}
           >
             {t('funEcosystem')}
@@ -184,8 +184,8 @@ export const FacebookLeftSidebar = ({ onItemClick }: FacebookLeftSidebarProps) =
               }}
               className={`w-full flex items-center gap-3 p-2 rounded-xl transition-all duration-300 group ${
                 shortcut.isSpecial 
-                  ? 'bg-gradient-to-r from-yellow-400/10 to-amber-400/10 hover:bg-white hover:shadow-[0_0_12px_rgba(34,197,94,0.5)] border border-yellow-400/30 hover:border-primary' 
-                  : 'hover:bg-white hover:shadow-[0_0_12px_rgba(34,197,94,0.5)]'
+                  ? 'bg-gradient-to-r from-gold-light/10 to-gold/10 hover:bg-card hover:shadow-[0_0_12px_hsl(var(--primary)/0.5)] border border-gold-line/30 hover:border-primary'
+                  : 'hover:bg-card hover:shadow-[0_0_12px_hsl(var(--primary)/0.5)]'
               }`}
             >
               {shortcut.isSpecial ? (
@@ -228,7 +228,7 @@ export const FacebookLeftSidebar = ({ onItemClick }: FacebookLeftSidebarProps) =
           {profile && (
             <button
               onClick={() => { navigate(`/profile/${profile.id}`); onItemClick?.(); }}
-              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white hover:shadow-[0_0_12px_rgba(34,197,94,0.5)] transition-all duration-300"
+              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-card hover:shadow-[0_0_12px_hsl(var(--primary)/0.5)] transition-all duration-300"
             >
               <Avatar className="w-9 h-9 ring-2 ring-yellow-400/50">
                 <AvatarImage src={profile.avatar_url || ''} />
@@ -245,7 +245,7 @@ export const FacebookLeftSidebar = ({ onItemClick }: FacebookLeftSidebarProps) =
             <button
               key={item.label}
               onClick={() => { navigate(item.path); onItemClick?.(); }}
-              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white hover:shadow-[0_0_12px_rgba(34,197,94,0.5)] transition-all duration-300"
+              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-card hover:shadow-[0_0_12px_hsl(var(--primary)/0.5)] transition-all duration-300"
             >
               <div className={`w-9 h-9 rounded-full bg-secondary flex items-center justify-center ${item.color}`}>
                 <item.icon className="w-5 h-5" />
@@ -263,7 +263,7 @@ export const FacebookLeftSidebar = ({ onItemClick }: FacebookLeftSidebarProps) =
         </h3>
         <div className="space-y-1">
           {/* Language Switcher */}
-          <div className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white hover:shadow-[0_0_12px_rgba(34,197,94,0.5)] transition-all duration-300">
+          <div className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-card hover:shadow-[0_0_12px_hsl(var(--primary)/0.5)] transition-all duration-300">
             <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-blue-500">
               <Globe className="w-5 h-5" />
             </div>
@@ -276,7 +276,7 @@ export const FacebookLeftSidebar = ({ onItemClick }: FacebookLeftSidebarProps) =
           {isLoggedIn && (
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white hover:shadow-[0_0_12px_rgba(239,68,68,0.5)] transition-all duration-300 text-destructive"
+              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-card hover:shadow-[0_0_12px_hsl(var(--destructive) / 0.5)] transition-all duration-300 text-destructive"
             >
               <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center">
                 <LogOut className="w-5 h-5" />

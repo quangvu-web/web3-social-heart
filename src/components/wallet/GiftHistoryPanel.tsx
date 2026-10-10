@@ -11,9 +11,9 @@ export function GiftHistoryPanel({ userId }: GiftHistoryPanelProps) {
   const { sent, received, isLoading } = useGiftHistory(userId);
 
   return (
-    <div className="rounded-2xl border border-[#E7C76A]/40 bg-white/80 p-4 shadow-sm">
+    <div className="rounded-2xl border border-gold-light/40 bg-card/80 p-4 shadow-sm">
       <div className="mb-3">
-        <h3 className="text-lg font-semibold text-[#2E2A1F]">Gift History</h3>
+        <h3 className="text-lg font-semibold text-[hsl(var(--foreground))]">Gift History</h3>
         <p className="text-sm text-[#6B5B3E]">Your sent and received crypto gifts.</p>
       </div>
 

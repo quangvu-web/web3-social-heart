@@ -79,9 +79,9 @@ const Leaderboard = () => {
   };
 
   const getRankStyle = (rank: number) => {
-    if (rank === 1) return 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-white shadow-lg shadow-yellow-200';
-    if (rank === 2) return 'bg-gradient-to-r from-gray-300 to-gray-500 text-white shadow-lg shadow-gray-200';
-    if (rank === 3) return 'bg-gradient-to-r from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-200';
+    if (rank === 1) return 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-primary-foreground shadow-lg shadow-yellow-200';
+    if (rank === 2) return 'bg-gradient-to-r from-gray-300 to-gray-500 text-primary-foreground shadow-lg shadow-gray-200';
+    if (rank === 3) return 'bg-gradient-to-r from-amber-500 to-amber-700 text-primary-foreground shadow-lg shadow-amber-200';
     return 'bg-gray-100 text-gray-600';
   };
 
@@ -120,32 +120,32 @@ const Leaderboard = () => {
       <main className="pt-14">
         <div className="max-w-5xl mx-auto px-4 py-6">
           {/* Header */}
-          <div className="bg-gradient-to-r from-primary to-gold rounded-2xl p-8 mb-6 text-white text-center relative">
+          <div className="bg-gradient-to-r from-primary to-gold rounded-2xl p-8 mb-6 text-primary-foreground text-center relative">
             {/* Back Button */}
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate(-1)}
-              className="absolute top-4 left-4 text-white hover:bg-white/20 rounded-full"
+              className="absolute top-4 left-4 text-primary-foreground hover:bg-card/20 rounded-full"
             >
               <ArrowLeft className="w-6 h-6" />
             </Button>
             
             <Trophy className="w-16 h-16 mx-auto mb-4" />
             <h1 className="text-3xl font-bold mb-2">{t('leaderboard')}</h1>
-            <p className="text-white/80">{t('leaderboardSubtitle')}</p>
+            <p className="text-primary-foreground/80">{t('leaderboardSubtitle')}</p>
           </div>
 
           {/* Category Tabs */}
-          <div className="bg-white rounded-xl shadow-sm p-2 mb-6 flex gap-2 overflow-x-auto">
+          <div className="bg-card rounded-xl shadow-sm p-2 mb-6 flex gap-2 overflow-x-auto">
             {categories.map((cat) => (
               <button
                 key={cat.value}
                 onClick={() => setActiveCategory(cat.value)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium whitespace-nowrap transition-all duration-300 border-[0.5px] ${
                   activeCategory === cat.value 
-                    ? 'bg-primary text-white border-[#C9A84C]' 
-                    : 'hover:bg-gray-100 border-transparent hover:border-[#C9A84C]/40'
+                    ? 'bg-primary text-primary-foreground border-gold'
+                    : 'hover:bg-gray-100 border-transparent hover:border-gold/40'
                 }`}
               >
                 <cat.icon className="w-4 h-4" />
@@ -158,8 +158,8 @@ const Leaderboard = () => {
           {!loading && sortedByCategory.length >= 3 && (
             <div className="grid grid-cols-3 gap-4 mb-6">
               {/* 2nd Place */}
-              <div className="bg-white rounded-xl shadow-sm p-6 text-center order-1 mt-8">
-                <div className="w-16 h-16 bg-gradient-to-r from-gray-300 to-gray-500 rounded-full flex items-center justify-center mx-auto mb-3 text-white text-2xl font-bold">
+              <div className="bg-card rounded-xl shadow-sm p-6 text-center order-1 mt-8">
+                <div className="w-16 h-16 bg-gradient-to-r from-gray-300 to-gray-500 rounded-full flex items-center justify-center mx-auto mb-3 text-primary-foreground text-2xl font-bold">
                   2
                 </div>
                 <Avatar 
@@ -179,8 +179,8 @@ const Leaderboard = () => {
               </div>
 
               {/* 1st Place */}
-              <div className="bg-white rounded-xl shadow-lg p-6 text-center order-2 ring-2 ring-yellow-400">
-                <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-3 text-white">
+              <div className="bg-card rounded-xl shadow-lg p-6 text-center order-2 ring-2 ring-yellow-400">
+                <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-3 text-primary-foreground">
                   <Trophy className="w-10 h-10" />
                 </div>
                 <Avatar 
@@ -200,8 +200,8 @@ const Leaderboard = () => {
               </div>
 
               {/* 3rd Place */}
-              <div className="bg-white rounded-xl shadow-sm p-6 text-center order-3 mt-12">
-                <div className="w-14 h-14 bg-gradient-to-r from-amber-500 to-amber-700 rounded-full flex items-center justify-center mx-auto mb-3 text-white text-xl font-bold">
+              <div className="bg-card rounded-xl shadow-sm p-6 text-center order-3 mt-12">
+                <div className="w-14 h-14 bg-gradient-to-r from-amber-500 to-amber-700 rounded-full flex items-center justify-center mx-auto mb-3 text-primary-foreground text-xl font-bold">
                   3
                 </div>
                 <Avatar 
@@ -223,7 +223,7 @@ const Leaderboard = () => {
           )}
 
           {/* Full Leaderboard */}
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-card rounded-xl shadow-sm overflow-hidden">
             <div className="p-4 border-b">
               <h2 className="font-bold text-lg">{t('fullLeaderboard')}</h2>
             </div>

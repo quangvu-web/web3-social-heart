@@ -168,8 +168,8 @@ export const FacebookNavbar = () => {
                     aria-label={item.label}
                     className={`flex-1 h-full max-w-[100px] flex items-center justify-center relative transition-all duration-300 rounded-full border-[0.5px] group ${
                       isActive(item.path)
-                        ? 'text-primary-foreground bg-primary border-[#C9A84C]'
-                        : 'text-foreground hover:text-primary hover:bg-primary/10 border-transparent hover:border-[#C9A84C]/50'
+                        ? 'text-primary-foreground bg-primary border-gold'
+                        : 'text-foreground hover:text-primary hover:bg-primary/10 border-transparent hover:border-gold/50'
                     }`}
                   >
                     <item.icon className={`w-6 h-6 transition-all duration-300 ${
@@ -196,7 +196,7 @@ export const FacebookNavbar = () => {
                   aria-label="Live"
                   className={`flex-1 h-full max-w-[100px] flex items-center justify-center relative transition-all duration-300 rounded-full border-[0.5px] group ${
                     isActive('/live')
-                      ? 'text-primary-foreground bg-primary border-[#C9A84C]'
+                      ? 'text-primary-foreground bg-primary border-gold'
                       : 'text-foreground hover:text-destructive hover:bg-destructive/10 border-transparent hover:border-destructive/50'
                   }`}
                 >
@@ -205,7 +205,7 @@ export const FacebookNavbar = () => {
                       isActive('/live') ? '' : 'group-hover:drop-shadow-[0_0_6px_hsl(0_84%_60%/0.6)]'
                     }`} />
                     {hasLive && (
-                      <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-destructive text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 animate-pulse">
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-destructive text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 animate-pulse">
                         {liveCount > 9 ? '9+' : liveCount}
                       </span>
                     )}

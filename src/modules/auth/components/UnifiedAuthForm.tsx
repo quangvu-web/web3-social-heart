@@ -145,8 +145,8 @@ export const UnifiedAuthForm = () => {
       <div 
         className="relative p-[4px] rounded-3xl"
         style={{
-          background: 'linear-gradient(135deg, #166534 0%, #22c55e 25%, #15803d 50%, #22c55e 75%, #166534 100%)',
-          boxShadow: '0 0 25px rgba(22, 101, 52, 0.5), 0 4px 20px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2)'
+          background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 25%, hsl(var(--primary)) 50%, hsl(var(--primary-glow)) 75%, hsl(var(--primary)) 100%)',
+          boxShadow: '0 0 25px hsl(var(--primary) / 0.5), 0 4px 20px hsl(var(--foreground) / 0.2), inset 0 1px 0 hsl(var(--card) / 0.2)'
         }}
       >
         
@@ -157,7 +157,7 @@ export const UnifiedAuthForm = () => {
             <CardTitle 
               className="text-4xl font-bold text-center"
               style={{
-                background: 'linear-gradient(135deg, #166534 0%, #22c55e 30%, #15803d 50%, #22c55e 70%, #166534 100%)',
+                background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 30%, hsl(var(--primary)) 50%, hsl(var(--primary-glow)) 70%, hsl(var(--primary)) 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -173,12 +173,12 @@ export const UnifiedAuthForm = () => {
           
           <CardContent className="pt-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 mb-6 bg-muted/50 p-1.5 rounded-full border border-[#166534]/30">
+              <TabsList className="grid w-full grid-cols-4 mb-6 bg-muted/50 p-1.5 rounded-full border border-primary/30">
                 <TabsTrigger 
                   value="email" 
                   className="flex items-center gap-1.5 rounded-full data-[state=active]:bg-card data-[state=active]:shadow-md transition-colors text-sm sm:text-base font-semibold"
                   style={{
-                    color: '#166534'
+                    color: 'hsl(var(--primary))'
                   }}
                 >
                   <Mail size={16} />
@@ -188,7 +188,7 @@ export const UnifiedAuthForm = () => {
                   value="wallet"
                   className="flex items-center gap-1.5 rounded-full data-[state=active]:bg-card data-[state=active]:shadow-md transition-colors text-sm sm:text-base font-semibold"
                   style={{
-                    color: '#166534'
+                    color: 'hsl(var(--primary))'
                   }}
                 >
                   <Wallet size={16} />
@@ -198,7 +198,7 @@ export const UnifiedAuthForm = () => {
                   value="social"
                   className="flex items-center gap-1.5 rounded-full data-[state=active]:bg-card data-[state=active]:shadow-md transition-colors text-sm sm:text-base font-semibold"
                   style={{
-                    color: '#166534'
+                    color: 'hsl(var(--primary))'
                   }}
                 >
                   <Users size={16} />
@@ -208,7 +208,7 @@ export const UnifiedAuthForm = () => {
                   value="classic"
                   className="flex items-center gap-1.5 rounded-full data-[state=active]:bg-card data-[state=active]:shadow-md transition-colors text-sm sm:text-base font-semibold"
                   style={{
-                    color: '#166534'
+                    color: 'hsl(var(--primary))'
                   }}
                 >
                   <KeyRound size={16} />

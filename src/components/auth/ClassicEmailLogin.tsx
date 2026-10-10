@@ -310,11 +310,11 @@ export const ClassicEmailLogin = ({ onSuccess }: ClassicEmailLoginProps) => {
         
         <Button
           type="submit"
-          className="w-full h-14 text-lg font-bold rounded-full relative overflow-hidden text-white"
+          className="w-full h-14 text-lg font-bold rounded-full relative overflow-hidden text-primary-foreground"
           disabled={loading}
           style={{
-            background: 'linear-gradient(135deg, #166534 0%, #15803d 50%, #166534 100%)',
-            boxShadow: '0 4px 20px rgba(22, 101, 52, 0.4)'
+            background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)) 50%, hsl(var(--primary)) 100%)',
+            boxShadow: '0 4px 20px hsl(var(--primary) / 0.4)'
           }}
         >
           <span className="relative z-10 flex items-center justify-center gap-2">
@@ -348,7 +348,7 @@ export const ClassicEmailLogin = ({ onSuccess }: ClassicEmailLoginProps) => {
               placeholder={t('authEmailPlaceholder')}
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="border-2 border-slate-400 bg-white/80 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400/50"
+              className="border-2 border-slate-400 bg-card/80 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400/50"
             />
             <Button
               onClick={handleForgotPassword}

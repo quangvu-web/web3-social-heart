@@ -93,7 +93,7 @@ export const ClaimRewardDialog = ({
     confettiContainer.className = 'fixed inset-0 pointer-events-none z-[200] overflow-hidden';
     confettiContainer.id = 'claim-confetti';
     
-    const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
+    const colors = ['hsl(var(--gold-line))', 'hsl(var(--destructive))', 'hsl(var(--accent))', 'hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--gold-light))'];
     
     for (let i = 0; i < 100; i++) {
       const confetti = document.createElement('div');
@@ -226,7 +226,7 @@ export const ClaimRewardDialog = ({
         <Button
           onClick={handleClaim}
           disabled={!isValidAmount() || !externalWallet}
-          className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white"
+          className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-primary-foreground"
         >
           <Gift className="w-4 h-4 mr-2" />
           Claim {amount ? formatNumber(Number(amount)) : ''} CAMLY

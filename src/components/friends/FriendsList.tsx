@@ -278,7 +278,7 @@ export const FriendsList = ({ userId }: FriendsListProps) => {
     friend: Friend; 
     actions: React.ReactNode;
   }) => (
-    <div className="flex items-center gap-3 p-3 rounded-full border border-transparent hover:bg-white hover:shadow-[0_0_12px_rgba(34,197,94,0.5)] hover:border-[#C9A84C]/40 transition-all duration-300">
+    <div className="flex items-center gap-3 p-3 rounded-full border border-transparent hover:bg-card hover:shadow-[0_0_12px_hsl(var(--primary-glow) / 0.5)] hover:border-gold/40 transition-all duration-300">
       {/* Avatar - shrink-0 prevents squishing */}
       <Avatar 
         className="w-12 h-12 shrink-0 cursor-pointer"
@@ -319,25 +319,25 @@ export const FriendsList = ({ userId }: FriendsListProps) => {
         <TabsList className="w-full h-auto flex-wrap gap-1 bg-transparent p-0 mb-4">
           <TabsTrigger 
             value="friends" 
-            className="flex-1 min-w-[80px] text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-3 py-2 border border-[#C9A84C]/40 data-[state=active]:border-[#C9A84C]"
+            className="flex-1 min-w-[80px] text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-3 py-2 border border-gold/40 data-[state=active]:border-gold"
           >
             Bạn bè ({friends.length})
           </TabsTrigger>
           <TabsTrigger 
             value="requests"
-            className="flex-1 min-w-[80px] text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-3 py-2 border border-[#C9A84C]/40 data-[state=active]:border-[#C9A84C]"
+            className="flex-1 min-w-[80px] text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-3 py-2 border border-gold/40 data-[state=active]:border-gold"
           >
             Lời mời ({pendingRequests.length})
           </TabsTrigger>
           <TabsTrigger 
             value="sent"
-            className="flex-1 min-w-[80px] text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-3 py-2 border border-[#C9A84C]/40 data-[state=active]:border-[#C9A84C]"
+            className="flex-1 min-w-[80px] text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-3 py-2 border border-gold/40 data-[state=active]:border-gold"
           >
             Đã gửi ({sentRequests.length})
           </TabsTrigger>
           <TabsTrigger 
             value="suggestions"
-            className="flex-1 min-w-[80px] text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-3 py-2 border border-[#C9A84C]/40 data-[state=active]:border-[#C9A84C]"
+            className="flex-1 min-w-[80px] text-xs sm:text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-3 py-2 border border-gold/40 data-[state=active]:border-gold"
           >
             Gợi ý
           </TabsTrigger>

@@ -257,8 +257,8 @@ const Friends = () => {
                     }}
                     className={`w-full flex items-center gap-3 p-3 rounded-full border transition-all duration-300 ${
                       activeTab === item.value 
-                        ? 'bg-primary/10 text-primary border-[#C9A84C]/60' 
-                        : 'hover:bg-white hover:shadow-[0_0_12px_rgba(34,197,94,0.5)] border-transparent hover:border-[#C9A84C]/40'
+                        ? 'bg-primary/10 text-primary border-gold/60'
+                        : 'hover:bg-card hover:shadow-[0_0_12px_hsl(var(--primary-glow) / 0.5)] border-transparent hover:border-gold/40'
                     }`}
                   >
                     <div className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center ${

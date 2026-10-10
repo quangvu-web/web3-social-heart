@@ -70,7 +70,7 @@ const TOKEN_LABEL: Record<TokenSymbol, string> = {
 const TokenOption = ({ token }: { token: TokenSymbol }) => (
   <div className="flex items-center gap-2">
     <img src={TOKEN_LOGOS[token]} alt={token} className="h-6 w-6 rounded-full" />
-    <span className="font-medium text-[#2E2A1F]">{TOKEN_LABEL[token]}</span>
+    <span className="font-medium text-[hsl(var(--foreground))]">{TOKEN_LABEL[token]}</span>
   </div>
 );
 
@@ -83,14 +83,14 @@ const shortenAddress = (address: string) => {
 // Decorative SVG Components
 const ApricotFlower = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="30" cy="12" rx="8" ry="12" fill="#FFD54F" opacity="0.9" />
-    <ellipse cx="30" cy="48" rx="8" ry="12" fill="#FFD54F" opacity="0.9" />
-    <ellipse cx="12" cy="30" rx="8" ry="12" fill="#FFD54F" opacity="0.9" transform="rotate(90 12 30)" />
-    <ellipse cx="48" cy="30" rx="8" ry="12" fill="#FFD54F" opacity="0.9" transform="rotate(90 48 30)" />
-    <ellipse cx="17" cy="17" rx="7" ry="11" fill="#FFD54F" opacity="0.85" transform="rotate(45 17 17)" />
-    <ellipse cx="43" cy="43" rx="7" ry="11" fill="#FFD54F" opacity="0.85" transform="rotate(45 43 43)" />
-    <ellipse cx="43" cy="17" rx="7" ry="11" fill="#FFD54F" opacity="0.85" transform="rotate(-45 43 17)" />
-    <ellipse cx="17" cy="43" rx="7" ry="11" fill="#FFD54F" opacity="0.85" transform="rotate(-45 17 43)" />
+    <ellipse cx="30" cy="12" rx="8" ry="12" fill="hsl(var(--gold-line))" opacity="0.9" />
+    <ellipse cx="30" cy="48" rx="8" ry="12" fill="hsl(var(--gold-line))" opacity="0.9" />
+    <ellipse cx="12" cy="30" rx="8" ry="12" fill="hsl(var(--gold-line))" opacity="0.9" transform="rotate(90 12 30)" />
+    <ellipse cx="48" cy="30" rx="8" ry="12" fill="hsl(var(--gold-line))" opacity="0.9" transform="rotate(90 48 30)" />
+    <ellipse cx="17" cy="17" rx="7" ry="11" fill="hsl(var(--gold-line))" opacity="0.85" transform="rotate(45 17 17)" />
+    <ellipse cx="43" cy="43" rx="7" ry="11" fill="hsl(var(--gold-line))" opacity="0.85" transform="rotate(45 43 43)" />
+    <ellipse cx="43" cy="17" rx="7" ry="11" fill="hsl(var(--gold-line))" opacity="0.85" transform="rotate(-45 43 17)" />
+    <ellipse cx="17" cy="43" rx="7" ry="11" fill="hsl(var(--gold-line))" opacity="0.85" transform="rotate(-45 17 43)" />
     <circle cx="30" cy="30" r="6" fill="#D32F2F" />
     <circle cx="28" cy="28" r="1.5" fill="#FFEB3B" />
     <circle cx="32" cy="28" r="1.5" fill="#FFEB3B" />
@@ -119,23 +119,23 @@ const RedEnvelope = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 120 140" fill="none" xmlns="http://www.w3.org/2000/svg">
     {/* Main envelope body */}
     <rect x="10" y="20" width="100" height="110" rx="8" fill="#C62828" />
-    <rect x="10" y="20" width="100" height="110" rx="8" stroke="#FFD700" strokeWidth="2" />
+    <rect x="10" y="20" width="100" height="110" rx="8" stroke="hsl(var(--gold-line))" strokeWidth="2" />
     
     {/* Top flap */}
     <path d="M10 28 L60 60 L110 28" fill="#B71C1C" />
-    <path d="M10 28 L60 60 L110 28" stroke="#FFD700" strokeWidth="2" fill="none" />
+    <path d="M10 28 L60 60 L110 28" stroke="hsl(var(--gold-line))" strokeWidth="2" fill="none" />
     
     {/* Gold circle decoration */}
-    <circle cx="60" cy="85" r="25" fill="#FFD700" />
-    <circle cx="60" cy="85" r="20" fill="#FFC107" />
-    <circle cx="60" cy="85" r="15" fill="#FFD700" />
+    <circle cx="60" cy="85" r="25" fill="hsl(var(--gold-line))" />
+    <circle cx="60" cy="85" r="20" fill="hsl(var(--gold-hover))" />
+    <circle cx="60" cy="85" r="15" fill="hsl(var(--gold-line))" />
     
     {/* Inner square hole pattern */}
     <rect x="52" y="77" width="16" height="16" rx="2" fill="#C62828" />
     
     {/* Decorative patterns */}
-    <circle cx="35" cy="50" r="4" fill="#FFD700" opacity="0.6" />
-    <circle cx="85" cy="50" r="4" fill="#FFD700" opacity="0.6" />
+    <circle cx="35" cy="50" r="4" fill="hsl(var(--gold-line))" opacity="0.6" />
+    <circle cx="85" cy="50" r="4" fill="hsl(var(--gold-line))" opacity="0.6" />
   </svg>
 );
 
@@ -146,20 +146,20 @@ const Firecracker = ({ className }: { className?: string }) => (
     
     {/* Firecracker body */}
     <rect x="8" y="20" width="24" height="35" rx="3" fill="#C62828" />
-    <rect x="8" y="20" width="24" height="35" rx="3" stroke="#FFD700" strokeWidth="1" />
+    <rect x="8" y="20" width="24" height="35" rx="3" stroke="hsl(var(--gold-line))" strokeWidth="1" />
     
     {/* Gold bands */}
-    <rect x="8" y="25" width="24" height="4" fill="#FFD700" />
-    <rect x="8" y="46" width="24" height="4" fill="#FFD700" />
+    <rect x="8" y="25" width="24" height="4" fill="hsl(var(--gold-line))" />
+    <rect x="8" y="46" width="24" height="4" fill="hsl(var(--gold-line))" />
     
     {/* Second firecracker */}
     <rect x="12" y="58" width="20" height="30" rx="2" fill="#D32F2F" />
-    <rect x="12" y="62" width="20" height="3" fill="#FFD700" />
-    <rect x="12" y="81" width="20" height="3" fill="#FFD700" />
+    <rect x="12" y="62" width="20" height="3" fill="hsl(var(--gold-line))" />
+    <rect x="12" y="81" width="20" height="3" fill="hsl(var(--gold-line))" />
     
     {/* Small decorative dots */}
-    <circle cx="20" cy="37" r="2" fill="#FFD700" />
-    <circle cx="22" cy="73" r="1.5" fill="#FFD700" />
+    <circle cx="20" cy="37" r="2" fill="hsl(var(--gold-line))" />
+    <circle cx="22" cy="73" r="1.5" fill="hsl(var(--gold-line))" />
   </svg>
 );
 
@@ -172,7 +172,7 @@ const Sparkle = ({ className, delay = 0 }: { className?: string; delay?: number 
     }}
   >
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M6 0 L7 4.5 L12 6 L7 7.5 L6 12 L5 7.5 L0 6 L5 4.5 Z" fill="#FFD700" />
+      <path d="M6 0 L7 4.5 L12 6 L7 7.5 L6 12 L5 7.5 L0 6 L5 4.5 Z" fill="hsl(var(--gold-line))" />
     </svg>
   </div>
 );
@@ -352,7 +352,7 @@ export function SendCryptoModal({
   };
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md p-0 border-2 border-[#E7C76A]/60 bg-gradient-to-br from-[#FFFBF3] via-[#FFF7E6] to-[#FFF3DA] shadow-2xl overflow-hidden">
+      <DialogContent className="sm:max-w-md p-0 border-2 border-gold-light/60 bg-gradient-to-br from-[hsl(var(--card))] via-[hsl(var(--gold-light))] to-[hsl(var(--gold-light))] shadow-2xl overflow-hidden">
         {/* Sparkle animation keyframes */}
         <style>{`
           @keyframes sparkle {
@@ -392,13 +392,13 @@ export function SendCryptoModal({
           <div className="absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-[radial-gradient(circle_at_70%_70%,rgba(255,182,193,0.25),transparent_70%)]" />
           
           {/* Top border gradient */}
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#FFD54F] via-[#E7C76A] to-[#FFD54F]" />
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-gold-line via-gold-light to-gold-line" />
         </div>
 
         {/* Close button */}
         <button
           onClick={() => handleClose(false)}
-          className="absolute right-4 top-4 z-10 rounded-full p-1 hover:bg-[#E7C76A]/20 transition-colors"
+          className="absolute right-4 top-4 z-10 rounded-full p-1 hover:bg-gold-light/20 transition-colors"
         >
           <X className="h-5 w-5 text-[#5A4F3B]" />
         </button>
@@ -407,7 +407,7 @@ export function SendCryptoModal({
         <div className="relative z-10 p-6 pt-8">
           {/* Header */}
           <div className="text-center mb-4">
-            <h2 className="text-xl font-bold text-[#2E2A1F] mb-1">Tặng quà crypto</h2>
+            <h2 className="text-xl font-bold text-[hsl(var(--foreground))] mb-1">Tặng quà crypto</h2>
             <p className="text-sm text-[#5A4F3B]">
               Chia sẻ món quà token với hương vị Tết ấm áp.
             </p>
@@ -419,18 +419,18 @@ export function SendCryptoModal({
           </div>
 
           {/* Recipient Card */}
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3 mb-5 border border-[#E7C76A]/40 shadow-sm">
+          <div className="bg-card/60 backdrop-blur-sm rounded-xl p-3 mb-5 border border-gold-light/40 shadow-sm">
             <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12 ring-2 ring-[#E7C76A]/50">
+              <Avatar className="h-12 w-12 ring-2 ring-gold-light/50">
                 <AvatarImage src={recipientAvatar || undefined} alt={recipientName || 'Recipient'} />
-                <AvatarFallback className="bg-gradient-to-br from-[#FFD54F] to-[#E7C76A] text-[#2E2A1F] font-semibold">
+                <AvatarFallback className="bg-gradient-to-br from-gold-line to-gold-light text-[hsl(var(--foreground))] font-semibold">
                   {(recipientName || 'U')[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-[#8B7355] font-medium">Người nhận</p>
                 <div className="flex items-center gap-1.5">
-                  <p className="font-semibold text-[#2E2A1F] truncate">
+                  <p className="font-semibold text-[hsl(var(--foreground))] truncate">
                     {recipientName || 'User'}
                   </p>
                   <span className="text-[#8B7355]">›</span>
@@ -447,7 +447,7 @@ export function SendCryptoModal({
                 </div>
               </div>
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-[#E7C76A]/20 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-gold-light/20 flex items-center justify-center">
                   <Wallet className="h-4 w-4 text-[#8B7355]" />
                 </div>
               </div>
@@ -457,9 +457,9 @@ export function SendCryptoModal({
           {/* Token Selection */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-[#4E4433]">Token</Label>
+              <Label className="text-sm font-semibold text-[hsl(var(--foreground))]">Token</Label>
               <Select value={token} onValueChange={(value) => setToken(value as TokenSymbol)}>
-                <SelectTrigger className="h-12 border-[#E7C76A]/60 bg-white/70 text-[#2E2A1F] focus-visible:ring-[#E7C76A]/60">
+                <SelectTrigger className="h-12 border-gold-light/60 bg-card/70 text-[hsl(var(--foreground))] focus-visible:ring-gold-light/60">
                   <SelectValue placeholder="Select token">
                     <div className="flex items-center justify-between w-full">
                       <TokenOption token={token} />
@@ -489,7 +489,7 @@ export function SendCryptoModal({
 
             {/* Amount Input */}
             <div className="space-y-2">
-              <Label htmlFor="crypto-amount" className="text-sm font-semibold text-[#4E4433]">
+              <Label htmlFor="crypto-amount" className="text-sm font-semibold text-[hsl(var(--foreground))]">
                 Số lượng
               </Label>
               <Input
@@ -500,7 +500,7 @@ export function SendCryptoModal({
                 placeholder="0.0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="h-12 border-[#E7C76A]/60 bg-white/70 text-base font-semibold text-[#2E2A1F] focus-visible:ring-[#E7C76A]/60"
+                className="h-12 border-gold-light/60 bg-card/70 text-base font-semibold text-[hsl(var(--foreground))] focus-visible:ring-gold-light/60"
               />
               <p className="text-xs text-[#6B5A3A]">
                 {isTokenDisabled ? FUN_TESTNET_NOTE : SEND_TRANSFER_NOTE}
@@ -514,14 +514,14 @@ export function SendCryptoModal({
               variant="outline" 
               onClick={() => handleClose(false)} 
               disabled={isBusy} 
-              className="flex-1 h-11 border-2 border-[#D9C184] text-[#4E4433] bg-white/50 hover:bg-[#E7C76A]/20 font-semibold"
+              className="flex-1 h-11 border-2 border-[hsl(var(--gold-line))] text-[hsl(var(--foreground))] bg-card/50 hover:bg-gold-light/20 font-semibold"
             >
               Hủy
             </Button>
             <Button
               onClick={handleConfirm}
               disabled={isBusy || !hasRecipientWallet || isTokenDisabled}
-              className="flex-1 h-11 bg-[#1B5E20] hover:bg-[#2E7D32] text-white font-semibold shadow-lg transition-all duration-150 hover:shadow-[0_0_16px_rgba(27,94,32,0.4)]"
+              className="flex-1 h-11 bg-primary hover:bg-primary-hover text-primary-foreground font-semibold shadow-lg transition-all duration-150 hover:shadow-[0_0_16px_hsl(var(--primary) / 0.4)]"
             >
               {isBusy ? 'Đang gửi...' : 'Xác nhận'}
             </Button>

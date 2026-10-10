@@ -248,7 +248,7 @@ export function ChatInput({
             <Button
               variant="ghost"
               size="icon"
-              className="flex-shrink-0 border border-[#C9A84C]/30 hover:border-[#C9A84C]/60 rounded-full"
+              className="flex-shrink-0 border border-gold/30 hover:border-gold/60 rounded-full"
               disabled={isDisabled || disabled}
               title="Đính kèm"
             >
@@ -281,7 +281,7 @@ export function ChatInput({
                 onClick={() => { setShowRedEnvelope(true); setShowAttachMenu(false); }}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-accent text-sm text-left"
               >
-                <Gift className="h-4 w-4 text-[#C9A84C] flex-shrink-0" />
+                <Gift className="h-4 w-4 text-gold flex-shrink-0" />
                 Lì xì
               </button>
 

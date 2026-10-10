@@ -80,19 +80,19 @@ export const CoverHonorBoard = ({ userId, username, avatarUrl }: CoverHonorBoard
   const capitalizeFirst = (str: string) => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
   const StatRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) => (
-    <div className="flex items-center justify-between py-1.5 px-3 sm:px-4 rounded-full bg-gradient-to-b from-[#1a7d45] via-[#166534] to-[#0d4a2a] backdrop-blur-sm border-[3px] border-[#D4AF37] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer">
+    <div className="flex items-center justify-between py-1.5 px-3 sm:px-4 rounded-full bg-gradient-to-b from-primary via-primary to-primary-dark backdrop-blur-sm border-[3px] border-gold shadow-[inset_0_1px_0_hsl(var(--card) / 0.15)] overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer">
       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink min-w-0 overflow-hidden">
-        <div className="text-[#F5E6C8] flex-shrink-0">
+        <div className="text-primary-foreground flex-shrink-0">
           {icon}
         </div>
         <span 
-          className="text-[#F5E6C8] text-[10px] sm:text-[11px] md:text-xs tracking-wide truncate font-normal"
+          className="text-primary-foreground text-[10px] sm:text-[11px] md:text-xs tracking-wide truncate font-normal"
         >
           {capitalizeFirst(label)}
         </span>
       </div>
       <span 
-        className={`text-[#FFD700] ${getValueFontSize(value)} tabular-nums flex-shrink-0 ml-2 font-normal`}
+        className={`text-gold-line ${getValueFontSize(value)} tabular-nums flex-shrink-0 ml-2 font-normal`}
       >
         {formatNumber(value)}
       </span>
@@ -105,7 +105,7 @@ export const CoverHonorBoard = ({ userId, username, avatarUrl }: CoverHonorBoard
       <div className="w-full flex justify-end">
         {/* Main Container - Glassmorphism with green gradient matching homepage */}
         <div 
-          className="rounded-2xl overflow-hidden bg-white/80 backdrop-blur-xl shadow-lg w-full max-w-[420px]"
+          className="rounded-2xl overflow-hidden bg-card/80 backdrop-blur-xl shadow-lg w-full max-w-[420px]"
           style={{
             border: '3px solid transparent',
             backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #22c55e 0%, #4ade80 25%, #22c55e 50%, #16a34a 75%, #22c55e 100%)',
@@ -128,11 +128,11 @@ export const CoverHonorBoard = ({ userId, username, avatarUrl }: CoverHonorBoard
                   className="text-lg tracking-wider uppercase leading-none font-black"
                   style={{
                     fontFamily: "'Orbitron', 'Rajdhani', sans-serif",
-                    background: 'linear-gradient(135deg, #FFD700 0%, #FFC125 30%, #FFD700 50%, #FFDF00 70%, #FFD700 100%)',
+                    background: 'linear-gradient(135deg, hsl(var(--gold-line)) 0%, hsl(var(--gold-line)) 30%, hsl(var(--gold-line)) 50%, hsl(var(--gold-line)) 70%, hsl(var(--gold-line)) 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
-                    WebkitTextStroke: '1px rgba(0,0,0,0.3)',
+                    WebkitTextStroke: '1px hsl(var(--foreground) / 0.3)',
                   }}
                 >
                   {t('honorBoard').toUpperCase()}
@@ -140,7 +140,7 @@ export const CoverHonorBoard = ({ userId, username, avatarUrl }: CoverHonorBoard
                 {/* User Avatar */}
                 <Avatar className="w-8 h-8 border-2 border-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.6)]">
                   <AvatarImage src={avatarUrl} sizeHint="sm" />
-                  <AvatarFallback className="bg-gradient-to-br from-green-600 to-green-800 text-white font-bold text-sm">
+                  <AvatarFallback className="bg-gradient-to-br from-green-600 to-green-800 text-primary-foreground font-bold text-sm">
                     {username?.[0]?.toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
@@ -234,21 +234,21 @@ export const MobileStats = ({ userId, username, avatarUrl }: MobileStatsProps) =
 
   // Mobile stat cell with auto-scaling font - matching homepage green style
   const MobileStatCell = ({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) => (
-    <div className="bg-gradient-to-b from-[#1a7d45] via-[#166534] to-[#0d4a2a] rounded-lg py-1.5 px-1 border-[3px] border-[#D4AF37] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] overflow-hidden transition-all duration-300 hover:scale-[1.02]">
-      <div className="mx-auto text-[#F5E6C8] mb-0.5 flex justify-center">{icon}</div>
-      <div className={`text-[#FFD700] ${getValueFontSize(value)} tabular-nums truncate font-extrabold`}>{formatNumber(value)}</div>
-      <div className="text-[#F5E6C8]/90 text-[8px] uppercase truncate font-bold">{label}</div>
+    <div className="bg-gradient-to-b from-primary via-primary to-primary-dark rounded-lg py-1.5 px-1 border-[3px] border-gold shadow-[inset_0_1px_0_hsl(var(--card) / 0.15)] overflow-hidden transition-all duration-300 hover:scale-[1.02]">
+      <div className="mx-auto text-primary-foreground mb-0.5 flex justify-center">{icon}</div>
+      <div className={`text-gold-line ${getValueFontSize(value)} tabular-nums truncate font-extrabold`}>{formatNumber(value)}</div>
+      <div className="text-primary-foreground/90 text-[8px] uppercase truncate font-bold">{label}</div>
     </div>
   );
 
   // Mobile total row with auto-scaling font - matching homepage green style
   const MobileTotalRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) => (
-    <div className="bg-gradient-to-b from-[#1a7d45] via-[#166534] to-[#0d4a2a] rounded-lg py-1.5 px-2 border-[3px] border-[#D4AF37] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] flex items-center justify-between overflow-hidden transition-all duration-300 hover:scale-[1.02]">
+    <div className="bg-gradient-to-b from-primary via-primary to-primary-dark rounded-lg py-1.5 px-2 border-[3px] border-gold shadow-[inset_0_1px_0_hsl(var(--card) / 0.15)] flex items-center justify-between overflow-hidden transition-all duration-300 hover:scale-[1.02]">
       <div className="flex items-center gap-1 flex-shrink min-w-0">
-        <div className="text-[#F5E6C8] flex-shrink-0">{icon}</div>
-        <span className="text-[#F5E6C8] text-[9px] uppercase truncate font-extrabold">{label}</span>
+        <div className="text-primary-foreground flex-shrink-0">{icon}</div>
+        <span className="text-primary-foreground text-[9px] uppercase truncate font-extrabold">{label}</span>
       </div>
-      <span className={`text-[#FFD700] ${getValueFontSize(value)} tabular-nums flex-shrink-0 ml-1 font-extrabold`}>{formatNumber(value)}</span>
+      <span className={`text-gold-line ${getValueFontSize(value)} tabular-nums flex-shrink-0 ml-1 font-extrabold`}>{formatNumber(value)}</span>
     </div>
   );
 
@@ -262,24 +262,24 @@ export const MobileStats = ({ userId, username, avatarUrl }: MobileStatsProps) =
 
   return (
     <div className="w-full">
-      <div className="rounded-xl overflow-hidden border-[3px] border-[#D4AF37] bg-white/80 backdrop-blur-xl shadow-lg">
+      <div className="rounded-xl overflow-hidden border-[3px] border-gold bg-card/80 backdrop-blur-xl shadow-lg">
         <div className="p-3">
           {/* Header with user info */}
           <div className="flex items-center justify-center gap-2 mb-3">
-            <Avatar className="w-8 h-8 border-2 border-[#D4AF37]">
+            <Avatar className="w-8 h-8 border-2 border-gold">
               <AvatarImage src={avatarUrl} sizeHint="sm" />
-              <AvatarFallback className="bg-gradient-to-br from-green-600 to-green-800 text-white text-sm font-extrabold">
+              <AvatarFallback className="bg-gradient-to-br from-green-600 to-green-800 text-primary-foreground text-sm font-extrabold">
                 {username?.[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <span 
               className="text-lg uppercase truncate max-w-[150px] font-black"
               style={{
-                background: 'linear-gradient(135deg, #FFD700 0%, #FFC125 30%, #FFD700 50%, #FFDF00 70%, #FFD700 100%)',
+                background: 'linear-gradient(135deg, hsl(var(--gold-line)) 0%, hsl(var(--gold-line)) 30%, hsl(var(--gold-line)) 50%, hsl(var(--gold-line)) 70%, hsl(var(--gold-line)) 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-                WebkitTextStroke: '0.5px rgba(0,0,0,0.3)',
+                WebkitTextStroke: '0.5px hsl(var(--foreground) / 0.3)',
               }}
             >
               {username || 'USER'}

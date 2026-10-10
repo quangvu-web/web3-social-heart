@@ -116,8 +116,8 @@ const Auth = () => {
               className="w-64 h-64 rounded-full"
               style={{
                 border: '5px solid transparent',
-                background: 'linear-gradient(white, white) padding-box, linear-gradient(135deg, #166534 0%, #22c55e 25%, #15803d 50%, #22c55e 75%, #166534 100%) border-box',
-                boxShadow: '0 0 25px rgba(22, 101, 52, 0.5), 0 10px 40px rgba(0,0,0,0.15), inset 0 0 20px rgba(22, 101, 52, 0.1)'
+                background: 'linear-gradient(white, white) padding-box, linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 25%, hsl(var(--primary)) 50%, hsl(var(--primary-glow)) 75%, hsl(var(--primary)) 100%) border-box',
+                boxShadow: '0 0 25px hsl(var(--primary) / 0.5), 0 10px 40px hsl(var(--foreground) / 0.15), inset 0 0 20px hsl(var(--primary) / 0.1)'
               }}
             />
           </div>
@@ -125,11 +125,11 @@ const Auth = () => {
           <h1 
             className="text-4xl md:text-5xl font-bold mb-4"
             style={{
-              background: 'linear-gradient(135deg, #166534 0%, #22c55e 30%, #15803d 50%, #22c55e 70%, #166534 100%)',
+              background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 30%, hsl(var(--primary)) 50%, hsl(var(--primary-glow)) 70%, hsl(var(--primary)) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
-              textShadow: '0 2px 4px rgba(22, 101, 52, 0.3)',
+              textShadow: '0 2px 4px hsl(var(--primary) / 0.3)',
               filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.1))'
             }}
           >
@@ -173,12 +173,12 @@ const Auth = () => {
             >
               <button
                 onClick={() => navigate('/')}
-                className="w-full flex items-center justify-center gap-3 font-bold text-xl h-14 bg-white hover:bg-slate-50 border-0 rounded-full transition-colors"
+                className="w-full flex items-center justify-center gap-3 font-bold text-xl h-14 bg-card hover:bg-slate-50 border-0 rounded-full transition-colors"
               >
                 <Eye size={24} className="text-emerald-600" />
                 <span
                   style={{
-                    background: 'linear-gradient(135deg, #166534 0%, #22c55e 30%, #15803d 50%, #22c55e 70%, #166534 100%)',
+                    background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 30%, hsl(var(--primary)) 50%, hsl(var(--primary-glow)) 70%, hsl(var(--primary)) 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',

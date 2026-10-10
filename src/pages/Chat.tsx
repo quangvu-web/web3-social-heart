@@ -113,13 +113,13 @@ export default function Chat() {
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowSettings(true)}
-                    className="border border-transparent hover:border-[#C9A84C]/40 rounded-full"
+                    className="border border-transparent hover:border-gold/40 rounded-full"
                   >
                     <Settings className="h-5 w-5" />
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="border border-transparent hover:border-[#C9A84C]/40 rounded-full">
+                      <Button variant="ghost" size="icon" className="border border-transparent hover:border-gold/40 rounded-full">
                         <MessageSquarePlus className="h-5 w-5" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -188,13 +188,13 @@ export default function Chat() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowSettings(true)}
-                className="border border-transparent hover:border-[#C9A84C]/40 rounded-full"
+                className="border border-transparent hover:border-gold/40 rounded-full"
               >
                 <Settings className="h-5 w-5" />
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="border border-transparent hover:border-[#C9A84C]/40 rounded-full">
+                  <Button variant="ghost" size="icon" className="border border-transparent hover:border-gold/40 rounded-full">
                     <MessageSquarePlus className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>

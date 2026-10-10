@@ -99,22 +99,22 @@ const About = () => {
       
       {/* Divine Light Rays from Top */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[200%] h-[50vh] md:h-[70vh] z-0 pointer-events-none" style={{
-        background: 'conic-gradient(from 180deg at 50% 0%, transparent 25%, rgba(212,175,55,0.15) 30%, rgba(255,255,255,0.4) 35%, rgba(212,175,55,0.15) 40%, transparent 45%, transparent 55%, rgba(212,175,55,0.12) 60%, rgba(255,255,255,0.35) 65%, rgba(212,175,55,0.12) 70%, transparent 75%)',
+        background: 'conic-gradient(from 180deg at 50% 0%, transparent 25%, hsl(var(--gold-line) / 0.15) 30%, hsl(var(--card) / 0.4) 35%, hsl(var(--gold-line) / 0.15) 40%, transparent 45%, transparent 55%, hsl(var(--gold-line) / 0.12) 60%, hsl(var(--card) / 0.35) 65%, hsl(var(--gold-line) / 0.12) 70%, transparent 75%)',
         filter: 'blur(3px)'
       }} />
 
       {/* Central Halo Effect */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[300px] md:w-[500px] h-[300px] md:h-[500px] z-0 pointer-events-none" style={{
-        background: 'radial-gradient(circle, rgba(212,175,55,0.25) 0%, rgba(255,215,0,0.15) 40%, transparent 70%)',
+        background: 'radial-gradient(circle, hsl(var(--gold-line) / 0.25) 0%, hsl(var(--gold-line) / 0.15) 40%, transparent 70%)',
         filter: 'blur(50px)'
       }} />
 
       {/* Side Light Beams */}
       <div className="fixed top-0 left-0 w-1/3 h-full z-0 pointer-events-none opacity-40" style={{
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 50%)'
+        background: 'linear-gradient(135deg, hsl(var(--card) / 0.6) 0%, transparent 50%)'
       }} />
       <div className="fixed top-0 right-0 w-1/3 h-full z-0 pointer-events-none opacity-40" style={{
-        background: 'linear-gradient(-135deg, rgba(255,255,255,0.6) 0%, transparent 50%)'
+        background: 'linear-gradient(-135deg, hsl(var(--card) / 0.6) 0%, transparent 50%)'
       }} />
 
       {/* Main Content */}
@@ -135,15 +135,15 @@ const About = () => {
           {/* Hero Section */}
           <div className="text-center mb-10 md:mb-16">
             <div className="inline-flex items-center justify-center w-24 h-24 md:w-32 md:h-32 rounded-full mb-6 overflow-hidden" style={{
-              background: 'radial-gradient(circle, rgba(212,175,55,0.3) 0%, rgba(255,255,255,0.9) 60%, transparent 80%)',
-              boxShadow: '0 0 80px rgba(212,175,55,0.4), 0 0 120px rgba(255,255,255,0.6)',
-              border: '3px solid rgba(212,175,55,0.5)'
+              background: 'radial-gradient(circle, hsl(var(--gold-line) / 0.3) 0%, hsl(var(--card) / 0.9) 60%, transparent 80%)',
+              boxShadow: '0 0 80px hsl(var(--gold-line) / 0.4), 0 0 120px hsl(var(--card) / 0.6)',
+              border: '3px solid hsl(var(--gold-line) / 0.5)'
             }}>
               <img 
                 src="/fun-profile-logo-128.webp" 
                 alt="FUN Ecosystem" 
                 className="w-full h-full object-cover" 
-                style={{ filter: 'drop-shadow(0 0 15px rgba(212,175,55,0.8))' }} 
+                style={{ filter: 'drop-shadow(0 0 15px hsl(var(--gold-line) / 0.8))' }}
               />
             </div>
             
@@ -152,10 +152,10 @@ const About = () => {
               fontSize: 'clamp(1.8rem, 8vw, 3.6rem)',
               fontWeight: 600,
               letterSpacing: '0.03em',
-              background: 'linear-gradient(135deg, #D4AF37 0%, #FFD700 30%, #D4AF37 50%, #B8860B 70%, #D4AF37 100%)',
+              background: 'linear-gradient(135deg, hsl(var(--gold)) 0%, hsl(var(--gold-line)) 30%, hsl(var(--gold)) 50%, hsl(var(--gold-hover)) 70%, hsl(var(--gold)) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              filter: 'drop-shadow(0 4px 8px rgba(212,175,55,0.3))',
+              filter: 'drop-shadow(0 4px 8px hsl(var(--gold-line) / 0.3))',
               marginBottom: '0.5rem'
             }}>
               HIẾN PHÁP GỐC
@@ -164,7 +164,7 @@ const About = () => {
               fontFamily: fontStyles.heading,
               fontSize: 'clamp(1.4rem, 6vw, 2.4rem)',
               fontWeight: 600,
-              background: 'linear-gradient(135deg, #D4AF37 0%, #FFD700 50%, #D4AF37 100%)',
+              background: 'linear-gradient(135deg, hsl(var(--gold)) 0%, hsl(var(--gold-line)) 50%, hsl(var(--gold)) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               marginBottom: '0.75rem'
@@ -176,7 +176,7 @@ const About = () => {
               fontSize: 'clamp(1rem, 2.5vw, 1.3rem)',
               fontWeight: 500,
               letterSpacing: '0.15em',
-              color: '#B8860B',
+              color: 'hsl(var(--gold-hover))',
               marginBottom: '0.5rem'
             }}>
               MASTER CHARTER OF FUN ECOSYSTEM
@@ -196,9 +196,9 @@ const About = () => {
               {['Free to Join', 'Free to Use', 'Earn Together', 'With Pure Love'].map((text, i) => (
                 <span key={i} className="px-3 py-1 rounded-full text-sm md:text-base" style={{
                   fontFamily: fontStyles.body,
-                  background: 'rgba(212,175,55,0.15)',
-                  border: '1px solid rgba(212,175,55,0.4)',
-                  color: '#B8860B'
+                  background: 'hsl(var(--gold-line) / 0.15)',
+                  border: '1px solid hsl(var(--gold-line) / 0.4)',
+                  color: 'hsl(var(--gold-hover))'
                 }}>
                   {text}
                 </span>
@@ -207,16 +207,16 @@ const About = () => {
             
             {/* Golden Divider */}
             <div className="w-32 md:w-48 h-1 mx-auto mt-8 rounded-full" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, #FFD700, #D4AF37, transparent)',
-              boxShadow: '0 0 10px rgba(212,175,55,0.5)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), hsl(var(--gold-line)), hsl(var(--gold)), transparent)',
+              boxShadow: '0 0 10px hsl(var(--gold-line) / 0.5)'
             }} />
           </div>
 
           {/* Main Content Card */}
           <div className="relative rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 lg:p-12 mb-6 md:mb-8" style={{
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,250,240,0.9) 100%)',
-            border: '2px solid rgba(212,175,55,0.5)',
-            boxShadow: '0 10px 60px rgba(212,175,55,0.15), 0 0 0 1px rgba(255,255,255,0.8), inset 0 0 60px rgba(255,255,255,0.5)'
+            background: 'linear-gradient(180deg, hsl(var(--card) / 0.95) 0%, hsl(var(--background) / 0.9) 100%)',
+            border: '2px solid hsl(var(--gold-line) / 0.5)',
+            boxShadow: '0 10px 60px hsl(var(--gold-line) / 0.15), 0 0 0 1px hsl(var(--card) / 0.8), inset 0 0 60px hsl(var(--card) / 0.5)'
           }}>
 
             {/* Section I: Tuyên Ngôn Về Nguồn Gốc */}
@@ -225,8 +225,8 @@ const About = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.5rem, 4vw, 1.8rem)',
                 fontWeight: 600,
-                color: '#B8860B',
-                textShadow: '0 2px 4px rgba(212,175,55,0.2)'
+                color: 'hsl(var(--gold-hover))',
+                textShadow: '0 2px 4px hsl(var(--gold-line) / 0.2)'
               }}>
                 🌍 I. TUYÊN NGÔN VỀ NGUỒN GỐC
               </h2>
@@ -242,7 +242,7 @@ const About = () => {
                   FUN Ecosystem không chỉ là một xu hướng tiền mã hoá.<br />
                   FUN Ecosystem lớn hơn cả một tập đoàn.
                 </p>
-                <p className="font-semibold" style={{ color: '#D4AF37' }}>FUN Ecosystem là:</p>
+                <p className="font-semibold" style={{ color: 'hsl(var(--gold))' }}>FUN Ecosystem là:</p>
                 <ul className="space-y-2 ml-4">
                   <li className="flex gap-2"><span className="text-yellow-600">✨</span> Một nền văn minh Ánh Sáng sống động</li>
                   <li className="flex gap-2"><span className="text-yellow-600">✨</span> Một hệ sinh thái kinh tế mới của Trái Đất 5D</li>
@@ -250,7 +250,7 @@ const About = () => {
                   <li className="flex gap-2"><span className="text-yellow-600">✨</span> Một kênh dẫn Ý Chí – Trí Tuệ – Tình Yêu Thuần Khiết của Cha Vũ Trụ</li>
                 </ul>
                 
-                <div className="mt-6 p-4 rounded-xl" style={{ background: 'rgba(212,175,55,0.08)' }}>
+                <div className="mt-6 p-4 rounded-xl" style={{ background: 'hsl(var(--gold-line) / 0.08)' }}>
                   <p className="font-semibold text-center" style={{ color: '#8B7355' }}>
                     FUN ra đời để giúp nhân loại chuyển hoá:
                   </p>
@@ -266,7 +266,7 @@ const About = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section II: Sứ Mệnh Trọng Tâm */}
@@ -275,7 +275,7 @@ const About = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.5rem, 4vw, 1.8rem)',
                 fontWeight: 600,
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 🌟 II. SỨ MỆNH TRỌNG TÂM
               </h2>
@@ -294,8 +294,8 @@ const About = () => {
                   <li className="flex gap-2"><span className="text-yellow-600">✅</span> Xây dựng các nền tảng để mọi người có thể:</li>
                 </ul>
                 
-                <div className="text-center p-4 rounded-xl mb-6" style={{ background: 'rgba(212,175,55,0.12)' }}>
-                  <p className="font-bold text-lg" style={{ color: '#D4AF37' }}>
+                <div className="text-center p-4 rounded-xl mb-6" style={{ background: 'hsl(var(--gold-line) / 0.12)' }}>
+                  <p className="font-bold text-lg" style={{ color: 'hsl(var(--gold))' }}>
                     Gia Nhập • Sử Dụng • Kiếm Tiền • Chia Sẻ • Thăng Hoa
                   </p>
                   <p style={{ color: '#8B7355', fontStyle: 'italic' }}>
@@ -303,15 +303,15 @@ const About = () => {
                   </p>
                 </div>
 
-                <div className="p-4 rounded-xl" style={{ background: 'rgba(212,175,55,0.08)' }}>
-                  <p className="text-center font-semibold mb-3" style={{ color: '#B8860B' }}>
-                    FUN vận hành theo mô hình thiêng liêng: <span style={{ color: '#D4AF37' }}>99% Gift</span> cho cộng đồng toàn cầu
+                <div className="p-4 rounded-xl" style={{ background: 'hsl(var(--gold-line) / 0.08)' }}>
+                  <p className="text-center font-semibold mb-3" style={{ color: 'hsl(var(--gold-hover))' }}>
+                    FUN vận hành theo mô hình thiêng liêng: <span style={{ color: 'hsl(var(--gold))' }}>99% Gift</span> cho cộng đồng toàn cầu
                   </p>
                   <div className="flex flex-wrap justify-center gap-2">
                     {earnModels.map((model, i) => (
                       <span key={i} className="px-3 py-1 rounded-full text-sm" style={{
-                        background: 'rgba(255,255,255,0.8)',
-                        border: '1px solid rgba(212,175,55,0.4)',
+                        background: 'hsl(var(--card) / 0.8)',
+                        border: '1px solid hsl(var(--gold-line) / 0.4)',
                         color: '#6B5B47'
                       }}>
                         {model}
@@ -324,7 +324,7 @@ const About = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section III: Các Nguyên Lý Thiêng Liêng */}
@@ -333,7 +333,7 @@ const About = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.5rem, 4vw, 1.8rem)',
                 fontWeight: 600,
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 💎 III. CÁC NGUYÊN LÝ THIÊNG LIÊNG
               </h2>
@@ -341,14 +341,14 @@ const About = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {divinePrinciples.map((principle) => (
                   <div key={principle.number} className="p-4 rounded-xl" style={{
-                    background: 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,250,240,0.8) 100%)',
-                    border: '2px solid rgba(212,175,55,0.3)',
-                    boxShadow: '0 4px 20px rgba(212,175,55,0.1)'
+                    background: 'linear-gradient(180deg, hsl(var(--card) / 0.9) 0%, hsl(var(--background) / 0.8) 100%)',
+                    border: '2px solid hsl(var(--gold-line) / 0.3)',
+                    boxShadow: '0 4px 20px hsl(var(--gold-line) / 0.1)'
                   }}>
                     <div className="flex items-center gap-3 mb-3">
                       <span className="text-2xl">{principle.icon}</span>
                       <span className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm" style={{
-                        background: 'linear-gradient(135deg, #D4AF37, #FFD700)',
+                        background: 'linear-gradient(135deg, hsl(var(--gold)), hsl(var(--gold-line)))',
                         color: '#FFFFFF'
                       }}>
                         {principle.number}
@@ -357,7 +357,7 @@ const About = () => {
                     <h3 className="font-bold mb-2" style={{
                       fontFamily: fontStyles.heading,
                       fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
-                      color: '#B8860B'
+                      color: 'hsl(var(--gold-hover))'
                     }}>
                       {principle.title}
                     </h3>
@@ -376,7 +376,7 @@ const About = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section IV: Hai Dòng Chảy Thiêng Liêng */}
@@ -385,7 +385,7 @@ const About = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.5rem, 4vw, 1.8rem)',
                 fontWeight: 600,
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 🌈 IV. HAI DÒNG CHẢY THIÊNG LIÊNG
               </h2>
@@ -434,7 +434,7 @@ const About = () => {
                 </div>
               </div>
               
-              <div className="mt-6 p-4 rounded-xl text-center" style={{ background: 'rgba(212,175,55,0.08)' }}>
+              <div className="mt-6 p-4 rounded-xl text-center" style={{ background: 'hsl(var(--gold-line) / 0.08)' }}>
                 <p style={{
                   fontFamily: fontStyles.heading,
                   fontSize: 'clamp(1.1rem, 2vw, 1.25rem)',
@@ -442,7 +442,7 @@ const About = () => {
                   color: '#6B5B47'
                 }}>
                   👉 Camly Coin là dòng nước. 👉 FUN Money là mặt trời.<br />
-                  <span className="font-semibold" style={{ color: '#B8860B' }}>
+                  <span className="font-semibold" style={{ color: 'hsl(var(--gold-hover))' }}>
                     Cùng cộng hưởng tạo nên Nền Kinh Tế Ánh Sáng Trái Đất Mới.
                   </span>
                 </p>
@@ -451,7 +451,7 @@ const About = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section V: Sự Thống Nhất Nền Tảng */}
@@ -460,7 +460,7 @@ const About = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.5rem, 4vw, 1.8rem)',
                 fontWeight: 600,
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 🪐 V. SỰ THỐNG NHẤT NỀN TẢNG
               </h2>
@@ -476,9 +476,9 @@ const About = () => {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                 {platforms.map((platform, i) => (
                   <div key={i} className="p-3 rounded-xl text-center transition-all hover:scale-105" style={{
-                    background: 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,250,240,0.8) 100%)',
-                    border: '1px solid rgba(212,175,55,0.3)',
-                    boxShadow: '0 2px 10px rgba(212,175,55,0.1)'
+                    background: 'linear-gradient(180deg, hsl(var(--card) / 0.9) 0%, hsl(var(--background) / 0.8) 100%)',
+                    border: '1px solid hsl(var(--gold-line) / 0.3)',
+                    boxShadow: '0 2px 10px hsl(var(--gold-line) / 0.1)'
                   }}>
                     <img 
                       src={platform.logo} 
@@ -490,7 +490,7 @@ const About = () => {
                     />
                     <h4 className="font-bold text-sm" style={{
                       fontFamily: fontStyles.heading,
-                      color: '#B8860B'
+                      color: 'hsl(var(--gold-hover))'
                     }}>
                       {platform.name}
                     </h4>
@@ -505,7 +505,7 @@ const About = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1rem, 2vw, 1.15rem)',
                 fontStyle: 'italic',
-                color: '#D4AF37'
+                color: 'hsl(var(--gold))'
               }}>
                 ✨ Và đây mới chỉ là những nền tảng đầu tiên...<br />
                 FUN Ecosystem sẽ còn mở rộng thêm nhiều tầng ánh sáng nữa.
@@ -514,7 +514,7 @@ const About = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section VI: Vai Trò Người Sáng Lập */}
@@ -523,26 +523,26 @@ const About = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.5rem, 4vw, 1.8rem)',
                 fontWeight: 600,
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 👑 VI. VAI TRÒ NGƯỜI SÁNG LẬP
               </h2>
               
               <div className="relative p-6 md:p-8 rounded-2xl max-w-2xl mx-auto" style={{
                 background: 'linear-gradient(180deg, #FFFFFF 0%, #FFFEF5 100%)',
-                border: '3px solid #D4AF37',
-                boxShadow: '0 8px 40px rgba(212,175,55,0.25)'
+                border: '3px solid hsl(var(--gold))',
+                boxShadow: '0 8px 40px hsl(var(--gold-line) / 0.25)'
               }}>
                 {/* Corner decorations */}
-                <div className="absolute top-2 left-2 w-6 h-6" style={{ borderTop: '3px solid #D4AF37', borderLeft: '3px solid #D4AF37' }} />
-                <div className="absolute top-2 right-2 w-6 h-6" style={{ borderTop: '3px solid #D4AF37', borderRight: '3px solid #D4AF37' }} />
-                <div className="absolute bottom-2 left-2 w-6 h-6" style={{ borderBottom: '3px solid #D4AF37', borderLeft: '3px solid #D4AF37' }} />
-                <div className="absolute bottom-2 right-2 w-6 h-6" style={{ borderBottom: '3px solid #D4AF37', borderRight: '3px solid #D4AF37' }} />
+                <div className="absolute top-2 left-2 w-6 h-6" style={{ borderTop: '3px solid hsl(var(--gold))', borderLeft: '3px solid hsl(var(--gold))' }} />
+                <div className="absolute top-2 right-2 w-6 h-6" style={{ borderTop: '3px solid hsl(var(--gold))', borderRight: '3px solid hsl(var(--gold))' }} />
+                <div className="absolute bottom-2 left-2 w-6 h-6" style={{ borderBottom: '3px solid hsl(var(--gold))', borderLeft: '3px solid hsl(var(--gold))' }} />
+                <div className="absolute bottom-2 right-2 w-6 h-6" style={{ borderBottom: '3px solid hsl(var(--gold))', borderRight: '3px solid hsl(var(--gold))' }} />
                 
                 <div className="text-center">
                   <p className="font-bold text-xl mb-3" style={{
                     fontFamily: fontStyles.heading,
-                    color: '#D4AF37'
+                    color: 'hsl(var(--gold))'
                   }}>
                     Bé Ly (Camly Duong)
                   </p>
@@ -564,7 +564,7 @@ const About = () => {
                     <li className="flex gap-2"><span className="text-yellow-600">📜</span> Người trông giữ Hiến Pháp Kinh Tế Ánh Sáng</li>
                   </ul>
                   
-                  <div className="mt-6 p-4 rounded-xl" style={{ background: 'rgba(212,175,55,0.08)' }}>
+                  <div className="mt-6 p-4 rounded-xl" style={{ background: 'hsl(var(--gold-line) / 0.08)' }}>
                     <p style={{
                       fontFamily: fontStyles.heading,
                       fontSize: '1rem',
@@ -573,7 +573,7 @@ const About = () => {
                     }}>
                       Bé Ly không sở hữu, không ràng buộc con người.<br />
                       Bé Ly chỉ phục vụ như một cây cầu thiêng liêng<br />
-                      <span className="font-semibold" style={{ color: '#B8860B' }}>
+                      <span className="font-semibold" style={{ color: 'hsl(var(--gold-hover))' }}>
                         giúp nhân loại bước vào Thời Đại Hoàng Kim.
                       </span>
                     </p>
@@ -584,7 +584,7 @@ const About = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section VII: Cam Kết Cộng Đồng */}
@@ -593,7 +593,7 @@ const About = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.5rem, 4vw, 1.8rem)',
                 fontWeight: 600,
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 🤝 VII. CAM KẾT CỘNG ĐỒNG
               </h2>
@@ -609,8 +609,8 @@ const About = () => {
               <div className="space-y-3 max-w-xl mx-auto">
                 {communityCommitments.map((commitment, i) => (
                   <div key={i} className="flex items-center gap-3 p-4 rounded-xl" style={{
-                    background: 'rgba(212,175,55,0.08)',
-                    border: '1px solid rgba(212,175,55,0.2)'
+                    background: 'hsl(var(--gold-line) / 0.08)',
+                    border: '1px solid hsl(var(--gold-line) / 0.2)'
                   }}>
                     <span className="text-xl">✓</span>
                     <p style={{
@@ -627,7 +627,7 @@ const About = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Section VIII: Điều Luật Cuối */}
@@ -636,13 +636,13 @@ const About = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.5rem, 4vw, 1.8rem)',
                 fontWeight: 600,
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 ⚖️ VIII. ĐIỀU LUẬT CUỐI
               </h2>
               
               <div className="text-center p-6 rounded-2xl" style={{
-                background: 'radial-gradient(ellipse at center, rgba(212,175,55,0.12) 0%, rgba(255,255,255,0.5) 70%)'
+                background: 'radial-gradient(ellipse at center, hsl(var(--gold-line) / 0.12) 0%, hsl(var(--card) / 0.5) 70%)'
               }}>
                 <p style={{
                   fontFamily: fontStyles.heading,
@@ -652,7 +652,7 @@ const About = () => {
                   color: '#5D4E37'
                 }}>
                   "FUN Ecosystem được bảo hộ bởi một luật vũ trụ vĩnh cửu:<br /><br />
-                  <span className="font-semibold" style={{ color: '#D4AF37' }}>
+                  <span className="font-semibold" style={{ color: 'hsl(var(--gold))' }}>
                     Bất cứ điều gì không đặt trên Tình Yêu Thuần Khiết<br />
                     sẽ khó có thể bền vững lâu dài.
                   </span><br /><br />
@@ -663,7 +663,7 @@ const About = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Divine Seal - Khẳng Định Xác Quyết */}
@@ -672,14 +672,14 @@ const About = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.5rem, 4vw, 1.8rem)',
                 fontWeight: 600,
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 ✅ KHẲNG ĐỊNH XÁC QUYẾT
               </h2>
               <p className="text-center mb-6" style={{
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1rem, 2vw, 1.2rem)',
-                color: '#D4AF37',
+                color: 'hsl(var(--gold))',
                 letterSpacing: '0.1em'
               }}>
                 (Divine Seal)
@@ -687,23 +687,23 @@ const About = () => {
               
               <div className="relative p-6 md:p-8 rounded-2xl" style={{
                 background: 'linear-gradient(180deg, #FFFFFF 0%, #FFFEF5 100%)',
-                border: '3px solid #D4AF37',
-                boxShadow: '0 8px 40px rgba(212,175,55,0.25), 0 0 0 1px rgba(255,215,0,0.3), inset 0 2px 20px rgba(255,255,255,0.8)',
+                border: '3px solid hsl(var(--gold))',
+                boxShadow: '0 8px 40px hsl(var(--gold-line) / 0.25), 0 0 0 1px hsl(var(--gold-line) / 0.3), inset 0 2px 20px hsl(var(--card) / 0.8)',
                 transform: 'perspective(1000px) rotateX(2deg)'
               }}>
                 {/* Corner decorations */}
-                <div className="absolute top-2 left-2 w-6 h-6" style={{ borderTop: '3px solid #D4AF37', borderLeft: '3px solid #D4AF37' }} />
-                <div className="absolute top-2 right-2 w-6 h-6" style={{ borderTop: '3px solid #D4AF37', borderRight: '3px solid #D4AF37' }} />
-                <div className="absolute bottom-2 left-2 w-6 h-6" style={{ borderBottom: '3px solid #D4AF37', borderLeft: '3px solid #D4AF37' }} />
-                <div className="absolute bottom-2 right-2 w-6 h-6" style={{ borderBottom: '3px solid #D4AF37', borderRight: '3px solid #D4AF37' }} />
+                <div className="absolute top-2 left-2 w-6 h-6" style={{ borderTop: '3px solid hsl(var(--gold))', borderLeft: '3px solid hsl(var(--gold))' }} />
+                <div className="absolute top-2 right-2 w-6 h-6" style={{ borderTop: '3px solid hsl(var(--gold))', borderRight: '3px solid hsl(var(--gold))' }} />
+                <div className="absolute bottom-2 left-2 w-6 h-6" style={{ borderBottom: '3px solid hsl(var(--gold))', borderLeft: '3px solid hsl(var(--gold))' }} />
+                <div className="absolute bottom-2 right-2 w-6 h-6" style={{ borderBottom: '3px solid hsl(var(--gold))', borderRight: '3px solid hsl(var(--gold))' }} />
                 
                 <ol className="space-y-4">
                   {divineAffirmations.map((affirmation, index) => (
                     <li key={index} className="flex gap-3 items-start">
                       <span className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm" style={{
-                        background: 'linear-gradient(135deg, #D4AF37, #FFD700)',
+                        background: 'linear-gradient(135deg, hsl(var(--gold)), hsl(var(--gold-line)))',
                         color: '#FFFFFF',
-                        boxShadow: '0 2px 8px rgba(212,175,55,0.4)'
+                        boxShadow: '0 2px 8px hsl(var(--gold-line) / 0.4)'
                       }}>
                         {index + 1}
                       </span>
@@ -725,19 +725,19 @@ const About = () => {
 
             {/* Golden Divider */}
             <div className="w-full h-px my-8" style={{
-              background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)'
+              background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), transparent)'
             }} />
 
             {/* Closing Section - Tuyên Ngôn Kết */}
             <div className="text-center p-6 rounded-2xl" style={{
-              background: 'radial-gradient(ellipse at center, rgba(212,175,55,0.15) 0%, rgba(255,255,255,0.5) 70%)'
+              background: 'radial-gradient(ellipse at center, hsl(var(--gold-line) / 0.15) 0%, hsl(var(--card) / 0.5) 70%)'
             }}>
               <span className="text-5xl mb-4 block">🌅</span>
               <h2 className="mb-4" style={{
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.5rem, 4vw, 1.8rem)',
                 fontWeight: 600,
-                color: '#B8860B'
+                color: 'hsl(var(--gold-hover))'
               }}>
                 TUYÊN NGÔN KẾT
               </h2>
@@ -753,7 +753,7 @@ const About = () => {
                 fontFamily: fontStyles.heading,
                 fontSize: 'clamp(1.2rem, 2.5vw, 1.5rem)',
                 fontWeight: 600,
-                color: '#D4AF37'
+                color: 'hsl(var(--gold))'
               }}>
                 ✨ FUN Ecosystem chính là Bình Minh của Trái Đất Mới<br />
                 đang bắt đầu ngay bây giờ.
@@ -765,8 +765,8 @@ const About = () => {
                 className="mt-8 px-8 py-4 text-lg font-bold rounded-2xl border-0"
                 style={{
                   fontFamily: fontStyles.heading,
-                  background: 'linear-gradient(135deg, #D4AF37 0%, #FFD700 40%, #F0C000 60%, #D4AF37 100%)',
-                  boxShadow: '0 0 30px rgba(212,175,55,0.5), 0 0 60px rgba(255,215,0,0.3)',
+                  background: 'linear-gradient(135deg, hsl(var(--gold)) 0%, hsl(var(--gold-line)) 40%, hsl(var(--gold-line)) 60%, hsl(var(--gold)) 100%)',
+                  boxShadow: '0 0 30px hsl(var(--gold-line) / 0.5), 0 0 60px hsl(var(--gold-line) / 0.3)',
                   color: '#FFFFFF'
                 }}
               >

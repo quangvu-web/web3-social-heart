@@ -257,7 +257,7 @@ const Notifications = () => {
               {unreadCount > 0 && (
                 <Badge 
                   variant="secondary" 
-                  className="bg-green-500 text-white hover:bg-green-600 animate-pulse"
+                  className="bg-green-500 text-primary-foreground hover:bg-green-600 animate-pulse"
                 >
                   {unreadCount}
                 </Badge>
@@ -288,8 +288,8 @@ const Notifications = () => {
                   value={option.value}
                   className={cn(
                     "px-3 py-1.5 text-xs rounded-full whitespace-nowrap border-[0.5px] transition-all duration-300",
-                    "border-transparent hover:border-[#C9A84C]/40",
-                    "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-[#C9A84C]"
+                    "border-transparent hover:border-gold/40",
+                    "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-gold"
                   )}
                 >
                   <option.icon className="h-3 w-3 mr-1.5" />

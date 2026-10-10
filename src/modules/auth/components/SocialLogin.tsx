@@ -99,15 +99,15 @@ export const SocialLogin = ({
       >
         <Button 
           type="button" 
-          className="w-full h-14 text-white font-bold transition-all flex items-center justify-center gap-3 rounded-full text-lg" 
+          className="w-full h-14 text-primary-foreground font-bold transition-all flex items-center justify-center gap-3 rounded-full text-lg"
           onClick={handleGoogleSignIn} 
           disabled={googleLoading} 
           style={{
-            background: 'linear-gradient(135deg, #166534 0%, #15803d 50%, #166534 100%)',
+            background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)) 50%, hsl(var(--primary)) 100%)',
           }}
         >
           {googleLoading ? (
-            <Loader2 className="animate-spin text-white" size={20} />
+            <Loader2 className="animate-spin text-primary-foreground" size={20} />
           ) : (
             /* Official Google G logo with 4 colors - DOUBLED SIZE */
             <svg className="w-10 h-10" viewBox="0 0 24 24">
@@ -117,7 +117,7 @@ export const SocialLogin = ({
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
           )}
-          <span className="text-white">
+          <span className="text-primary-foreground">
             {googleLoading ? t('authInitializing') : t('authSignInWithGoogle')}
           </span>
         </Button>

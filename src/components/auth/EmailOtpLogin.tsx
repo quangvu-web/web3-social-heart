@@ -152,10 +152,10 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
           <Button
             onClick={handleSendOtp}
             disabled={loading || !email}
-            className="w-full h-14 text-lg font-bold rounded-full relative overflow-hidden text-white"
+            className="w-full h-14 text-lg font-bold rounded-full relative overflow-hidden text-primary-foreground"
             style={{
-              background: 'linear-gradient(135deg, #166534 0%, #15803d 50%, #166534 100%)',
-              boxShadow: '0 4px 20px rgba(22, 101, 52, 0.4)',
+              background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)) 50%, hsl(var(--primary)) 100%)',
+              boxShadow: '0 4px 20px hsl(var(--primary) / 0.4)',
             }}
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
@@ -199,7 +199,7 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
                     <InputOTPSlot
                       key={index}
                       index={index}
-                      className="w-12 h-14 text-xl font-bold border-2 border-slate-300 rounded-full bg-white focus:border-emerald-500"
+                      className="w-12 h-14 text-xl font-bold border-2 border-slate-300 rounded-full bg-card focus:border-emerald-500"
                     />
                   ))}
                 </InputOTPGroup>
@@ -216,10 +216,10 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
           <Button
             onClick={handleVerifyOtp}
             disabled={loading || otp.length !== 6}
-            className="w-full h-14 text-lg font-bold rounded-full relative overflow-hidden text-white"
+            className="w-full h-14 text-lg font-bold rounded-full relative overflow-hidden text-primary-foreground"
             style={{
-              background: 'linear-gradient(135deg, #166534 0%, #15803d 50%, #166534 100%)',
-              boxShadow: '0 4px 20px rgba(22, 101, 52, 0.4)',
+              background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)) 50%, hsl(var(--primary)) 100%)',
+              boxShadow: '0 4px 20px hsl(var(--primary) / 0.4)',
             }}
           >
             <span className="relative z-10 flex items-center justify-center gap-2">

@@ -175,11 +175,11 @@ export const WalletLoginContent = ({
             </p>
           </div>
 
-          <Button onClick={handleConnect} disabled={isLoading} className="w-full h-14 text-lg font-bold rounded-full relative overflow-hidden text-white" style={{
-        background: 'linear-gradient(135deg, #166534 0%, #15803d 50%, #166534 100%)',
-        boxShadow: '0 4px 20px rgba(22, 101, 52, 0.4)'
+          <Button onClick={handleConnect} disabled={isLoading} className="w-full h-14 text-lg font-bold rounded-full relative overflow-hidden text-primary-foreground" style={{
+        background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)) 50%, hsl(var(--primary)) 100%)',
+        boxShadow: '0 4px 20px hsl(var(--primary) / 0.4)'
       }}>
-            <span className="relative z-10 flex items-center justify-center gap-2 text-white">
+            <span className="relative z-10 flex items-center justify-center gap-2 text-primary-foreground">
               {isLoading ? <>
                   <Loader2 className="animate-spin" size={20} />
                   {t('walletConnecting')}
@@ -206,11 +206,11 @@ export const WalletLoginContent = ({
             </p>
           </div>
 
-          <Button onClick={handleSignAndVerify} disabled={isLoading} className="w-full h-14 text-lg font-bold rounded-full relative overflow-hidden text-white" style={{
-        background: 'linear-gradient(135deg, #166534 0%, #15803d 50%, #166534 100%)',
-        boxShadow: '0 4px 20px rgba(22, 101, 52, 0.4)'
+          <Button onClick={handleSignAndVerify} disabled={isLoading} className="w-full h-14 text-lg font-bold rounded-full relative overflow-hidden text-primary-foreground" style={{
+        background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)) 50%, hsl(var(--primary)) 100%)',
+        boxShadow: '0 4px 20px hsl(var(--primary) / 0.4)'
       }}>
-            <span className="relative z-10 flex items-center justify-center gap-2 text-white">
+            <span className="relative z-10 flex items-center justify-center gap-2 text-primary-foreground">
               {isLoading ? <>
                   <Loader2 className="animate-spin" size={20} />
                   {t('walletSigning')}

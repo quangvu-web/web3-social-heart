@@ -2,58 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-/* FUN Profile 2025 - Royal Green & Gold Theme */
-/* Inspired by luxury royal badges with green + thin golden accents */
+/* FUN Profile - Tech Blue & Cyan Theme */
+/* Clean technology look: vivid blue primary, cyan accents, cool white background */
 
 @layer base {
   :root {
     /* Pearl/Ivory White Background - Elegant & Warm */
-    --background: 45 30% 97%;
-    --foreground: 142 50% 15%;
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
 
     /* Card - Soft Pearl White */
-    --card: 45 40% 99%;
-    --card-foreground: 142 50% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 45 40% 99%;
-    --popover-foreground: 142 50% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
     /* FUN Profile Royal Green - Primary */
-    --primary: 142 76% 26%;
+    --primary: 221 83% 53%;
+    --primary-glow: 190 95% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 142 76% 22%;
-    --primary-dark: 142 76% 18%;
+    --primary-hover: 224 76% 48%;
+    --primary-dark: 226 71% 40%;
     
     /* Royal Golden - Thin Accent Lines */
-    --gold: 43 74% 49%;
-    --gold-hover: 43 74% 42%;
-    --gold-light: 43 74% 65%;
-    --gold-line: 43 74% 55%;
+    --gold: 189 94% 43%;
+    --gold-hover: 192 91% 36%;
+    --gold-light: 187 92% 69%;
+    --gold-line: 190 95% 55%;
 
     /* Secondary - Warm Gray with Pearl Tint */
-    --secondary: 45 20% 94%;
-    --secondary-foreground: 142 50% 15%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
 
     /* Muted - Soft Pearl Tones */
-    --muted: 45 15% 90%;
-    --muted-foreground: 142 30% 35%;
+    --muted: 210 35% 93%;
+    --muted-foreground: 215 20% 42%;
 
     /* Accent - Forest Green */
-    --accent: 142 76% 30%;
+    --accent: 199 89% 48%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 76% 30%;
+    --success: 161 94% 30%;
     --success-foreground: 0 0% 100%;
 
     /* Border - Very thin golden tint */
-    --border: 43 40% 85%;
-    --input: 45 20% 92%;
-    --ring: 142 76% 30%;
+    --border: 214 32% 88%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     /* Facebook Reactions */
     --reaction-like: 220 80% 55%;
@@ -72,7 +73,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     text-rendering: optimizeSpeed;
   }
 }
@@ -122,7 +123,7 @@
 }
 
 .fun-icon-btn:hover svg {
-  @apply text-white;
+  @apply text-primary-foreground;
   filter: drop-shadow(0 0 6px hsl(0 0% 100% / 0.5));
 }
 
@@ -132,7 +133,7 @@
 
 .fun-icon-btn:active svg {
   @apply text-foreground;
-  filter: drop-shadow(0 0 8px hsl(48 96% 53% / 0.6));
+  filter: drop-shadow(0 0 8px hsl(190 95% 55% / 0.6));
 }
 
 /* FUN Icon Button - Gold variant (for Wallet, Notification) */
@@ -354,49 +355,49 @@ html {
 /* Thin golden decorative line */
 .fun-golden-line {
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, #C9A84C 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, hsl(var(--gold-line)) 50%, transparent 100%);
   opacity: 0.6;
 }
 
 .fun-golden-line-vertical {
   width: 1px;
-  background: linear-gradient(180deg, transparent 0%, #C9A84C 50%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, hsl(var(--gold-line)) 50%, transparent 100%);
   opacity: 0.6;
 }
 
 /* Golden border - very thin */
 .fun-golden-border {
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  border: 1px solid hsl(var(--gold-line) / 0.4);
 }
 
 .fun-golden-border-hover:hover {
-  border-color: rgba(201, 168, 76, 0.7);
+  border-color: hsl(var(--gold-line) / 0.7);
 }
 
 .fun-gradient-bg {
   background: linear-gradient(
     135deg, 
-    #166534 0%,
-    #14532d 50%,
-    #0f3d22 100%
+    hsl(var(--primary)) 0%,
+    hsl(var(--primary-hover)) 50%,
+    hsl(var(--primary-dark)) 100%
   );
 }
 
 .fun-gradient-bg-reverse {
   background: linear-gradient(
     -45deg, 
-    #166534 0%,
-    #1a7340 50%,
-    #14532d 100%
+    hsl(var(--primary)) 0%,
+    hsl(var(--accent)) 50%,
+    hsl(var(--primary-hover)) 100%
   );
 }
 
 .fun-gradient-text {
   background: linear-gradient(
     90deg, 
-    #166534 0%, 
-    #1a7340 50%,
-    #14532d 100%
+    hsl(var(--primary)) 0%,
+    hsl(var(--accent)) 50%,
+    hsl(var(--primary-hover)) 100%
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -406,11 +407,11 @@ html {
 .fun-gradient-gold-text {
   background: linear-gradient(
     135deg, 
-    #C9A84C 0%, 
-    #D4B45C 30%, 
-    #C9A84C 50%, 
-    #B8973F 70%, 
-    #C9A84C 100%
+    hsl(var(--gold-line)) 0%,
+    hsl(var(--gold-light)) 30%,
+    hsl(var(--gold-line)) 50%,
+    hsl(var(--gold-hover)) 70%,
+    hsl(var(--gold-line)) 100%
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -419,45 +420,45 @@ html {
 
 /* Pearl white card with thin golden accent */
 .fun-card {
-  background: linear-gradient(180deg, #FFFEF7 0%, #FAF8F3 100%);
-  border: 1px solid rgba(201, 168, 76, 0.3);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--background)) 100%);
+  border: 1px solid hsl(var(--gold-line) / 0.3);
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.04);
 }
 
 .fun-card:hover {
-  border-color: rgba(201, 168, 76, 0.5);
+  border-color: hsl(var(--gold-line) / 0.5);
 }
 
-/* Primary button - Royal Green with thin golden border */
+/* Primary button - Tech Blue with thin cyan border */
 .fun-button-primary {
-  background: linear-gradient(180deg, #166534 0%, #14532d 100%);
-  color: white;
-  border: 1px solid rgba(201, 168, 76, 0.5);
+  background: linear-gradient(180deg, hsl(var(--primary)) 0%, hsl(var(--primary-hover)) 100%);
+  color: hsl(var(--primary-foreground));
+  border: 1px solid hsl(var(--gold-line) / 0.5);
   transition: all 0.3s ease;
 }
 
 .fun-button-primary:hover {
-  background: linear-gradient(180deg, #14532d 0%, #0f3d22 100%);
-  border-color: rgba(201, 168, 76, 0.8);
-  box-shadow: 0 2px 8px rgba(22, 101, 52, 0.2);
+  background: linear-gradient(180deg, hsl(var(--primary-hover)) 0%, hsl(var(--primary-dark)) 100%);
+  border-color: hsl(var(--gold-line) / 0.8);
+  box-shadow: 0 2px 8px hsl(var(--primary) / 0.2);
 }
 
 /* Secondary button - Outlined */
 .fun-button-secondary {
   background: transparent;
-  border: 1px solid rgba(201, 168, 76, 0.4);
-  color: #166534;
+  border: 1px solid hsl(var(--gold-line) / 0.4);
+  color: hsl(var(--primary));
   transition: all 0.3s ease;
 }
 
 .fun-button-secondary:hover {
-  background: rgba(22, 101, 52, 0.05);
-  border-color: rgba(201, 168, 76, 0.7);
+  background: hsl(var(--primary) / 0.05);
+  border-color: hsl(var(--gold-line) / 0.7);
 }
 
 /* ================================ */
 /* FUN Profile Icon Navigation     */
-/* Deep Green Theme                */
+/* Tech Blue Theme                 */
 /* ================================ */
 
 /* FUN Icon - Default state */
@@ -465,15 +466,15 @@ html {
   @apply text-muted-foreground transition-all duration-300;
 }
 
-/* FUN Icon - Hover state (Green) */
+/* FUN Icon - Hover state (Blue) */
 .fun-nav-icon:hover {
-  color: #166534;
+  color: hsl(var(--primary));
 }
 
 /* FUN Icon - Active state */
 .fun-nav-icon.active,
 .fun-nav-icon:active {
-  color: #166534;
+  color: hsl(var(--primary));
 }
 
 /* FUN Icon Button - Container */
@@ -484,33 +485,33 @@ html {
 
 /* FUN Icon Button - Hover (Green bg) */
 .fun-icon-btn:hover {
-  background: #166534;
-  border-color: rgba(201, 168, 76, 0.4);
+  background: hsl(var(--primary));
+  border-color: hsl(var(--gold-line) / 0.4);
 }
 
 .fun-icon-btn:hover svg {
-  @apply text-white;
+  @apply text-primary-foreground;
 }
 
 /* FUN Icon Button - Active/Pressed */
 .fun-icon-btn:active {
-  background: #14532d;
+  background: hsl(var(--primary-hover));
   @apply scale-95;
 }
 
 /* FUN Icon Button - Gold variant */
 .fun-icon-btn-gold {
   @apply w-10 h-10 rounded-full bg-secondary flex items-center justify-center transition-all duration-300;
-  border: 1px solid rgba(201, 168, 76, 0.3);
+  border: 1px solid hsl(var(--gold-line) / 0.3);
 }
 
 .fun-icon-btn-gold:hover {
-  background: rgba(201, 168, 76, 0.1);
-  border-color: rgba(201, 168, 76, 0.5);
+  background: hsl(var(--gold-line) / 0.1);
+  border-color: hsl(var(--gold-line) / 0.5);
 }
 
 .fun-icon-btn-gold:active {
-  background: rgba(201, 168, 76, 0.2);
+  background: hsl(var(--gold-line) / 0.2);
   @apply scale-95;
 }
 

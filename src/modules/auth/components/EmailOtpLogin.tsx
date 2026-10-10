@@ -162,7 +162,7 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
               {t('authEmail')}
             </Label>
             <div className="relative group">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 z-20">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-primary z-20">
                 <Mail size={18} />
               </div>
               <Input
@@ -171,7 +171,7 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('authEmailPlaceholder')}
-                className="pl-10 h-12 rounded-full border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/30 transition-all duration-300"
+                className="pl-10 h-12 rounded-full border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all duration-300"
                 onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
               />
             </div>
@@ -227,7 +227,7 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
                     <InputOTPSlot
                       key={index}
                       index={index}
-                      className="w-12 h-14 text-xl font-bold border-2 border-slate-300 rounded-full bg-card focus:border-emerald-500"
+                      className="w-12 h-14 text-xl font-bold border-2 border-slate-300 rounded-full bg-card focus:border-primary"
                     />
                   ))}
                 </InputOTPGroup>
@@ -237,7 +237,7 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
 
           {countdown > 0 && (
             <p className="text-center text-sm text-slate-500">
-              {t('otpExpireIn')}: <span className="font-mono font-bold text-emerald-600">{formatCountdown(countdown)}</span>
+              {t('otpExpireIn')}: <span className="font-mono font-bold text-primary">{formatCountdown(countdown)}</span>
             </p>
           )}
 
@@ -269,7 +269,7 @@ export const EmailOtpLogin = ({ onSuccess }: EmailOtpLoginProps) => {
             variant="ghost"
             onClick={handleResendOtp}
             disabled={loading || countdown > 270} // Can resend after 30 seconds
-            className="w-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+            className="w-full text-primary hover:text-primary/80 hover:bg-primary/5"
           >
             <RefreshCw size={16} className="mr-2" />
             {t('otpResend')}

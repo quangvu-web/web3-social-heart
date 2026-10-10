@@ -88,10 +88,10 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-amber-50/20 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-accent/10 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Static background - no blur for performance */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-100/40 rounded-full" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/10 rounded-full" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-amber-100/40 rounded-full" />
       </div>
 
@@ -104,7 +104,7 @@ const Auth = () => {
         {/* Left Side - Branding */}
         <div className="text-center md:text-left">
           <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
-            {/* LCP Image - 256px with dark green metallic border */}
+            {/* LCP Image - 256px with blue-cyan metallic border */}
             <img 
               src="/fun-profile-logo-128.webp" 
               alt="FUN Profile" 
@@ -121,7 +121,7 @@ const Auth = () => {
               }}
             />
           </div>
-          {/* FUN Profile title - Metallic green 3D */}
+          {/* FUN Profile title - Metallic blue-cyan 3D */}
           <h1 
             className="text-4xl md:text-5xl font-bold mb-4"
             style={{
@@ -163,7 +163,7 @@ const Auth = () => {
               <div className="flex-1 border-t border-muted" />
             </div>
             
-            {/* View as Guest button with rainbow metallic border, white bg, metallic green text */}
+            {/* View as Guest button with rainbow metallic border and theme-colored text */}
             <div 
               className="relative p-[3px] rounded-full mt-3"
               style={{
@@ -175,7 +175,7 @@ const Auth = () => {
                 onClick={() => navigate('/')}
                 className="w-full flex items-center justify-center gap-3 font-bold text-xl h-14 bg-card hover:bg-slate-50 border-0 rounded-full transition-colors"
               >
-                <Eye size={24} className="text-emerald-600" />
+                <Eye size={24} className="text-primary" />
                 <span
                   style={{
                     background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 30%, hsl(var(--primary)) 50%, hsl(var(--primary-glow)) 70%, hsl(var(--primary)) 100%)',

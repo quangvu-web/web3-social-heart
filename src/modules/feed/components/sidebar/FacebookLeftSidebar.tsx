@@ -70,7 +70,7 @@ export const FacebookLeftSidebar = ({ onItemClick }: FacebookLeftSidebarProps) =
     { icon: UsersRound, label: t('groups'), path: '/groups', color: 'text-blue-500' },
     { icon: Flag, label: t('pages') || 'Trang', path: '/pages', color: 'text-orange-500' },
     { icon: Link2, label: 'Connected Apps', path: '/profile/connected-apps', color: 'text-purple-500' },
-    { icon: BookOpen, label: 'SSO Docs', path: '/docs/ecosystem', color: 'text-green-500' },
+    { icon: BookOpen, label: 'SSO Docs', path: '/docs/ecosystem', color: 'text-accent' },
   ];
 
   // FUN Ecosystem shortcuts - use direct paths for consistency across all environments

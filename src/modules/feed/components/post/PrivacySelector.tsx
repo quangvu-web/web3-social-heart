@@ -65,7 +65,7 @@ export const PrivacySelector = ({ value, onChange, disabled }: PrivacySelectorPr
 
       <Dialog open={isOpen} onOpenChange={setIsOpen} modal={true}>
         <DialogContent className="sm:max-w-[420px] p-0 z-[200] rounded-2xl overflow-hidden shadow-2xl">
-          <DialogHeader className="p-4 border-b border-border bg-gradient-to-r from-primary/10 to-emerald-500/10">
+          <DialogHeader className="p-4 border-b border-border bg-gradient-to-r from-primary/10 to-accent/10">
             <div className="flex items-center">
               <button
                 type="button"

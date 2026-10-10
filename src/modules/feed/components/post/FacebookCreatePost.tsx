@@ -215,7 +215,7 @@ const AiWritingAssistant = ({ open, isMobile, disabled, onOpenChange, onAction }
     <Button
       type="button"
       variant="outline"
-      className="h-11 rounded-full border-primary/25 bg-gradient-to-r from-primary/10 via-emerald-500/10 to-sky-500/10 px-4 text-primary shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+      className="h-11 rounded-full border-primary/25 bg-gradient-to-r from-primary/10 via-accent/10 to-accent/10 px-4 text-primary shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
       disabled={disabled}
       onClick={() => {
         triggerHaptic();
@@ -268,7 +268,7 @@ const LightScoreBadge = () => (
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="inline-flex min-h-9 items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 dark:text-emerald-300"
+          className="inline-flex min-h-9 items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-all hover:bg-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
         >
           <Sparkles className="h-3.5 w-3.5" />
           Light Score eligible
@@ -303,7 +303,7 @@ const ComposerActionBar = ({
   onSoon,
 }: ComposerActionBarProps) => {
   const actions = [
-    { label: 'Ảnh/Video', icon: ImagePlus, color: 'text-emerald-500', active: false, onClick: onMedia },
+    { label: 'Ảnh/Video', icon: ImagePlus, color: 'text-primary', active: false, onClick: onMedia },
     { label: 'Cảm xúc', icon: SmilePlus, color: 'text-amber-500', active: hasFeeling, onClick: onFeeling },
     { label: 'Check-in', icon: MapPin, color: 'text-rose-500', active: hasLocation, onClick: onCheckIn },
     { label: 'Voice', icon: Mic, color: 'text-violet-500', active: false, onClick: () => onSoon('Voice') },
@@ -883,7 +883,7 @@ export const FacebookCreatePost = ({ onPostCreated }: FacebookCreatePostProps) =
               }}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 hover:bg-muted rounded-lg transition-colors group"
             >
-              <ImagePlus className="w-6 h-6 text-[#45BD62]" />
+              <ImagePlus className="w-6 h-6 text-primary" />
               <span className="font-medium text-muted-foreground text-sm hidden sm:inline">Ảnh/video</span>
             </button>
             <button
@@ -962,7 +962,7 @@ export const FacebookCreatePost = ({ onPostCreated }: FacebookCreatePostProps) =
               onClick={handlePhotoVideoClick}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 hover:bg-muted rounded-lg transition-colors group"
             >
-              <ImagePlus className="w-6 h-6 text-[#45BD62] group-hover:scale-110 transition-transform" />
+              <ImagePlus className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
               <span className="font-medium text-muted-foreground text-sm hidden sm:inline">Ảnh/video</span>
             </button>
             
@@ -985,7 +985,7 @@ export const FacebookCreatePost = ({ onPostCreated }: FacebookCreatePostProps) =
       {/* Create Post Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="h-[calc(100dvh-16px)] w-[calc(100vw-16px)] p-0 sm:h-auto sm:max-h-[90vh] sm:max-w-[580px] overflow-hidden flex flex-col rounded-3xl sm:rounded-2xl border border-white/20 bg-card/95 shadow-2xl shadow-primary/10 backdrop-blur-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95">
-          <DialogHeader className="relative shrink-0 border-b border-border/70 bg-gradient-to-r from-primary/10 via-emerald-500/10 to-sky-500/10 px-4 py-4">
+          <DialogHeader className="relative shrink-0 border-b border-border/70 bg-gradient-to-r from-primary/10 via-accent/10 to-accent/10 px-4 py-4">
             <DialogTitle className="text-center text-xl font-bold tracking-tight">Tạo bài viết</DialogTitle>
             <p className="mt-1 text-center text-xs text-muted-foreground">Chia sẻ năng lượng tích cực cùng FUN.RICH</p>
           </DialogHeader>

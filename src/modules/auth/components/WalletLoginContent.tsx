@@ -224,7 +224,7 @@ export const WalletLoginContent = ({
         </>}
 
       {step === 'verify' && <div className="text-center space-y-4 py-8">
-          <Loader2 className="animate-spin mx-auto text-emerald-500" size={48} />
+          <Loader2 className="animate-spin mx-auto text-primary" size={48} />
           <p className="text-muted-foreground font-medium">{t('walletVerifying')}</p>
         </div>}
     </div>;

@@ -305,7 +305,7 @@ export const ClassicEmailLogin = ({ onSuccess }: ClassicEmailLoginProps) => {
               onChange={e => setUsername(e.target.value)}
               required={!isLogin}
               placeholder={t('authUsernamePlaceholder')}
-              className="h-12 rounded-full border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/30 transition-all"
+              className="h-12 rounded-full border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all"
             />
           </div>
         )}
@@ -321,7 +321,7 @@ export const ClassicEmailLogin = ({ onSuccess }: ClassicEmailLoginProps) => {
             onChange={e => setEmail(e.target.value)}
             required
             placeholder={t('authEmailPlaceholder')}
-            className="h-12 rounded-full border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/30 transition-all"
+            className="h-12 rounded-full border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all"
           />
         </div>
         
@@ -337,12 +337,12 @@ export const ClassicEmailLogin = ({ onSuccess }: ClassicEmailLoginProps) => {
               onChange={e => setPassword(e.target.value)}
               required
               placeholder={t('authPasswordPlaceholder')}
-              className="h-12 rounded-full pr-10 border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/30 transition-all"
+              className="h-12 rounded-full pr-10 border-2 border-slate-300 bg-gradient-to-br from-white to-slate-50 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-emerald-500 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-primary transition-colors"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -375,7 +375,7 @@ export const ClassicEmailLogin = ({ onSuccess }: ClassicEmailLoginProps) => {
             <button
               type="button"
               onClick={() => setShowForgotPassword(!showForgotPassword)}
-              className="text-emerald-600 hover:text-emerald-700 font-semibold hover:underline transition-colors"
+              className="text-primary hover:text-primary/80 font-semibold hover:underline transition-colors"
             >
               {t('authForgotPassword')}
             </button>
@@ -389,11 +389,11 @@ export const ClassicEmailLogin = ({ onSuccess }: ClassicEmailLoginProps) => {
               placeholder={t('authEmailPlaceholder')}
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="border-2 border-slate-400 bg-card/80 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-400/50"
+              className="border-2 border-slate-400 bg-card/80 focus:border-primary focus:ring-2 focus:ring-primary/30"
             />
             <Button
               onClick={handleForgotPassword}
-              className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+              className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary/90 hover:to-primary-dark"
               disabled={loading}
             >
               {t('authSendResetEmail')}
@@ -408,7 +408,7 @@ export const ClassicEmailLogin = ({ onSuccess }: ClassicEmailLoginProps) => {
               setIsLogin(!isLogin);
               setShowForgotPassword(false);
             }}
-            className="text-emerald-600 hover:text-emerald-700 font-semibold hover:underline transition-colors"
+            className="text-primary hover:text-primary/80 font-semibold hover:underline transition-colors"
           >
             {isLogin ? t('authNoAccount') : t('authHaveAccount')}{' '}
             <span className="font-bold">{isLogin ? t('authSignUpLink') : t('authSignInLink')}</span>

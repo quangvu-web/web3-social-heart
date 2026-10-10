@@ -89,7 +89,7 @@ export const SocialLogin = ({
         </p>
       </div>
 
-      {/* Google Sign In Button - Thinner rainbow border (1.5px), green background, larger G icon */}
+      {/* Google sign-in brand colors are kept on the official Google button. */}
       <div 
         className="relative p-[1.5px] rounded-full"
         style={{

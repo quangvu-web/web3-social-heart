@@ -10,7 +10,7 @@ export const WalletLoginProviders = ({ onSuccess }: WalletLoginProvidersProps) =
   return (
     <RainbowKitProvider
       theme={darkTheme({
-        accentColor: '#10b981',
+        accentColor: '#2563EB',
         accentColorForeground: 'white',
         borderRadius: 'large',
       })}

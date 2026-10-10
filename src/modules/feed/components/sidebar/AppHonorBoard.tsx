@@ -137,44 +137,32 @@ export const AppHonorBoard = memo(() => {
     icon: typeof Users;
     label: string;
     value: number;
-    color: string;
-    bgColor: string;
     showCamlyLogo?: boolean;
   }> = [
     {
       icon: Users,
       label: t('totalUsers'),
       value: stats?.totalUsers || 0,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-500/10',
     },
     {
       icon: FileText,
       label: t('totalPosts'),
       value: stats?.totalPosts || 0,
-      color: 'text-green-500',
-      bgColor: 'bg-green-500/10',
     },
     {
       icon: Image,
       label: t('totalPhotos'),
       value: stats?.totalPhotos || 0,
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-500/10',
     },
     {
       icon: Video,
       label: t('totalVideos'),
       value: stats?.totalVideos || 0,
-      color: 'text-red-500',
-      bgColor: 'bg-red-500/10',
     },
     {
       icon: BadgeDollarSign,
       label: t('totalRewards'),
       value: stats?.totalRewards || 0,
-      color: 'text-gold',
-      bgColor: 'bg-gold/10',
       showCamlyLogo: true,
     },
   ];
@@ -213,16 +201,16 @@ export const AppHonorBoard = memo(() => {
           {statItems.map((item, index) => (
             <div 
               key={index} 
-              className="flex items-center gap-3 py-2.5 px-4 rounded-full bg-gradient-to-b from-[#1a7d45] via-[#166534] to-[#0d4a2a] border-[3px] border-[#D4AF37] transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+              className="flex items-center gap-3 py-2.5 px-4 rounded-full bg-gradient-to-b from-primary via-primary to-primary-dark border-[3px] border-gold transition-all duration-300 hover:scale-[1.02] cursor-pointer"
             >
-              <div className="p-1.5 rounded-full bg-white/10 shrink-0">
-                <item.icon className="w-4 h-4 text-[#F5E6C8]" />
+              <div className="p-1.5 rounded-full bg-card/10 shrink-0">
+                <item.icon className="w-4 h-4 text-primary-foreground" />
               </div>
               <div className="flex-1 flex items-center justify-between gap-2 min-w-0 overflow-hidden">
-                <span className="text-[#F5E6C8] text-[10px] sm:text-xs uppercase font-semibold truncate flex-shrink min-w-0">
+                <span className="text-primary-foreground text-[10px] sm:text-xs uppercase font-semibold truncate flex-shrink min-w-0">
                   {item.label}
                 </span>
-                <span className="text-[#FFD700] font-bold text-[11px] sm:text-sm flex items-center gap-1 flex-shrink-0">
+                <span className="text-gold-line font-bold text-[11px] sm:text-sm flex items-center gap-1 flex-shrink-0">
                   <span className="tabular-nums">{formatNumber(item.value)}</span>
                   {item.showCamlyLogo && (
                     <img 
@@ -241,16 +229,16 @@ export const AppHonorBoard = memo(() => {
             stats.tokenBalances.map((token, index) => (
               <div 
                 key={token.symbol} 
-                className="flex items-center gap-3 py-2.5 px-4 rounded-full bg-gradient-to-b from-[#1a7d45] via-[#166534] to-[#0d4a2a] border-[3px] border-[#D4AF37] transition-all duration-300 hover:scale-[1.02] cursor-pointer"
+                className="flex items-center gap-3 py-2.5 px-4 rounded-full bg-gradient-to-b from-primary via-primary to-primary-dark border-[3px] border-gold transition-all duration-300 hover:scale-[1.02] cursor-pointer"
               >
-                <div className="p-1.5 rounded-full bg-white/10 shrink-0">
-                  <Coins className="w-4 h-4 text-[#F5E6C8]" />
+                <div className="p-1.5 rounded-full bg-card/10 shrink-0">
+                  <Coins className="w-4 h-4 text-primary-foreground" />
                 </div>
                 <div className="flex-1 flex items-center justify-between gap-2 min-w-0 overflow-hidden">
-                  <span className="text-[#F5E6C8] text-[10px] sm:text-xs uppercase font-semibold truncate flex-shrink min-w-0">
+                  <span className="text-primary-foreground text-[10px] sm:text-xs uppercase font-semibold truncate flex-shrink min-w-0">
                     {index === 0 ? t('totalMoney') : `Circulating ${token.symbol}`}
                   </span>
-                  <span className="text-[#FFD700] font-bold text-[11px] sm:text-sm flex items-center gap-1 flex-shrink-0">
+                  <span className="text-gold-line font-bold text-[11px] sm:text-sm flex items-center gap-1 flex-shrink-0">
                     <span className="tabular-nums">{formatNumber(token.amount, token.symbol === 'CAMLY' ? 0 : 6)}</span>
                     <img 
                       src={token.logoPath} 

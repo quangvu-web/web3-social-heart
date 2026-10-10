@@ -114,7 +114,7 @@ export const UnifiedAuthForm = () => {
           <Card className="relative border-0 overflow-hidden rounded-2xl bg-card">
             <CardContent className="p-8">
               <div className="text-center space-y-6 py-8">
-                <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center">
+                <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                   <Sparkles className="text-primary-foreground" size={40} />
                 </div>
 
@@ -141,7 +141,7 @@ export const UnifiedAuthForm = () => {
 
   return (
     <div className="w-full max-w-lg relative">
-      {/* Outer Frame - Premium dark green metallic with shine */}
+      {/* Outer Frame - Premium blue-cyan metallic with shine */}
       <div 
         className="relative p-[4px] rounded-3xl"
         style={{
@@ -153,7 +153,7 @@ export const UnifiedAuthForm = () => {
         {/* Inner Card - clean white background */}
         <Card className="relative border-0 overflow-hidden rounded-[20px] bg-card shadow-inner p-2">
           <CardHeader className="pb-4">
-            {/* Step into the Light - Metallic green 3D - 40% larger */}
+            {/* Step into the Light - Metallic blue-cyan 3D - 40% larger */}
             <CardTitle 
               className="text-4xl font-bold text-center"
               style={{

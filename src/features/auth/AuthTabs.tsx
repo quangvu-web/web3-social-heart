@@ -52,7 +52,7 @@ export function AuthTabs({
       <TabsContent value="wallet" className="mt-0">
         <RainbowKitProvider
           theme={darkTheme({
-            accentColor: "#10b981",
+            accentColor: "#2563EB",
             accentColorForeground: "white",
             borderRadius: "large",
           })}

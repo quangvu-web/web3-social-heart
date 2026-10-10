@@ -370,7 +370,7 @@ export const EditPostDialog = ({ post, isOpen, onClose, onPostUpdated, currentUs
                   <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide">
                     {/* Media - Green */}
                     <label className="w-9 h-9 min-w-[36px] rounded-full hover:bg-secondary flex items-center justify-center transition-colors cursor-pointer">
-                      <Image className="w-6 h-6" style={{ color: '#45BD62' }} />
+                      <Image className="w-6 h-6 text-primary" />
                       <input
                         type="file"
                         accept="image/*"
@@ -382,7 +382,7 @@ export const EditPostDialog = ({ post, isOpen, onClose, onPostUpdated, currentUs
                     
                     {/* Video - Green */}
                     <label className="w-9 h-9 min-w-[36px] rounded-full hover:bg-secondary flex items-center justify-center transition-colors cursor-pointer">
-                      <Video className="w-6 h-6" style={{ color: '#45BD62' }} />
+                      <Video className="w-6 h-6 text-accent" />
                       <input
                         type="file"
                         accept="video/*"

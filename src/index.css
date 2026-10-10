@@ -18,7 +18,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* FUN Profile Royal Green - Primary */
+    /* FUN Profile Royal Blue - Primary */
     --primary: 221 83% 53%;
     --primary-glow: 190 95% 55%;
     --primary-foreground: 0 0% 100%;
@@ -39,7 +39,7 @@
     --muted: 210 35% 93%;
     --muted-foreground: 215 20% 42%;
 
-    /* Accent - Forest Green */
+    /* Accent - Cyan */
     --accent: 199 89% 48%;
     --accent-foreground: 0 0% 100%;
 
@@ -109,7 +109,7 @@
   @apply text-primary;
 }
 
-/* FUN Icon Button - Container with Green -> Gold -> White theme */
+/* FUN Icon Button - Container with Blue -> Cyan -> White theme */
 .fun-icon-btn {
   @apply w-10 h-10 rounded-full bg-secondary flex items-center justify-center transition-all duration-300;
 }

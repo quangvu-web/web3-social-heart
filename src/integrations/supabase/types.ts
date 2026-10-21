@@ -897,6 +897,98 @@ export type Database = {
           },
         ]
       }
+      caption_lines: {
+        Row: {
+          created_at: string
+          dedupe_key: string
+          id: string
+          seq: number
+          session_id: string
+          source_lang: string | null
+          speaker_name: string | null
+          text_en: string | null
+          text_source: string
+          text_vi: string | null
+          ts_offset_sec: number | null
+        }
+        Insert: {
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          seq: number
+          session_id: string
+          source_lang?: string | null
+          speaker_name?: string | null
+          text_en?: string | null
+          text_source: string
+          text_vi?: string | null
+          ts_offset_sec?: number | null
+        }
+        Update: {
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          seq?: number
+          session_id?: string
+          source_lang?: string | null
+          speaker_name?: string | null
+          text_en?: string | null
+          text_source?: string
+          text_vi?: string | null
+          ts_offset_sec?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caption_lines_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "caption_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caption_sessions: {
+        Row: {
+          created_at: string
+          created_by_chat_id: number | null
+          created_by_telegram_id: number | null
+          ended_at: string | null
+          id: string
+          meeting_url: string
+          platform: string | null
+          public_code: string
+          recall_bot_id: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_chat_id?: number | null
+          created_by_telegram_id?: number | null
+          ended_at?: string | null
+          id?: string
+          meeting_url: string
+          platform?: string | null
+          public_code: string
+          recall_bot_id?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by_chat_id?: number | null
+          created_by_telegram_id?: number | null
+          ended_at?: string | null
+          id?: string
+          meeting_url?: string
+          platform?: string | null
+          public_code?: string
+          recall_bot_id?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       chat_settings: {
         Row: {
           created_at: string | null

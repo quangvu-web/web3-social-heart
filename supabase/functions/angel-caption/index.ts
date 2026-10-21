@@ -341,6 +341,7 @@ async function handleStart(req: Request): Promise<Response> {
 interface TranscriptEvent {
   event?: string;
   data?: {
+    bot?: { id?: string; metadata?: { caption_session_id?: string } };
     bot_id?: string;
     data?: {
       words?: Array<{ text?: string; start_timestamp?: { relative?: number | null } | null }>;
@@ -353,7 +354,7 @@ async function findSessionByBot(admin: SupabaseClient, botId: string | null, met
   if (botId) {
     const { data } = await admin
       .from("caption_sessions")
-      .select("id, public_code, status")
+      .select("id, public_code, status, started_at")
       .eq("recall_bot_id", botId)
       .maybeSingle();
     if (data) return data;
@@ -361,7 +362,7 @@ async function findSessionByBot(admin: SupabaseClient, botId: string | null, met
   if (metadataSessionId) {
     const { data } = await admin
       .from("caption_sessions")
-      .select("id, public_code, status")
+      .select("id, public_code, status, started_at")
       .eq("id", metadataSessionId)
       .maybeSingle();
     if (data) return data;
@@ -370,11 +371,19 @@ async function findSessionByBot(admin: SupabaseClient, botId: string | null, met
 }
 
 async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEvent, metadataSessionId: string | null) {
-  const botId = payload.data?.bot_id ?? null;
+  const botId = payload.data?.bot?.id ?? payload.data?.bot_id ?? null;
   const session = await findSessionByBot(admin, botId, metadataSessionId);
   if (!session) {
     console.warn("[angel-caption] transcript for unknown bot", { bot_id: botId });
     return;
+  }
+
+  if (session.status === "pending" || session.status === "joining") {
+    await admin
+      .from("caption_sessions")
+      .update({ status: "live", ...(!session.started_at ? { started_at: new Date().toISOString() } : {}) })
+      .eq("id", session.id)
+      .in("status", ["pending", "joining"]);
   }
 
   const words = payload.data?.data?.words ?? [];
@@ -426,11 +435,11 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
 
 async function handleBotStatusChange(
   admin: SupabaseClient,
-  payload: { data?: { bot_id?: string; status?: { code?: string } } },
+  payload: { data?: { bot?: { id?: string; metadata?: { caption_session_id?: string } }; bot_id?: string; data?: { code?: string }; status?: { code?: string } } },
   metadataSessionId: string | null,
 ) {
-  const botId = payload.data?.bot_id ?? null;
-  const code = payload.data?.status?.code ?? "";
+  const botId = payload.data?.bot?.id ?? payload.data?.bot_id ?? null;
+  const code = payload.data?.data?.code ?? payload.data?.status?.code ?? "";
   const session = await findSessionByBot(admin, botId, metadataSessionId);
   if (!session || !code) return;
 
@@ -500,7 +509,7 @@ async function handleRecallWebhook(req: Request): Promise<Response> {
 
   const admin = getAdmin();
   const event = String(payload?.event ?? "");
-  const metadataSessionId = payload?.data?.metadata?.caption_session_id ?? payload?.metadata?.caption_session_id ?? null;
+  const metadataSessionId = payload?.data?.bot?.metadata?.caption_session_id ?? payload?.data?.metadata?.caption_session_id ?? payload?.metadata?.caption_session_id ?? null;
 
   try {
     if (event === "transcript.data") {

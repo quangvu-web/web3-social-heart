@@ -25,7 +25,7 @@
 
 ## Caption command routing repair
 - [x] Prioritize caption commands; deployed webhook and admin command definitions on 22 October 2026 (UTC+8).
-- [ ] Regression runtime assertions checked; finish Deno test validation. Full handler typecheck has 8 existing dependency/legacy errors, outside scope.
+- [x] Deno runtime regression: 1 passed, 0 failed (network denied, --no-check; SDK timer sanitizers disabled). Full handler typecheck has 8 existing dependency/legacy errors, outside scope; not reported as passing.
 - [ ] Register live bot menu: admin endpoint returns 401 without a session; sandbox bot credential fails getMe HTTP 404. Requires authorized admin setup action using production credentials.
 - [x] Anonymous caption_sessions read using frontend build public key returns HTTP 200; frontend build log OK.
 - [ ] Verify owner DM on production and new caption_command log: waiting for real Telegram message; no matching post-deploy log yet. Pre-deploy source cannot be downloaded without management access token.

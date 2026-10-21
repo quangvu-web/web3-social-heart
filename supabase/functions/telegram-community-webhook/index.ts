@@ -1151,11 +1151,136 @@ async function withTyping<T>(chatId: number | string, task: () => Promise<T>): P
 }
 
 
-async function handlePrivateMessage(message: TelegramMessage) {
+export async function handlePrivateMessage(message: TelegramMessage) {
   const chatId = message.chat?.id;
   if (!chatId) return;
   let text = extractText(message);
   const { adminClient } = getClients();
+  const tgUserId = message.from?.id;
+  const incomingMsgId = message.message_id ?? null;
+
+  // Helper: send reply + log bot direction='out'
+  const replyDm = async (
+    body: string,
+    opts?: Parameters<typeof sendMessage>[2],
+  ) => {
+    const res = await sendMessage(chatId, body, opts);
+    if (!res?.ok) {
+      console.warn("[dm] sendMessage failed", {
+        chatId,
+        userId: tgUserId ?? null,
+        messageId: incomingMsgId,
+        status: res?.status,
+        data: res?.data,
+      });
+    }
+    if (tgUserId) {
+      await trackBotDmReply({
+        chatId,
+        tgUserId,
+        text: body,
+        replyToMessageId: incomingMsgId,
+      });
+    }
+    return res;
+  };
+
+  if (/^\/caption/i.test(text)) {
+    // ANGEL CAPTION BOT — /caption <link họp>: tạo phiên phụ đề dịch trực tiếp.
+    console.log("[dm] caption_command", { command: /^\/caption_stop(@|\s|$)/i.test(text) ? "caption_stop" : "caption", revision: "caption-priority-v1" });
+    const captionMatch = text.match(/^\/caption(?:@\S+)?\s+(\S+)/i);
+    if (captionMatch) {
+      const meetingUrl = captionMatch[1].trim();
+      const internalToken = Deno.env.get("CAPTION_INTERNAL_TOKEN") ?? "";
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      if (!internalToken || !supabaseUrl) {
+        await replyDm("Angel chưa sẵn sàng tạo phụ đề lúc này. Bé thử lại sau ít phút nhé 💛");
+        return;
+      }
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/angel-caption?action=start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-caption-token": internalToken },
+          body: JSON.stringify({
+            meeting_url: meetingUrl,
+            telegram_user_id: tgUserId ?? null,
+            telegram_chat_id: chatId,
+          }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.caption_url) {
+          const reason = res.status === 400
+            ? "Link phòng họp chưa đúng. Angel hỗ trợ link Zoom, Google Meet và Microsoft Teams."
+            : "Angel chưa gọi được bot vào phòng họp. Bé thử lại sau ít phút nhé.";
+          await replyDm(`😔 ${reason}`);
+          return;
+        }
+        await replyDm(
+          `🌐 <b>Angel Translator đang vào phòng họp!</b>\n\n` +
+            `🔗 Link phụ đề trực tiếp: ${data.caption_url}\n\n` +
+            `1️⃣ Khi bot <b>Angel Translator 🌐</b> gõ cửa phòng, bé duyệt cho bot vào nhé.\n` +
+            `2️⃣ Link phụ đề sẽ được bot tự gửi vào chat phòng họp — nếu không thấy, bé dán tay link trên.\n` +
+            `3️⃣ Họp xong nhắn /caption_stop, hoặc cứ kết thúc họp — bot tự rời và đăng tóm tắt vào nhóm 💛`,
+          { skipAutoDelete: true },
+        );
+      } catch (err) {
+        console.warn("[dm] caption start failed", { code: "caption_start_failed" });
+        await replyDm("😔 Angel gặp lỗi khi tạo phiên phụ đề. Bé thử lại sau ít phút nhé 💛");
+      }
+      return;
+    }
+    if (/^\/caption(@|\s|$)/i.test(text)) {
+      await replyDm(
+        "🌐 Bé gửi kèm link phòng họp nhé: <code>/caption https://zoom.us/j/...</code>\nAngel hỗ trợ Zoom, Google Meet và Microsoft Teams 💛",
+      );
+      return;
+    }
+  
+    // /caption_stop: kết thúc phiên đang live/joining do chính user này tạo.
+    if (/^\/caption_stop(@|\s|$)/i.test(text)) {
+      const internalToken = Deno.env.get("CAPTION_INTERNAL_TOKEN") ?? "";
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      if (!internalToken || !supabaseUrl || !tgUserId) {
+        await replyDm("Angel chưa sẵn sàng xử lý lúc này. Bé thử lại sau ít phút nhé 💛");
+        return;
+      }
+      try {
+        const { data: activeSession } = await adminClient
+          .from("caption_sessions")
+          .select("id, public_code")
+          .eq("created_by_telegram_id", tgUserId)
+          .in("status", ["joining", "live"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!activeSession) {
+          await replyDm("Angel không thấy phiên phụ đề nào đang chạy do bé tạo 💛");
+          return;
+        }
+        const res = await fetch(`${supabaseUrl}/functions/v1/angel-caption?action=stop`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-caption-token": internalToken },
+          body: JSON.stringify({ session_id: activeSession.id }),
+        });
+        if (!res.ok) {
+          await replyDm("😔 Angel chưa dừng được phiên phụ đề. Bé thử lại sau ít phút nhé.");
+          return;
+        }
+        await replyDm(
+          "✅ Angel đã cho bot rời phòng họp. Tóm tắt song ngữ sẽ được đăng vào nhóm cộng đồng trong ít phút nữa nhé 💛",
+          { skipAutoDelete: true },
+        );
+      } catch (err) {
+        console.warn("[dm] caption stop failed", { code: "caption_stop_failed" });
+        await replyDm("😔 Angel gặp lỗi khi dừng phiên phụ đề. Bé thử lại sau ít phút nhé 💛");
+      }
+      return;
+    }
+
+    await replyDm("🌐 Bé gửi kèm link phòng họp nhé: <code>/caption https://zoom.us/j/...</code>\nAngel hỗ trợ Zoom, Google Meet và Microsoft Teams 💛");
+    return;
+  }
+
 
   // Voice / audio / video_note DM: chuyển sang text bằng transcription rồi mới xử lý.
   const m = message as any;
@@ -1195,8 +1320,6 @@ async function handlePrivateMessage(message: TelegramMessage) {
   }
   const miniAppUrl = settings?.mini_app_url ?? null;
   const userName = message.from?.first_name || "Con";
-  const tgUserId = message.from?.id;
-  const incomingMsgId = message.message_id ?? null;
   const directTranslationTarget = detectTranslationTargetLanguage(text);
   const replyToBotText = message.reply_to_message?.from?.is_bot
     ? extractText(message.reply_to_message).trim()
@@ -1211,32 +1334,6 @@ async function handlePrivateMessage(message: TelegramMessage) {
     textLen: text.length,
     hasSettings: Boolean(settings),
   });
-
-  // Helper: send reply + log bot direction='out'
-  const replyDm = async (
-    body: string,
-    opts?: Parameters<typeof sendMessage>[2],
-  ) => {
-    const res = await sendMessage(chatId, body, opts);
-    if (!res?.ok) {
-      console.warn("[dm] sendMessage failed", {
-        chatId,
-        userId: tgUserId ?? null,
-        messageId: incomingMsgId,
-        status: res?.status,
-        data: res?.data,
-      });
-    }
-    if (tgUserId) {
-      await trackBotDmReply({
-        chatId,
-        tgUserId,
-        text: body,
-        replyToMessageId: incomingMsgId,
-      });
-    }
-    return res;
-  };
 
   if (/^\/(start|menu|help)(@|\s|$)?/i.test(text)) {
     await replyDm(buildMenuText(settings, userName), { reply_markup: menuMarkup(miniAppUrl) });
@@ -1267,96 +1364,6 @@ async function handlePrivateMessage(message: TelegramMessage) {
     await replyDm(
       "🛡️ To report spam/scam: reply to the suspicious message and tag an admin, or send a screenshot to our team. Never share your <b>seed phrase</b> or <b>private key</b> with anyone 🙏",
     );
-    return;
-  }
-
-  // ANGEL CAPTION BOT — /caption <link họp>: tạo phiên phụ đề dịch trực tiếp.
-  const captionMatch = text.match(/^\/caption(?:@\S+)?\s+(\S+)/i);
-  if (captionMatch) {
-    const meetingUrl = captionMatch[1].trim();
-    const internalToken = Deno.env.get("CAPTION_INTERNAL_TOKEN") ?? "";
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    if (!internalToken || !supabaseUrl) {
-      await replyDm("Angel chưa sẵn sàng tạo phụ đề lúc này. Bé thử lại sau ít phút nhé 💛");
-      return;
-    }
-    try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/angel-caption?action=start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-caption-token": internalToken },
-        body: JSON.stringify({
-          meeting_url: meetingUrl,
-          telegram_user_id: tgUserId ?? null,
-          telegram_chat_id: chatId,
-        }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.caption_url) {
-        const reason = res.status === 400
-          ? "Link phòng họp chưa đúng. Angel hỗ trợ link Zoom, Google Meet và Microsoft Teams."
-          : "Angel chưa gọi được bot vào phòng họp. Bé thử lại sau ít phút nhé.";
-        await replyDm(`😔 ${reason}`);
-        return;
-      }
-      await replyDm(
-        `🌐 <b>Angel Translator đang vào phòng họp!</b>\n\n` +
-          `🔗 Link phụ đề trực tiếp: ${data.caption_url}\n\n` +
-          `1️⃣ Khi bot <b>Angel Translator 🌐</b> gõ cửa phòng, bé duyệt cho bot vào nhé.\n` +
-          `2️⃣ Link phụ đề sẽ được bot tự gửi vào chat phòng họp — nếu không thấy, bé dán tay link trên.\n` +
-          `3️⃣ Họp xong nhắn /caption_stop, hoặc cứ kết thúc họp — bot tự rời và đăng tóm tắt vào nhóm 💛`,
-        { skipAutoDelete: true },
-      );
-    } catch (err) {
-      console.warn("[dm] caption start failed", err instanceof Error ? err.message : String(err));
-      await replyDm("😔 Angel gặp lỗi khi tạo phiên phụ đề. Bé thử lại sau ít phút nhé 💛");
-    }
-    return;
-  }
-  if (/^\/caption(@|\s|$)/i.test(text)) {
-    await replyDm(
-      "🌐 Bé gửi kèm link phòng họp nhé: <code>/caption https://zoom.us/j/...</code>\nAngel hỗ trợ Zoom, Google Meet và Microsoft Teams 💛",
-    );
-    return;
-  }
-
-  // /caption_stop: kết thúc phiên đang live/joining do chính user này tạo.
-  if (/^\/caption_stop(@|\s|$)/i.test(text)) {
-    const internalToken = Deno.env.get("CAPTION_INTERNAL_TOKEN") ?? "";
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    if (!internalToken || !supabaseUrl || !tgUserId) {
-      await replyDm("Angel chưa sẵn sàng xử lý lúc này. Bé thử lại sau ít phút nhé 💛");
-      return;
-    }
-    try {
-      const { data: activeSession } = await adminClient
-        .from("caption_sessions")
-        .select("id, public_code")
-        .eq("created_by_telegram_id", tgUserId)
-        .in("status", ["joining", "live"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!activeSession) {
-        await replyDm("Angel không thấy phiên phụ đề nào đang chạy do bé tạo 💛");
-        return;
-      }
-      const res = await fetch(`${supabaseUrl}/functions/v1/angel-caption?action=stop`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-caption-token": internalToken },
-        body: JSON.stringify({ session_id: activeSession.id }),
-      });
-      if (!res.ok) {
-        await replyDm("😔 Angel chưa dừng được phiên phụ đề. Bé thử lại sau ít phút nhé.");
-        return;
-      }
-      await replyDm(
-        "✅ Angel đã cho bot rời phòng họp. Tóm tắt song ngữ sẽ được đăng vào nhóm cộng đồng trong ít phút nữa nhé 💛",
-        { skipAutoDelete: true },
-      );
-    } catch (err) {
-      console.warn("[dm] caption stop failed", err instanceof Error ? err.message : String(err));
-      await replyDm("😔 Angel gặp lỗi khi dừng phiên phụ đề. Bé thử lại sau ít phút nhé 💛");
-    }
     return;
   }
 

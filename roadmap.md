@@ -22,3 +22,8 @@
 - [ ] Bé đăng ký webhook URL trong Recall Dashboard
 - [ ] Chủ dự án chạy buổi pilot thật (Angel không gọi Recall thật)
 - [ ] Phase 2: cron dọn caption_lines sau 30 ngày, xuất .srt/.txt, trang quản trị phiên
+
+## Caption command routing repair
+- [ ] Prioritize caption commands and run regression tests.
+- [ ] Verify deployed webhook, deploy repair and register bot commands.
+- [ ] Check frontend publishable access and real owner DM outcome.

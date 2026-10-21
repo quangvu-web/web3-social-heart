@@ -6,6 +6,13 @@ Deno.test("caption commands run before settings, translation, memory and AI", as
   const originalServe = Deno.serve;
   const originalLog = console.log;
   const originalWarn = console.warn;
+  const originalSetInterval = globalThis.setInterval;
+  const intervals: number[] = [];
+  globalThis.setInterval = ((...args: Parameters<typeof setInterval>) => {
+    const id = originalSetInterval(...args);
+    intervals.push(id);
+    return id;
+  }) as typeof setInterval;
   const env: Record<string, string> = {
     SUPABASE_URL: "https://db.fixture.invalid",
     SUPABASE_ANON_KEY: "fixture-only",
@@ -92,5 +99,7 @@ Deno.test("caption commands run before settings, translation, memory and AI", as
     Deno.serve = originalServe;
     console.log = originalLog;
     console.warn = originalWarn;
+    globalThis.setInterval = originalSetInterval;
+    intervals.forEach(clearInterval);
   }
 });

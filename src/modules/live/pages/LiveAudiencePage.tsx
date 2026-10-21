@@ -31,7 +31,8 @@ export default function LiveAudiencePage() {
   const [isGuestMode, setIsGuestMode] = useState(false);
   const isRtmp = session?.stream_provider === 'nginx_rtmp' || session?.stream_provider === 'cloudflare_stream' || session?.live_mode === 'rtmp' || session?.live_mode === 'rtmp_obs' || session?.source === 'rtmp';
   const rtmpHlsUrl = session?.hls_url || session?.hls_playback_url || session?.playback_url || (session?.stream_key ? `https://live.camly.co/hls/${session.stream_key}.m3u8` : null);
-  const isEnded = !!session && !['live', 'waiting_for_obs', 'source_connected', 'ready_to_go_live'].includes(session.status);
+  const isSessionLive = session?.status === 'live' || (isRtmp && session?.rtmp_status === 'live');
+  const isEnded = !!session && !isSessionLive && !['waiting_for_obs', 'source_connected', 'ready_to_go_live'].includes(session.status);
   const { data: replay } = useLiveReplay(liveSessionId, isEnded);
   const replayUrl = replay?.status === 'ready'
     ? (replay.r2_video_url || replay.playback_mp4 || replay.playback_hls)
@@ -153,7 +154,7 @@ export default function LiveAudiencePage() {
 
   // Track viewer count via database
   useEffect(() => {
-    if (!liveSessionId || session?.status !== 'live') return;
+    if (!liveSessionId || !isSessionLive) return;
 
     incrementLiveViewerCount(liveSessionId).catch(console.warn);
 
@@ -166,7 +167,7 @@ export default function LiveAudiencePage() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       decrementLiveViewerCount(liveSessionId).catch(() => {});
     };
-  }, [liveSessionId, session?.status]);
+  }, [isSessionLive, liveSessionId]);
 
   useEffect(() => {
     if (isEnded) {
@@ -219,9 +220,9 @@ export default function LiveAudiencePage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={session.status === 'live' ? 'destructive' : 'secondary'} className="gap-1">
+                <Badge variant={isSessionLive ? 'destructive' : 'secondary'} className="gap-1">
                   <Radio className="h-3.5 w-3.5" />
-                  {session.status === 'live' ? 'LIVE' : isWatchingReplay ? 'REPLAY' : 'ENDED'}
+                  {isSessionLive ? 'LIVE' : isWatchingReplay ? 'REPLAY' : 'ENDED'}
                 </Badge>
                 <Badge variant="secondary" className="gap-1">
                   <Eye className="h-3.5 w-3.5" />

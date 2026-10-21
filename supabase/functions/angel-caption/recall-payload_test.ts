@@ -20,7 +20,7 @@ async function runSummarize() { throw new Error('No summary expected'); }
 ${handlers}
 export { handleRecallWebhook };
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
-const { setAdmin, handleRecallWebhook } = await import(`data:application/javascript;base64,${btoa(isolated)}`);
+const { setAdmin, handleRecallWebhook } = await import(`data:application/javascript,${encodeURIComponent(isolated)}`);
 
 function fixture(status: string, startedAt: string | null = null, metadataOnly = false) {
   const updates: Record<string, unknown>[] = [];

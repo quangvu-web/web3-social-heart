@@ -503,6 +503,8 @@ Deno.serve(async (req) => {
       { command: "report", description: "🛡 Report spam / scam" },
       { command: "feedback", description: "💌 Gửi góp ý cho Angel" },
       { command: "help", description: "💬 Help" },
+      { command: "caption", description: "Bật phụ đề dịch trực tiếp cho buổi họp: /caption <link Zoom/Meet>" },
+      { command: "caption_stop", description: "Dừng phụ đề buổi họp" },
     ];
     const groupCommands = [
       { command: "ask", description: "💬 Ask Angel AI (e.g. /ask What is FUN.RICH?)" },

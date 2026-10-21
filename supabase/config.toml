@@ -23,3 +23,7 @@ verify_jwt = false
 # without a gateway JWT; @lovable.dev/mcp-js validates bearer tokens itself.
 [functions.mcp]
 verify_jwt = false
+
+# Angel Caption Bot: Recall webhooks authenticate via signature; start/stop via internal token.
+[functions.angel-caption]
+verify_jwt = false

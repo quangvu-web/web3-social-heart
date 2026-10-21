@@ -17,7 +17,7 @@ export function useLiveSession(sessionId?: string) {
       // Đang transition → poll nhanh cho tới khi settle
       if (['stopping', 'processing', 'starting', 'reconnecting'].includes(data.status)) return 7_000;
       // Đang live → poll chậm hơn để cập nhật viewer_count / status
-      if (data.status === 'live') return 15_000;
+      if (data.status === 'live' || data.rtmp_status === 'live') return 15_000;
       // Đã ended/failed/ready → không cần poll nữa
       return false;
     },

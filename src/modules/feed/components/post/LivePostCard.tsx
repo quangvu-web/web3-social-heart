@@ -19,6 +19,7 @@ import {
 import { StreamPlayer } from '@/components/ui/StreamPlayer';
 import { ReplayPlayer } from '@/modules/live/components/ReplayPlayer';
 import { LiveChatReplay } from '@/modules/live/components/LiveChatReplay';
+import { useLiveSession } from '@/modules/live/useLiveSession';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
@@ -40,8 +41,16 @@ function formatDuration(seconds: number): string {
 
 export function LivePostCard({ liveMetadata, videoUrl, liveStatus, liveSessionId, postContent }: LivePostCardProps) {
   const navigate = useNavigate();
+  const { data: liveSession } = useLiveSession(liveSessionId ?? undefined);
   const [playerOpen, setPlayerOpen] = useState(false);
   const finalizeTriggered = useRef(false);
+
+  // Post metadata can lag behind the live session when a post was marked as a
+  // replay while the stream is still active. Use the session as the source of
+  // truth as soon as it is available, and keep metadata as a fallback for old posts.
+  const currentLiveStatus = liveSession
+    ? liveSession.status === 'live' || liveSession.rtmp_status === 'live' ? 'live' : 'ended'
+    : liveStatus;
 
   const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
   const title: string = str(liveMetadata.live_title) || postContent || 'Phát trực tiếp trên FUN Profile';
@@ -80,11 +89,11 @@ export function LivePostCard({ liveMetadata, videoUrl, liveStatus, liveSessionId
     : (str(liveMetadata.playback_hls) || str(liveMetadata.playback_url) || videoUrl || null);
   const hasVideo = !!playbackUrl;
   const archivePending =
-    liveStatus === 'ended' &&
+    currentLiveStatus === 'ended' &&
     playbackProvider !== 'r2' &&
     ['pending', 'mp4_pending', 'archiving', 'failed'].includes(String(archiveStatus || replayStatus || ''));
   // MP4 chưa có nhưng replay đã ready → đang được Cloudflare render
-  const mp4Pending = !playbackMp4 && mp4Parts.length === 0 && hasVideo && playbackType === 'cloudflare_stream' && liveStatus === 'ended';
+  const mp4Pending = !playbackMp4 && mp4Parts.length === 0 && hasVideo && playbackType === 'cloudflare_stream' && currentLiveStatus === 'ended';
 
   const formatBytes = (n?: number) => {
     if (!n || !Number.isFinite(n)) return '';
@@ -125,7 +134,7 @@ export function LivePostCard({ liveMetadata, videoUrl, liveStatus, liveSessionId
   // will then pick up the playback_mp4 URL from posts.metadata.
   useEffect(() => {
     if (finalizeTriggered.current) return;
-    if (liveStatus !== 'ended') return;
+    if (currentLiveStatus !== 'ended') return;
     if (!liveSessionId) return;
     if (playbackProvider === 'r2') return;
     if (!archivePending && !mp4Pending) return;
@@ -149,11 +158,11 @@ export function LivePostCard({ liveMetadata, videoUrl, liveStatus, liveSessionId
 
       console.warn('[LivePostCard] archive trigger failed', error);
     })();
-  }, [archivePending, liveStatus, liveSessionId, mp4Pending, playbackProvider]);
+  }, [archivePending, currentLiveStatus, liveSessionId, mp4Pending, playbackProvider]);
 
 
   // Currently LIVE
-  if (liveStatus === 'live') {
+  if (currentLiveStatus === 'live') {
     const handleGoLive = () => {
       if (liveSessionId) navigate(`/live/${liveSessionId}`);
     };

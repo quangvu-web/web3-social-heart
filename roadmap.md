@@ -24,6 +24,8 @@
 - [ ] Phase 2: cron dọn caption_lines sau 30 ngày, xuất .srt/.txt, trang quản trị phiên
 
 ## Caption command routing repair
-- [ ] Prioritize caption commands and run regression tests.
-- [ ] Verify deployed webhook, deploy repair and register bot commands.
-- [ ] Check frontend publishable access and real owner DM outcome.
+- [x] Prioritize caption commands; deployed webhook and admin command definitions on 22 October 2026 (UTC+8).
+- [ ] Regression runtime assertions checked; finish Deno test validation. Full handler typecheck has 8 existing dependency/legacy errors, outside scope.
+- [ ] Register live bot menu: admin endpoint returns 401 without a session; sandbox bot credential fails getMe HTTP 404. Requires authorized admin setup action using production credentials.
+- [x] Anonymous caption_sessions read using frontend build public key returns HTTP 200; frontend build log OK.
+- [ ] Verify owner DM on production and new caption_command log: waiting for real Telegram message; no matching post-deploy log yet. Pre-deploy source cannot be downloaded without management access token.

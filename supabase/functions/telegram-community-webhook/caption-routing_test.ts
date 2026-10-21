@@ -1,6 +1,7 @@
 import assert from "npm:assert@2.1.0";
 
-Deno.test({ name: "caption commands run before settings, translation, memory and AI", sanitizeOps: false, fn: async () => {
+// Importing the production handler starts SDK housekeeping timers; network remains denied.
+Deno.test({ name: "caption commands run before settings, translation, memory and AI", sanitizeOps: false, sanitizeResources: false, fn: async () => {
   const originalGet = Deno.env.get;
   const originalFetch = globalThis.fetch;
   const originalServe = Deno.serve;

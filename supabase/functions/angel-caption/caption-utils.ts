@@ -146,7 +146,13 @@ export async function verifySvixSignature(params: {
   if (Math.abs(Math.floor(Date.now() / 1000) - ts) > tolerance) return false;
 
   const keyBytes = base64ToBytes(secret.replace(/^whsec_/, ""));
-  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyBytes.buffer as ArrayBuffer,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
   const signed = new TextEncoder().encode(`${webhookId}.${timestamp}.${rawBody}`);
   const expected = bytesToBase64(await crypto.subtle.sign("HMAC", key, signed));
 

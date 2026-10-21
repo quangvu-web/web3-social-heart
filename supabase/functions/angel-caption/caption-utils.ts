@@ -74,6 +74,10 @@ const VI_STOPWORDS = new Set([
   "cái", "của", "và", "những", "chúng", "ta", "tôi", "bạn", "là", "có", "không",
   "được", "này", "đó", "cho", "với", "một", "các", "người", "đã", "sẽ", "đang",
   "thì", "mà", "ở", "về", "trong", "khi", "nếu", "vì", "như", "rất", "cũng",
+  // Biến thể không dấu (STT thường bỏ dấu)
+  "cai", "cua", "va", "nhung", "chung", "toi", "ban", "la", "co", "khong",
+  "duoc", "nay", "do", "voi", "mot", "cac", "nguoi", "da", "se", "dang",
+  "thi", "ma", "ve", "khi", "neu", "vi", "nhu", "rat", "cung",
 ]);
 
 /** Heuristic vi/en: có dấu tiếng Việt hoặc tỷ lệ stopword Việt đủ cao → vi. */

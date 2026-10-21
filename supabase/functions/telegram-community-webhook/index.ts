@@ -1270,6 +1270,96 @@ async function handlePrivateMessage(message: TelegramMessage) {
     return;
   }
 
+  // ANGEL CAPTION BOT — /caption <link họp>: tạo phiên phụ đề dịch trực tiếp.
+  const captionMatch = text.match(/^\/caption(?:@\S+)?\s+(\S+)/i);
+  if (captionMatch) {
+    const meetingUrl = captionMatch[1].trim();
+    const internalToken = Deno.env.get("CAPTION_INTERNAL_TOKEN") ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    if (!internalToken || !supabaseUrl) {
+      await replyDm("Angel chưa sẵn sàng tạo phụ đề lúc này. Bé thử lại sau ít phút nhé 💛");
+      return;
+    }
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/angel-caption?action=start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-caption-token": internalToken },
+        body: JSON.stringify({
+          meeting_url: meetingUrl,
+          telegram_user_id: tgUserId ?? null,
+          telegram_chat_id: chatId,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.caption_url) {
+        const reason = res.status === 400
+          ? "Link phòng họp chưa đúng. Angel hỗ trợ link Zoom, Google Meet và Microsoft Teams."
+          : "Angel chưa gọi được bot vào phòng họp. Bé thử lại sau ít phút nhé.";
+        await replyDm(`😔 ${reason}`);
+        return;
+      }
+      await replyDm(
+        `🌐 <b>Angel Translator đang vào phòng họp!</b>\n\n` +
+          `🔗 Link phụ đề trực tiếp: ${data.caption_url}\n\n` +
+          `1️⃣ Khi bot <b>Angel Translator 🌐</b> gõ cửa phòng, bé duyệt cho bot vào nhé.\n` +
+          `2️⃣ Link phụ đề sẽ được bot tự gửi vào chat phòng họp — nếu không thấy, bé dán tay link trên.\n` +
+          `3️⃣ Họp xong nhắn /caption_stop, hoặc cứ kết thúc họp — bot tự rời và đăng tóm tắt vào nhóm 💛`,
+        { skipAutoDelete: true },
+      );
+    } catch (err) {
+      console.warn("[dm] caption start failed", err instanceof Error ? err.message : String(err));
+      await replyDm("😔 Angel gặp lỗi khi tạo phiên phụ đề. Bé thử lại sau ít phút nhé 💛");
+    }
+    return;
+  }
+  if (/^\/caption(@|\s|$)/i.test(text)) {
+    await replyDm(
+      "🌐 Bé gửi kèm link phòng họp nhé: <code>/caption https://zoom.us/j/...</code>\nAngel hỗ trợ Zoom, Google Meet và Microsoft Teams 💛",
+    );
+    return;
+  }
+
+  // /caption_stop: kết thúc phiên đang live/joining do chính user này tạo.
+  if (/^\/caption_stop(@|\s|$)/i.test(text)) {
+    const internalToken = Deno.env.get("CAPTION_INTERNAL_TOKEN") ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    if (!internalToken || !supabaseUrl || !tgUserId) {
+      await replyDm("Angel chưa sẵn sàng xử lý lúc này. Bé thử lại sau ít phút nhé 💛");
+      return;
+    }
+    try {
+      const { data: activeSession } = await adminClient
+        .from("caption_sessions")
+        .select("id, public_code")
+        .eq("created_by_telegram_id", tgUserId)
+        .in("status", ["joining", "live"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!activeSession) {
+        await replyDm("Angel không thấy phiên phụ đề nào đang chạy do bé tạo 💛");
+        return;
+      }
+      const res = await fetch(`${supabaseUrl}/functions/v1/angel-caption?action=stop`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-caption-token": internalToken },
+        body: JSON.stringify({ session_id: activeSession.id }),
+      });
+      if (!res.ok) {
+        await replyDm("😔 Angel chưa dừng được phiên phụ đề. Bé thử lại sau ít phút nhé.");
+        return;
+      }
+      await replyDm(
+        "✅ Angel đã cho bot rời phòng họp. Tóm tắt song ngữ sẽ được đăng vào nhóm cộng đồng trong ít phút nữa nhé 💛",
+        { skipAutoDelete: true },
+      );
+    } catch (err) {
+      console.warn("[dm] caption stop failed", err instanceof Error ? err.message : String(err));
+      await replyDm("😔 Angel gặp lỗi khi dừng phiên phụ đề. Bé thử lại sau ít phút nhé 💛");
+    }
+    return;
+  }
+
   // ANGEL MEMORY — /forgetme: bé tự xoá toàn bộ ghi nhớ của mình
   if (/^\/forgetme(@[a-z0-9_]+)?(\s|$)/i.test(text)) {
     try {

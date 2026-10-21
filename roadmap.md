@@ -24,7 +24,7 @@
 - [ ] Phase 2: cron dọn caption_lines sau 30 ngày, xuất .srt/.txt, trang quản trị phiên
 
 ## Caption command routing repair
-- [ ] Recall payload repair: correct nested bot/metadata/status extraction, recover pending/joining on transcript, test and deploy only angel-caption; inspect post-deploy warnings.
+- [x] Recall payload repair: nested bot/metadata/status extraction and pending/joining recovery deployed only angel-caption around 07:35:40 MYT on 22 October 2026. Production session 28w7jae76wpf recovered live at 07:35:44 with 4 lines on first read; no unknown-bot warnings newer than 07:35:38 in subsequent logs. Deno tests 11/11 pass; full check blocked by 4 existing shared-file errors (outside scope). Browser caption page verification timed out on both local and published URLs; UI remains unverified.
 - [x] Prioritize caption commands; deployed webhook and admin command definitions on 22 October 2026 (UTC+8).
 - [x] Deno runtime regression: 1 passed, 0 failed (network denied, --no-check; SDK timer sanitizers disabled). Full handler typecheck has 8 existing dependency/legacy errors, outside scope; not reported as passing.
 - [ ] Register live bot menu: admin endpoint returns 401 without a session; sandbox bot credential fails getMe HTTP 404. Requires authorized admin setup action using production credentials.

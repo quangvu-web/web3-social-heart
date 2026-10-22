@@ -80,6 +80,7 @@ import {
   renderEventAssistantPrompt,
   detectTranslationTargetLanguage,
   resolveAngelLanguageBucket,
+  resolveGroupReplyLanguage,
   looksLikeMentionBait,
   recordSpamPrelude,
   countSpamPrelude,
@@ -4772,7 +4773,8 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
     });
     return;
   }
-  const userLangBucket = resolveAngelLanguageBucket(prompt);
+  const groupLanguage = resolveGroupReplyLanguage(prompt, (settings as any)?.reply_language);
+  const userLangBucket = groupLanguage.bucket;
   const addressRuleOverride = addressRuleForActor({ actorKind, isGroupSenderChat, isOwner, settings, text: prompt, chatId, username: user?.username ?? null });
   const lock = await acquireAiMessageLock({
     adminClient,
@@ -4990,6 +4992,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
               triggerSource: "event_followup",
             },
             forcedLangBucket: userLangBucket,
+      languagePolicyNote: groupLanguage.policyNote,
             mirrorAngelWeb: (settings as any).ai_mirror_angel_web !== false,
           }));
         } catch (err) {
@@ -5110,6 +5113,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
       },
         immediateAssistantContext: _groupImmediateContext,
       forcedLangBucket: userLangBucket,
+      languagePolicyNote: groupLanguage.policyNote,
       mirrorAngelWeb: (settings as any).ai_mirror_angel_web !== false,
       attachments: _groupAttachments.length > 0 ? _groupAttachments : undefined,
       outImage: _groupAutoIllustrate ? _groupImageOut : undefined,
@@ -5962,7 +5966,8 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
             messageId: message.message_id ?? null,
             triggerSource: "aitest",
           },
-          forcedLangBucket: resolveAngelLanguageBucket(prompt),
+          forcedLangBucket: resolveGroupReplyLanguage(prompt, (settings as any)?.reply_language).bucket,
+          languagePolicyNote: resolveGroupReplyLanguage(prompt, (settings as any)?.reply_language).policyNote,
           mirrorAngelWeb: (settings as any).ai_mirror_angel_web !== false,
         });
         await sendMessage(message.chat.id, reply, { reply_to_message_id: message.message_id, skipAutoDelete: true });

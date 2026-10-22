@@ -235,7 +235,9 @@ async function sendMeditationSummaryAfterBroadcast(params: {
   const acquired = await tryMarkMeditationSummaryReply(supabase, chatId, replyToMessageId);
   if (!acquired) return [];
 
-  const language = detectMeditationTopicLanguage(topic);
+  const language = String((settings as any)?.reply_language ?? 'auto').toLowerCase() === 'en'
+    ? 'en'
+    : detectMeditationTopicLanguage(topic);
   const question = buildMeditationSummaryQuestion({
     topic,
     template: settings?.meditation_summary_prompt,

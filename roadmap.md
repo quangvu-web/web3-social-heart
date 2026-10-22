@@ -3,7 +3,9 @@
 ## Caption page automatic recovery
 - [x] Enable caption_sessions publication safely; preserve table structure and server functions.
 - [x] Add parallel 4-second polling, immediate visibility/focus/online catch-up, and 2-second Realtime reconnect without UI changes.
-- [ ] Verify live captions, blocked-WebSocket polling, and one-minute hidden-tab catch-up; publish and identify deployed revision.
+- [x] Bun regression tests 3/3 (32 assertions); build OK. Isolated production-data page: 237→238 without reload; blocked Realtime 239→240 at the next 4-second check; one-minute lifecycle/return simulation 240→247. No production data writes or server function changes.
+- [ ] Full-route acceptance remains blocked: signed-out /captions/:code redirects to /law-of-light through the existing guard; unmanaged auth cannot be restored. True hidden-tab one-minute acceptance remains unverified (lifecycle simulation continued polling). Guard intentionally unchanged.
+- [ ] Publish current changes and report verified deployment revision.
 
 ## Caption operators admin UI
 - [x] Add management beside DM bot using the oldest settings row for reads and writes; preserve existing admin gate.

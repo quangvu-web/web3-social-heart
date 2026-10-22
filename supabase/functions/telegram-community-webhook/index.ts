@@ -5992,8 +5992,8 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
             messageId: message.message_id ?? null,
             triggerSource: "aitest",
           },
-          forcedLangBucket: resolveGroupReplyLanguage(prompt, (settings as any)?.reply_language).bucket,
-          languagePolicyNote: resolveGroupReplyLanguage(prompt, (settings as any)?.reply_language).policyNote,
+          forcedLangBucket: aitestLanguage.bucket,
+          languagePolicyNote: aitestLanguage.policyNote,
           mirrorAngelWeb: (settings as any).ai_mirror_angel_web !== false,
         });
         await sendMessage(message.chat.id, reply, { reply_to_message_id: message.message_id, skipAutoDelete: true });

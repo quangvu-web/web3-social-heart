@@ -5668,6 +5668,7 @@ export type Database = {
           positive_engagement_max_per_day: number
           positive_engagement_max_per_hour: number
           positive_engagement_prompt: string | null
+          reply_language: string
           rules_message: string
           scam_protection_enabled: boolean
           scam_strict_mode: boolean
@@ -5755,6 +5756,7 @@ export type Database = {
           positive_engagement_max_per_day?: number
           positive_engagement_max_per_hour?: number
           positive_engagement_prompt?: string | null
+          reply_language?: string
           rules_message?: string
           scam_protection_enabled?: boolean
           scam_strict_mode?: boolean
@@ -5842,6 +5844,7 @@ export type Database = {
           positive_engagement_max_per_day?: number
           positive_engagement_max_per_hour?: number
           positive_engagement_prompt?: string | null
+          reply_language?: string
           rules_message?: string
           scam_protection_enabled?: boolean
           scam_strict_mode?: boolean

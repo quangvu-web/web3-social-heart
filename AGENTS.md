@@ -86,3 +86,4 @@
 - Không để lộ secret, token, JWT (kể cả URL git remote) trong log, ảnh chụp, báo cáo.
 - Trước mọi thay đổi: kiểm tra `git status`, bảo toàn thay đổi sẵn có, chỉ sửa trong phạm vi yêu cầu.
 - Báo cáo kiểm thử: tách frontend (`bun test`) và Edge Function (`deno test`); chỉ gọi "pass" khi đã thật sự chạy thành công.
+- Caption operator management lives beside DM bot under the existing admin gate; read and update only the oldest community settings row, with fresh reads and compare-and-swap writes to avoid stale concurrent edits.

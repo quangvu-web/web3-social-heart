@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Caption operators admin UI
-- [ ] Add management beside DM bot using the oldest settings row for reads and writes; preserve existing admin gate.
-- [ ] Support DM-user search, numeric-ID entry, owner label, confirmed removal, and last-operator protection; reread after every write.
-- [ ] Run frontend rule tests and verify UI; real Telegram start/revocation requires two real accounts and a test meeting.
+- [x] Add management beside DM bot using the oldest settings row for reads and writes; preserve existing admin gate.
+- [x] Support DM-user search, numeric-ID entry, owner label, confirmed removal, and last-operator protection; reread after every write.
+- [x] Frontend tests: 15/15 passed including admin access/navigation; Playwright isolated component with mocked responses passed manual add, confirmed removal, DM search/add, oldest-row targeting and last-operator block on desktop/mobile. Frontend build log OK.
+- [ ] Verify authenticated production persistence and actual Telegram start/revocation: external unmanaged auth prevents authenticated browser verification; needs real accounts and a test meeting. No production test IDs or real meetings created.
 
 ## Caption operator authorization
 - [x] Add caption_operator_ids and seed 5373909526 in the existing oldest settings row; verified by production read.

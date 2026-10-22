@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Minus, Plus, Loader2 } from "lucide-react";
+import { Minus, Plus, Loader2, ArrowDown } from "lucide-react";
 
 type SessionStatus = "pending" | "joining" | "live" | "ended" | "failed";
 
@@ -57,10 +57,14 @@ export default function CaptionsPage() {
   const [mode, setMode] = useState<ViewMode>("both");
   const [fontSize, setFontSize] = useState(28);
   const [now, setNow] = useState(Date.now());
+  const [jumpState, setJumpState] = useState({ visible: false, count: 0 });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
   const maxSeq = useRef(0);
+  const unreadBase = useRef(0);
+  const linesCountRef = useRef(0);
+  const autoScrollGuard = useRef(0);
 
   // Đồng hồ thời lượng
   useEffect(() => {
@@ -82,6 +86,8 @@ export default function CaptionsPage() {
     setLines([]);
     setNotFound(false);
     stickToBottom.current = true;
+    unreadBase.current = 0;
+    setJumpState({ visible: false, count: 0 });
 
     const mergeLines = (incoming: CaptionLine[]) => {
       if (cancelled) return;
@@ -213,16 +219,51 @@ export default function CaptionsPage() {
     };
   }, [code]);
 
-  // Tự cuộn xuống dòng mới nhất (tạm dừng khi người dùng cuộn lên)
+  // Tự cuộn xuống dòng mới nhất (tạm dừng khi người dùng cuộn lên).
+  // Cuộn trong requestAnimationFrame để chờ DOM/layout cập nhật xong.
   useEffect(() => {
+    linesCountRef.current = lines.length;
     const el = scrollRef.current;
-    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
+    if (stickToBottom.current) {
+      if (el) requestAnimationFrame(() => {
+        autoScrollGuard.current = Date.now();
+        el.scrollTop = el.scrollHeight;
+      });
+      setJumpState((prev) => (prev.visible ? { visible: false, count: 0 } : prev));
+    } else {
+      const count = lines.length - unreadBase.current;
+      if (count > 0) setJumpState({ visible: true, count });
+    }
   }, [lines]);
 
+  // Ngưỡng 160px ≈ chiều cao một dòng phụ đề trên mobile: dao động nhỏ
+  // khi nội dung tăng không làm rớt cờ bám đáy.
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+    // Bỏ qua sự kiện cuộn do chính trang tự cuộn (tránh rớt cờ bám khi
+    // dòng mới cao hơn ngưỡng, nhất là trên màn hình điện thoại).
+    if (Date.now() - autoScrollGuard.current < 300) return;
+    const stuck = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+    if (stuck === stickToBottom.current) return;
+    stickToBottom.current = stuck;
+    if (stuck) {
+      unreadBase.current = linesCountRef.current;
+      setJumpState({ visible: false, count: 0 });
+    } else {
+      unreadBase.current = linesCountRef.current;
+    }
+  }, []);
+
+  const jumpToLatest = useCallback(() => {
+    stickToBottom.current = true;
+    unreadBase.current = linesCountRef.current;
+    setJumpState({ visible: false, count: 0 });
+    const el = scrollRef.current;
+    if (el) {
+      autoScrollGuard.current = Date.now();
+      el.scrollTop = el.scrollHeight;
+    }
   }, []);
 
   if (notFound) {
@@ -264,7 +305,7 @@ export default function CaptionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B1020] text-slate-100 flex flex-col">
+    <div className="h-screen overflow-hidden bg-[#0B1020] text-slate-100 flex flex-col">
       {/* Header: trạng thái + đồng hồ + điều khiển */}
       <header className="sticky top-0 z-10 bg-[#0B1020]/95 backdrop-blur border-b border-slate-800 px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -309,13 +350,24 @@ export default function CaptionsPage() {
       </header>
 
       {/* Danh sách phụ đề — native div scroll theo quy ước dự án */}
-      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto">
-        {lines.length === 0 ? (
-          <div className="p-8 text-center text-slate-400">
-            {session.status === "live" ? "Đang lắng nghe buổi họp…" : "Chưa có phụ đề nào."}
-          </div>
-        ) : (
-          lines.map(renderLine)
+      <div className="relative flex-1 flex flex-col min-h-0">
+        <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto">
+          {lines.length === 0 ? (
+            <div className="p-8 text-center text-slate-400">
+              {session.status === "live" ? "Đang lắng nghe buổi họp…" : "Chưa có phụ đề nào."}
+            </div>
+          ) : (
+            lines.map(renderLine)
+          )}
+        </div>
+        {jumpState.visible && (
+          <button
+            onClick={jumpToLatest}
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-[#2563EB] text-white text-sm font-medium shadow-lg shadow-black/40 hover:bg-[#1D4ED8] transition-colors"
+          >
+            <ArrowDown className="w-4 h-4" />
+            {jumpState.count > 0 ? `${jumpState.count} dòng mới` : "Dòng mới nhất"}
+          </button>
         )}
       </div>
     </div>

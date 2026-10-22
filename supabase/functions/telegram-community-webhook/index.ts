@@ -4773,13 +4773,30 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
     });
     return;
   }
-  const groupLanguage = resolveGroupReplyLanguage(prompt, (settings as any)?.reply_language);
+  // Per-group reply language: the global `settings` row (oldest) may carry
+  // reply_language='auto' while the group's own row sets e.g. 'en'. Load the
+  // group's own row; fall back to the global value when absent or unreadable.
+  let groupSettings: CommunitySettings | null = null;
+  let groupSettingsLookupFailed = false;
+  try {
+    groupSettings = await getSettingsForGroup(adminClient, chatId);
+  } catch (err) {
+    groupSettingsLookupFailed = true;
+    console.warn("[GROUP_LANG] group settings lookup failed; falling back to global", {
+      chatId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  const replyLanguage = (groupSettings as any)?.reply_language ?? (settings as any)?.reply_language;
+  const groupLanguage = resolveGroupReplyLanguage(prompt, replyLanguage);
   const userLangBucket = groupLanguage.bucket;
   console.log("[GROUP_LANG]", {
     chatId,
     settingsId: (settings as any)?.id ?? null,
     settingsGroupId: (settings as any)?.group_id ?? null,
-    replyLanguage: (settings as any)?.reply_language ?? null,
+    groupSettingsId: (groupSettings as any)?.id ?? null,
+    groupSettingsLookupFailed,
+    replyLanguage: replyLanguage ?? null,
     bucket: userLangBucket,
     hasPolicyNote: Boolean(groupLanguage.policyNote),
   });

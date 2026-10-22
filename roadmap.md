@@ -1,10 +1,10 @@
 # Roadmap
 
 ## Caption session closure repair
-- [ ] Persist terminal status before fast webhook acknowledgement; defer summaries with waitUntil and authenticated fallback.
-- [ ] Reconcile up to five joining/live sessions older than three minutes on start/stop/summarize; log all status deliveries.
-- [ ] Run lifecycle regression tests and deploy only angel-caption.
-- [ ] Verify production webhook <2 seconds, orphan recovery with summary, and a real short meeting; report evidence and unavailable prerequisites.
+- [x] Persist terminal status before fast webhook acknowledgement; defer summaries with waitUntil and authenticated fallback.
+- [x] Reconcile up to five joining/live sessions older than three minutes on start/stop/summarize; log all status deliveries.
+- [x] Deno tests 18/18 passed with type checking; deployed only angel-caption on 22 October 2026 around 15:55 MYT (revision e384a16; submitted source SHA-256 a1ef23cae79eac8ed226c1853074c7cb150e324a964b36bdf4db34016dd43e83). Boot log 60ms; unauthorized reconcile correctly returns 401. Frontend build OK. Full Deno check still reports four existing errors in shared files outside this repair.
+- [ ] Production acceptance (a)-(c) remains unverified: no terminal webhook received after deployment; requires a real test meeting and an authorized internal request to exercise orphan recovery. No configured member_alerts_chat_id exists (production read count 0), so group summary delivery cannot succeed until a destination is supplied. No fake production session created. Unit evidence only: terminal ACK 3ms and orphan closes/schedules summary; old session safa2a34fsyw already ended before this deployment and is not proof of this fix.
 
 ## Caption page automatic recovery
 - [x] Enable caption_sessions publication safely; preserve table structure and server functions.

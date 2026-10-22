@@ -17,6 +17,7 @@ async function computeDedupeKey() { return 'fixture-dedupe'; }
 async function translateCaption() { return 'Xin chào'; }
 async function recallFetch() { throw new Error('No meeting chat allowed'); }
 async function runSummarize() { throw new Error('No summary expected'); }
+async function closeCaptionSession() { throw new Error('No closure expected'); }
 ${handlers}
 export { handleRecallWebhook };
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;

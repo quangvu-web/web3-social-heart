@@ -893,6 +893,33 @@ export function resolveAngelLanguageBucket(text: string, forcedLangBucket?: Ange
   return forcedLangBucket ?? detectTranslationTargetLanguage(text) ?? detectLangBucket(text);
 }
 
+/**
+ * Per-group reply language policy (telegram_community_settings.reply_language).
+ * 'en' forces the bot's own voice to English regardless of the member's language;
+ * an explicit translation request still yields the target language for the
+ * translated content, with English framing. Anything else keeps 'auto'.
+ */
+export function resolveGroupReplyLanguage(
+  text: string,
+  replyLanguage: string | null | undefined,
+): { bucket: AngelLanguageBucket; policyNote: string | null } {
+  if (String(replyLanguage ?? "auto").trim().toLowerCase() !== "en") {
+    return { bucket: resolveAngelLanguageBucket(text), policyNote: null };
+  }
+  const target = detectTranslationTargetLanguage(text);
+  if (target && target !== "en") {
+    return {
+      bucket: target,
+      policyNote: `GROUP LANGUAGE POLICY — INTERNATIONAL GROUP: The member asked for a translation into ${LANG_NAME_FOR_POLICY[target]}. Output the translated content itself in ${LANG_NAME_FOR_POLICY[target]}. Every sentence of your own (lead-in, framing, notes, closing) MUST be in English.`,
+    };
+  }
+  return { bucket: "en", policyNote: null };
+}
+
+const LANG_NAME_FOR_POLICY: Record<AngelLanguageBucket, string> = {
+  vi: "Vietnamese", zh: "Chinese", ja: "Japanese", ko: "Korean", th: "Thai", ms: "Malay", en: "English",
+};
+
 const LANG_NAME: Record<AngelLanguageBucket, string> = {
   vi: "Vietnamese (tiếng Việt)",
   zh: "Chinese (中文)",
@@ -2332,6 +2359,8 @@ async function askAngelReply(params: {
   aiPersonaPrompt?: string | null;
   /** Force reply language when the caller already knows the event/invite language. */
   forcedLangBucket?: AngelLanguageBucket;
+  /** Extra per-group language policy appended to the forced language directive. */
+  languagePolicyNote?: string | null;
   /** Khi true (mặc định): Pass 1 funcore gửi user-only, mirror Angel web chính chủ để RAG hit đúng knowledge. */
   mirrorAngelWeb?: boolean;
   /** Optional admin client — dùng để load persona override toàn cục (fallback khi group chưa set). */
@@ -2492,7 +2521,7 @@ ${addressRule}`;
     const languageDirective = angelLanguageDirective(langBucket);
     const langHint = `USER_LANGUAGE_DETECTED=${langBucket} (${LANG_NAME[langBucket]}). You MUST reply 100% in ${LANG_NAME[langBucket]} only. Do NOT reply in Vietnamese unless the detected language is "vi".`;
     const forcedLanguageHint = params.forcedLangBucket
-      ? angelLanguageDirective(params.forcedLangBucket)
+      ? [angelLanguageDirective(params.forcedLangBucket), params.languagePolicyNote?.trim() || ""].filter(Boolean).join("\n\n")
       : "";
     let factualLookup = false;
     let factualLookupReason = "not_checked";

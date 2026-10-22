@@ -1,0 +1,2 @@
+ALTER TABLE public.telegram_community_settings ADD COLUMN IF NOT EXISTS reply_language text NOT NULL DEFAULT 'auto';
+UPDATE public.telegram_community_settings SET reply_language = 'en' WHERE group_id = -1003646058428;

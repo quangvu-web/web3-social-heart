@@ -1,5 +1,11 @@
 # Roadmap
 
+## Caption session closure repair
+- [ ] Persist terminal status before fast webhook acknowledgement; defer summaries with waitUntil and authenticated fallback.
+- [ ] Reconcile up to five joining/live sessions older than three minutes on start/stop/summarize; log all status deliveries.
+- [ ] Run lifecycle regression tests and deploy only angel-caption.
+- [ ] Verify production webhook <2 seconds, orphan recovery with summary, and a real short meeting; report evidence and unavailable prerequisites.
+
 ## Caption page automatic recovery
 - [x] Enable caption_sessions publication safely; preserve table structure and server functions.
 - [x] Add parallel 4-second polling, immediate visibility/focus/online catch-up, and 2-second Realtime reconnect without UI changes.

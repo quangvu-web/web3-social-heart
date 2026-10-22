@@ -69,7 +69,9 @@ Deno.test("Terminal ACK completes below 2 seconds without waiting for a slow sum
     update() { session.status = "ended"; session.ended_at = new Date().toISOString(); return this; }, then(resolve: (v: unknown) => unknown) { return Promise.resolve(resolve({ count: 1, error: null })); } }) },
     async () => { throw new Error("No Recall call on terminal ACK"); }, () => blocked);
   const began = performance.now();
-  const response = await Promise.race([webhook("call_ended"), new Promise<never>((_, reject) => setTimeout(() => reject(new Error("ACK blocked")), 1900))]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("ACK blocked")), 1900); });
+  const response = await Promise.race([webhook("call_ended"), timeout]).finally(() => { if (timer !== undefined) clearTimeout(timer); });
   assert.equal(response.status, 200);
   assert.ok(performance.now() - began < 2000);
   assert.equal(session.status, "ended");
@@ -90,6 +92,16 @@ Deno.test("Persistence failure returns 503 for Recall retry and does not summari
   const session = row(); const f = fixture([session], true);
   assert.equal((await webhook("done")).status, 503);
   await f.drain(); assert.equal(session.status, "live"); assert.equal(f.summaries.length, 0);
+});
+
+Deno.test("Fatal closes as failed without summary; latest live status keeps bot active", async () => {
+  const session = row(); const f = fixture([session]);
+  await webhook("fatal"); await f.drain(); assert.equal(session.status, "failed"); assert.equal(f.summaries.length, 0);
+  const active = row("active"); const g = fixture([active]);
+  mod.configure({ from: () => ({ select() { return this; }, in() { return this; }, not() { return this; }, lt() { return this; }, order() { return this; }, limit() { return Promise.resolve({ data: [active] }); } }) },
+    async () => ({ ok: true, data: { status_changes: [{ code: "done" }, { code: "in_call_recording" }] } }),
+    async () => { throw new Error("Active bot must not summarize"); });
+  await mod.reconcileOrphanSessions(); await g.drain(); assert.equal(active.status, "live");
 });
 
 Deno.test("Reconcile-on-touch closes done orphan and summarizes without blocking caller", async () => {

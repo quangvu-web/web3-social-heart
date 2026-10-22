@@ -5970,6 +5970,21 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
       console.log(
         `[telegram-community-webhook] aitest_fire chatId=${message.chat.id} userId=${fromId} prompt="${prompt.slice(0, 80)}"`,
       );
+      // Per-group reply language (same rule as the group AI flow): prefer the
+      // group's own settings row, fall back to the global one.
+      let aitestGroupSettings: CommunitySettings | null = null;
+      try {
+        aitestGroupSettings = await getSettingsForGroup(adminClient, message.chat.id);
+      } catch (err) {
+        console.warn("[GROUP_LANG] aitest group settings lookup failed; falling back to global", {
+          chatId: message.chat.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      const aitestLanguage = resolveGroupReplyLanguage(
+        prompt,
+        (aitestGroupSettings as any)?.reply_language ?? (settings as any)?.reply_language,
+      );
       try {
         const reply = await askAngel({
           question: prompt,

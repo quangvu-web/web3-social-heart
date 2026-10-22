@@ -241,6 +241,9 @@ export default function CaptionsPage() {
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
+    // Bỏ qua sự kiện cuộn do chính trang tự cuộn (tránh rớt cờ bám khi
+    // dòng mới cao hơn ngưỡng, nhất là trên màn hình điện thoại).
+    if (Date.now() - autoScrollGuard.current < 300) return;
     const stuck = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
     if (stuck === stickToBottom.current) return;
     stickToBottom.current = stuck;
@@ -257,7 +260,10 @@ export default function CaptionsPage() {
     unreadBase.current = linesCountRef.current;
     setJumpState({ visible: false, count: 0 });
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el) {
+      autoScrollGuard.current = Date.now();
+      el.scrollTop = el.scrollHeight;
+    }
   }, []);
 
   if (notFound) {

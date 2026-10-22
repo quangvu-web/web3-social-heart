@@ -25,6 +25,10 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
   const stops: Record<string, unknown>[] = [];
   const replies: string[] = [];
   let settingsReads = 0;
+  let operatorIds: unknown = [5373909526, 42];
+  let rejectSettings = false;
+  let ownSession: Record<string, unknown> | null = { id: "fixture-session", public_code: "test" };
+  let latestReads = 0;
   let aiCalls = 0;
   let rejectStart = false;
   Deno.env.get = (name) => env[name];
@@ -58,19 +62,31 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
     }
     if (url.pathname.endsWith("/telegram_community_settings")) {
       settingsReads++;
-      throw new Error("Caption must not load settings");
+      assert.equal(url.searchParams.get("select"), "caption_operator_ids");
+      assert.equal(url.searchParams.get("order"), "created_at.asc");
+      assert.equal(url.searchParams.get("limit"), "1");
+      return rejectSettings
+        ? Response.json({ message: "fixture lookup error" }, { status: 403 })
+        : Response.json({ caption_operator_ids: operatorIds });
     }
     if (url.pathname.endsWith("/caption_sessions")) {
-      assert.equal(url.searchParams.get("created_by_telegram_id"), "eq.42");
-      return Response.json({ id: "fixture-session", public_code: "test" });
+      assert.equal(url.searchParams.get("status"), "in.(joining,live)");
+      assert.equal(url.searchParams.get("order"), "created_at.desc");
+      assert.equal(url.searchParams.get("limit"), "1");
+      if (url.searchParams.has("created_by_telegram_id")) {
+        assert.match(url.searchParams.get("created_by_telegram_id") ?? "", /^eq\.(42|5373909526|5938169315)$/);
+        return Response.json(ownSession);
+      }
+      latestReads++;
+      return Response.json({ id: "latest-session", public_code: "latest" });
     }
     return new Response(null, { status: 204 });
   };
   try {
     const { handlePrivateMessage } = await import("./index.ts");
-    const send = (text: string) => handlePrivateMessage({
-      message_id: 81, chat: { id: 42, type: "private" },
-      from: { id: 42, first_name: "Fixture" }, text,
+    const send = (text: string, userId = 42) => handlePrivateMessage({
+      message_id: 81, chat: { id: userId, type: "private" },
+      from: { id: userId, first_name: "Fixture" }, text,
     });
     await send("/caption https://zoom.us/j/123");
     assert.equal(starts.length, 1);
@@ -92,8 +108,52 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
     await send("/caption https://zoom.us/j/789");
     assert.equal(starts.length, 3);
     assert.equal(replies.length, 7);
-    assert.equal(settingsReads, 0);
+    assert.equal(settingsReads, 5);
     assert.equal(aiCalls, 0);
+    // The initial operator can still start a session through the production handler.
+    env.CAPTION_INTERNAL_TOKEN = "fixture-only";
+    rejectStart = false;
+    operatorIds = [5373909526];
+    await send("/caption https://zoom.us/j/123", 5373909526);
+    assert.equal(starts.length, 4);
+    assert.equal(starts[3].telegram_user_id, 5373909526);
+    // Non-operator: exactly one reply, no start call and no AI.
+    const beforeDenied = replies.length;
+    await send("/caption https://zoom.us/j/123", 5938169315);
+    assert.equal(replies.length, beforeDenied + 1);
+    assert.equal(starts.length, 4);
+    assert.equal(aiCalls, 0);
+    for (const deniedList of [[], null]) {
+      operatorIds = deniedList;
+      await send("/caption https://zoom.us/j/123", 5373909526);
+      assert.equal(starts.length, 4);
+    }
+    rejectSettings = true;
+    await send("/caption https://zoom.us/j/123", 5373909526);
+    assert.equal(starts.length, 4);
+    rejectSettings = false;
+    // A non-operator creator retains their own stop; no global lookup is allowed.
+    await send("/caption_stop", 5938169315);
+    assert.equal(stops.length, 2);
+    assert.deepEqual(stops[1], { session_id: "fixture-session" });
+    assert.equal(latestReads, 0);
+    // An operator's own session takes priority even when global sessions exist.
+    operatorIds = [5373909526];
+    await send("/caption_stop", 5373909526);
+    assert.deepEqual(stops[2], { session_id: "fixture-session" });
+    assert.equal(latestReads, 0);
+    // Only operators without an own session can stop the newest global active session.
+    ownSession = null;
+    await send("/caption_stop", 5373909526);
+    assert.deepEqual(stops[3], { session_id: "latest-session" });
+    assert.equal(latestReads, 1);
+    await send("/caption_stop", 5938169315);
+    assert.equal(stops.length, 4);
+    assert.equal(latestReads, 1);
+    rejectSettings = true;
+    await send("/caption_stop", 5373909526);
+    assert.equal(stops.length, 4);
+    assert.equal(latestReads, 1);
   } finally {
     Deno.env.get = originalGet;
     globalThis.fetch = originalFetch;

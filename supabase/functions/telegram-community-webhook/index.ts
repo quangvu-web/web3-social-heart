@@ -1,4 +1,5 @@
 ﻿import { buildTelegramGroupContext, type TelegramGroupContext } from "../_shared/telegram-group-context.ts";
+import { isCaptionOperator } from "./caption-operators.ts";
 import { handleBotInvite } from "../_shared/telegram-unauthorized-invite.ts";
 import { resolveDeletePermission } from "../_shared/telegram-moderation-notice.ts";
 import {
@@ -1187,7 +1188,12 @@ export async function handlePrivateMessage(message: TelegramMessage) {
 
   if (/^\/caption/i.test(text)) {
     // ANGEL CAPTION BOT — /caption <link họp>: tạo phiên phụ đề dịch trực tiếp.
-    console.log("[dm] caption_command", { command: /^\/caption_stop(@|\s|$)/i.test(text) ? "caption_stop" : "caption", revision: "caption-priority-v1" });
+    console.log("[dm] caption_command", { command: /^\/caption_stop(@|\s|$)/i.test(text) ? "caption_stop" : "caption", revision: "caption-operators-v1" });
+    if (/^\/caption(@|\s|$)/i.test(text) && !await isCaptionOperator(adminClient, tgUserId)) {
+      console.warn("[dm] caption_start_denied", { telegram_user_id: tgUserId ?? null });
+      await replyDm("🌐 Tính năng bật phụ đề hiện chỉ dành cho người phụ trách được cấp quyền. Bé nhắn người tổ chức buổi họp để được hỗ trợ nhé 💛");
+      return;
+    }
     const captionMatch = text.match(/^\/caption(?:@\S+)?\s+(\S+)/i);
     if (captionMatch) {
       const meetingUrl = captionMatch[1].trim();
@@ -1236,7 +1242,7 @@ export async function handlePrivateMessage(message: TelegramMessage) {
       return;
     }
   
-    // /caption_stop: kết thúc phiên đang live/joining do chính user này tạo.
+    // Creator-scoped stop first; operators without an own session may stop the newest active session.
     if (/^\/caption_stop(@|\s|$)/i.test(text)) {
       const internalToken = Deno.env.get("CAPTION_INTERNAL_TOKEN") ?? "";
       const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -1245,7 +1251,7 @@ export async function handlePrivateMessage(message: TelegramMessage) {
         return;
       }
       try {
-        const { data: activeSession } = await adminClient
+        const { data: ownSession, error: ownSessionError } = await adminClient
           .from("caption_sessions")
           .select("id, public_code")
           .eq("created_by_telegram_id", tgUserId)
@@ -1253,6 +1259,19 @@ export async function handlePrivateMessage(message: TelegramMessage) {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
+        if (ownSessionError) throw ownSessionError;
+        let activeSession = ownSession;
+        if (!activeSession && await isCaptionOperator(adminClient, tgUserId)) {
+          const { data: latestSession, error: latestSessionError } = await adminClient
+            .from("caption_sessions")
+            .select("id, public_code")
+            .in("status", ["joining", "live"])
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (latestSessionError) throw latestSessionError;
+          activeSession = latestSession;
+        }
         if (!activeSession) {
           await replyDm("Angel không thấy phiên phụ đề nào đang chạy do bé tạo 💛");
           return;

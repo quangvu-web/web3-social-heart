@@ -35,6 +35,7 @@
 - Codex KHÔNG được tự chạy migration. Nếu cần đổi schema → để user nhờ Angel trong Lovable.
 
 ## 6. Edge Functions
+- Caption command authorization reads the current oldest community settings row on each check, without caching; creator-scoped stops take precedence over operator fallback to avoid stopping unrelated sessions.
 - Luôn dùng `npm:` specifier cho Deno imports. KHÔNG dùng `esm.sh`.
 - Wallet-related functions: set `verify_jwt = false` trong `supabase/config.toml`.
 - Chỉ có 1 `config.toml` — KHÔNG tạo file thứ 2.

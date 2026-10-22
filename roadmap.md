@@ -1,5 +1,11 @@
 # Roadmap
 
+## Caption operator authorization
+- [x] Add caption_operator_ids and seed 5373909526 in the existing oldest settings row; verified by production read.
+- [x] Gate caption starts fail closed; preserve owner stops and add latest-session operator fallback.
+- [x] Deno operator tests 7/7 passed with type checking; production-handler mock regression 1/1 passed with --no-check. Deployed only telegram-community-webhook on 22 October 2026; frontend build log OK.
+- [ ] Verify real operator and non-operator Telegram commands after deploy (requires real accounts and a test meeting link).
+
 ## Open tasks
 1. Update values of the 69 remixed secrets (AGORA_*, TELEGRAM_*, R2_*, etc.) — paused: user declined the bulk secure forms. Secrets already exist with carried-over values; confirm whether any actually need new values.
 2. Missing frontend setting reported (optional): `VITE_WALLETCONNECT_PROJECT_ID` — WalletConnect mobile deep links stay disabled until it is provided.

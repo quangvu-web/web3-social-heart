@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Caption operator authorization
-- [ ] Add caption_operator_ids and seed initial operator in the existing settings row.
-- [ ] Gate caption starts fail closed; preserve owner stops and add latest-session operator fallback.
-- [ ] Run regression tests and deploy only telegram-community-webhook.
+- [x] Add caption_operator_ids and seed 5373909526 in the existing oldest settings row; verified by production read.
+- [x] Gate caption starts fail closed; preserve owner stops and add latest-session operator fallback.
+- [x] Deno operator tests 7/7 passed with type checking; production-handler mock regression 1/1 passed with --no-check. Deployed only telegram-community-webhook on 22 October 2026; frontend build log OK.
 - [ ] Verify real operator and non-operator Telegram commands after deploy (requires real accounts and a test meeting link).
 
 ## Open tasks

@@ -115,9 +115,12 @@ describe("caption recovery", () => {
       await h.settle();
       h.status(status);
       expect(h.timeouts[0].delay).toBe(2000);
-      await h.timeouts[0].callback();
+      const timer = h.timeouts.shift();
+      await timer?.callback();
       expect(h.removals).toBe(1);
       expect(h.subscriptions).toBe(2);
+      h.status(status);
+      expect(h.timeouts.length).toBe(1);
       h.cleanup();
       expect(h.events.size).toBe(0);
       expect(h.intervals.length).toBe(0);

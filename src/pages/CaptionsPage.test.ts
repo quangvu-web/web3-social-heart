@@ -130,3 +130,44 @@ describe("caption recovery", () => {
     }
   });
 });
+// Nạp các helper đã export từ CaptionsPage.tsx (transpile y như harness ở trên
+// để không phải resolve alias @/ hay render DOM).
+function loadCaptionHelpers() {
+  const code = ts.transpileModule(readFileSync(new URL("./CaptionsPage.tsx", import.meta.url), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  const exports: Record<string, unknown> = {};
+  const require = (name: string) => {
+    if (name === "react") return { useState: () => [], useRef: () => ({}), useEffect: () => {}, useCallback: (c: unknown) => c };
+    if (name === "react-router-dom") return { useParams: () => ({}) };
+    if (name.includes("supabase/client")) return { supabase: {} };
+    return { jsx: () => null, jsxs: () => null, Fragment: null, Minus: 0, Plus: 0, Loader2: 0, ArrowDown: 0 };
+  };
+  new Function("require", "exports", code)(require, exports);
+  return exports as { captionSubFontSize: (size: number) => number };
+}
+
+describe("translated caption size", () => {
+  const { captionSubFontSize } = loadCaptionHelpers();
+
+  test("bilingual translation reads at 25px when the original is the default 28px", () => {
+    expect(captionSubFontSize(28)).toBe(25);
+  });
+
+  test("each +/− step scales the translation at the same ratio as the original", () => {
+    // Nút + tăng 4px mỗi nấc: hai nấc từ mặc định 28 → 36 → 44.
+    expect(captionSubFontSize(28)).toBe(25);
+    expect(captionSubFontSize(36)).toBe(32);
+    expect(captionSubFontSize(44)).toBe(39);
+  });
+
+  test("translation stays readable and balanced across every size the buttons allow", () => {
+    for (const size of [18, 22, 26, 30, 34, 38, 42, 46, 48]) {
+      const sub = captionSubFontSize(size);
+      expect(sub).toBeGreaterThanOrEqual(16);
+      expect(sub).toBeLessThan(size);
+      expect(sub).toBeGreaterThanOrEqual(Math.ceil(size * 0.85));
+    }
+    expect(captionSubFontSize(10)).toBe(16);
+  });
+});

@@ -44,6 +44,7 @@
 - Bất kỳ page nào có `MobileBottomNav` PHẢI có `pb-20` (80px) để input không bị che.
 
 ## 8. Chat / Scroll
+- Caption pages keep Realtime plus independent incremental polling and return-to-tab catch-up; reconnect failed channels and clean up subscriptions/timers on unmount so captions cannot freeze after a socket drop.
 - Dùng `div` native với `overflow-y: auto` cho chat scroll. KHÔNG dùng Radix `ScrollArea`.
 
 ## 9. Auth & bảo mật

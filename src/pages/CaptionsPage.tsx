@@ -60,6 +60,7 @@ export default function CaptionsPage() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
+  const maxSeq = useRef(0);
 
   // Đồng hồ thời lượng
   useEffect(() => {
@@ -72,6 +73,35 @@ export default function CaptionsPage() {
     if (!code) return;
     let cancelled = false;
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let fetching = false;
+    let refreshRequested = false;
+    maxSeq.current = 0;
+    setSession(null);
+    setLines([]);
+    setNotFound(false);
+    stickToBottom.current = true;
+
+    const mergeLines = (incoming: CaptionLine[]) => {
+      if (cancelled) return;
+      for (const line of incoming) maxSeq.current = Math.max(maxSeq.current, line.seq);
+      setLines((prev) => {
+        const ids = new Set(prev.map((line) => line.id));
+        const added = incoming.filter((line) => {
+          if (ids.has(line.id)) return false;
+          ids.add(line.id);
+          return true;
+        });
+        return added.length ? [...prev, ...added].sort((a, b) => a.seq - b.seq) : prev;
+      });
+    };
+
+    let refresh = async () => {};
+    const onReturn = () => { void refresh(); };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") onReturn();
+    };
 
     const load = async () => {
       const { data: sess, error } = await supabase
@@ -93,32 +123,93 @@ export default function CaptionsPage() {
         .order("seq", { ascending: true })
         .limit(1000);
       if (cancelled) return;
-      setLines((existing as CaptionLine[]) ?? []);
+      mergeLines((existing as CaptionLine[]) ?? []);
 
-      channel = supabase
-        .channel(`captions:${sess.id}`)
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "caption_lines", filter: `session_id=eq.${sess.id}` },
-          (payload) => {
-            const row = payload.new as CaptionLine;
-            setLines((prev) => (prev.some((l) => l.id === row.id) ? prev : [...prev, row]));
-          },
-        )
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "caption_sessions", filter: `id=eq.${sess.id}` },
-          (payload) => {
-            setSession(payload.new as CaptionSession);
-          },
-        )
-        .subscribe();
+      refresh = async () => {
+        if (cancelled) return;
+        if (fetching) {
+          refreshRequested = true;
+          return;
+        }
+        fetching = true;
+        try {
+          // Capture the cursor before concurrent Realtime inserts arrive.
+          const cursor = maxSeq.current;
+          const [captions, status] = await Promise.all([
+            supabase.from("caption_lines")
+              .select("id, seq, speaker_name, source_lang, text_source, text_vi, text_en")
+              .eq("session_id", sess.id).gt("seq", cursor)
+              .order("seq", { ascending: true }).limit(1000),
+            supabase.from("caption_sessions")
+              .select("id, public_code, status, started_at, ended_at, created_at")
+              .eq("id", sess.id).maybeSingle(),
+          ]);
+          if (cancelled) return;
+          if (!captions.error && captions.data) mergeLines(captions.data as CaptionLine[]);
+          if (!status.error && status.data) setSession(status.data as CaptionSession);
+          if (captions.data?.length === 1000) refreshRequested = true;
+        } catch {
+          // Preserve existing captions; the next polling/return event retries.
+        } finally {
+          fetching = false;
+          if (!cancelled && refreshRequested) {
+            refreshRequested = false;
+            void refresh();
+          }
+        }
+      };
+
+      const subscribe = () => {
+        if (cancelled) return;
+        channel = supabase
+          .channel(`captions:${sess.id}`)
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "caption_lines", filter: `session_id=eq.${sess.id}` },
+            (payload) => { mergeLines([payload.new as CaptionLine]); },
+          )
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "caption_sessions", filter: `id=eq.${sess.id}` },
+            (payload) => { if (!cancelled) setSession(payload.new as CaptionSession); },
+          )
+          .subscribe((status) => {
+            if (cancelled) return;
+            if (status === "SUBSCRIBED") void refresh();
+            if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status) && !reconnectTimer) {
+              reconnectTimer = setTimeout(async () => {
+                const oldChannel = channel;
+                channel = null;
+                try {
+                  if (oldChannel) await supabase.removeChannel(oldChannel);
+                } catch {
+                  // A failed socket teardown must not prevent reconnecting.
+                } finally {
+                  reconnectTimer = undefined;
+                  if (!cancelled) subscribe();
+                }
+              }, 2000);
+            }
+          });
+      };
+      subscribe();
+      pollTimer = setInterval(() => { void refresh(); }, 4000);
+      document.addEventListener("visibilitychange", onVisible);
+      window.addEventListener("focus", onReturn);
+      window.addEventListener("online", onReturn);
+      // Close the gap between initial load and subscribing, even with a dead socket.
+      void refresh();
     };
 
-    load();
+    void load();
     return () => {
       cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      if (pollTimer) clearInterval(pollTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onReturn);
+      window.removeEventListener("online", onReturn);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [code]);
 

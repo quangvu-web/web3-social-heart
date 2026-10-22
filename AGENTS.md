@@ -37,6 +37,7 @@
 ## 6. Edge Functions
 - Caption terminal webhooks persist status with a counted compare-and-swap before ACK; summaries run through waitUntil/authenticated one-hop fallback, and bounded on-touch reconciliation checks Recall to recover missed terminal events without schema changes.
 - Caption command authorization reads the current oldest community settings row on each check, without caching; creator-scoped stops take precedence over operator fallback to avoid stopping unrelated sessions.
+- Group reply language comes from that group's own `telegram_community_settings.reply_language` ('auto' | 'en') via `resolveGroupReplyLanguage`; never hardcode chat ids, so new international groups only need a data flag.
 - Luôn dùng `npm:` specifier cho Deno imports. KHÔNG dùng `esm.sh`.
 - Wallet-related functions: set `verify_jwt = false` trong `supabase/config.toml`.
 - Chỉ có 1 `config.toml` — KHÔNG tạo file thứ 2.

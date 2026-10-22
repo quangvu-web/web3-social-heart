@@ -5625,6 +5625,7 @@ export type Database = {
           block_shock_content: boolean
           block_telegram_previews: boolean
           bot_username: string | null
+          caption_operator_ids: number[] | null
           cjk_chatter_guard_enabled: boolean
           cjk_chatter_strike_threshold: number
           community_personality: string
@@ -5711,6 +5712,7 @@ export type Database = {
           block_shock_content?: boolean
           block_telegram_previews?: boolean
           bot_username?: string | null
+          caption_operator_ids?: number[] | null
           cjk_chatter_guard_enabled?: boolean
           cjk_chatter_strike_threshold?: number
           community_personality?: string
@@ -5797,6 +5799,7 @@ export type Database = {
           block_shock_content?: boolean
           block_telegram_previews?: boolean
           bot_username?: string | null
+          caption_operator_ids?: number[] | null
           cjk_chatter_guard_enabled?: boolean
           cjk_chatter_strike_threshold?: number
           community_personality?: string

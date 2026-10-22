@@ -5974,7 +5974,8 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
       // group's own settings row, fall back to the global one.
       let aitestGroupSettings: CommunitySettings | null = null;
       try {
-        aitestGroupSettings = await getSettingsForGroup(adminClient, message.chat.id);
+        const { adminClient: aitestAdminClient } = getClients(req);
+        aitestGroupSettings = await getSettingsForGroup(aitestAdminClient, message.chat.id);
       } catch (err) {
         console.warn("[GROUP_LANG] aitest group settings lookup failed; falling back to global", {
           chatId: message.chat.id,

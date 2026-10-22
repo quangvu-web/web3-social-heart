@@ -182,6 +182,8 @@ export default function CaptionsPage() {
                 channel = null;
                 try {
                   if (oldChannel) await supabase.removeChannel(oldChannel);
+                } catch {
+                  // A failed socket teardown must not prevent reconnecting.
                 } finally {
                   reconnectTimer = undefined;
                   if (!cancelled) subscribe();

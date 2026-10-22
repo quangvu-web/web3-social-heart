@@ -26,6 +26,7 @@ import TelegramGroupPanel from "@/components/admin/TelegramGroupPanel";
 import RestreamMultistreamTab from "@/components/admin/RestreamMultistreamTab";
 import MemberAnalyticsTab from "@/components/admin/MemberAnalyticsTab";
 import BotDmUsersSection from "@/components/admin/BotDmUsersSection";
+import CaptionOperatorsSection from "@/components/admin/CaptionOperatorsSection";
 import TelegramMutesTab from "@/components/admin/TelegramMutesTab";
 import TelegramFatherChannelTab from "@/components/admin/TelegramFatherChannelTab";
 import TelegramAiTriggersTab from "@/components/admin/TelegramAiTriggersTab";
@@ -364,7 +365,10 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="dm-bot">
-            <BotDmUsersSection />
+            <div className="space-y-6">
+              <CaptionOperatorsSection />
+              <BotDmUsersSection />
+            </div>
           </TabsContent>
 
           <TabsContent value="mutes">

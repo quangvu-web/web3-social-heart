@@ -55,3 +55,10 @@
 - [ ] Register live bot menu: admin endpoint returns 401 without a session; sandbox bot credential fails getMe HTTP 404. Requires authorized admin setup action using production credentials.
 - [x] Anonymous caption_sessions read using frontend build public key returns HTTP 200; frontend build log OK.
 - [ ] Verify owner DM on production and new caption_command log: waiting for real Telegram message; no matching post-deploy log yet. Pre-deploy source cannot be downloaded without management access token.
+
+## Group reply language per-group settings
+- [x] Root cause: group AI flow and /aitest read reply_language from the global oldest settings row via ensureSettings; the per-group row (group_id=-1003646058428, reply_language='en') was never loaded.
+- [x] Fix: load the group's own row with getSettingsForGroup at both resolveGroupReplyLanguage call sites; fall back to the global value when the row is missing or unreadable. meditation-broadcast already reads per-group (loadCommunitySettingsForChat by group_id) — no change needed.
+- [x] Permanent [GROUP_LANG] diagnostic log now includes groupSettingsId, lookup failure flag, replyLanguage used, and resolved bucket.
+- [x] Production read-back: row id 2dc725a3-4378-4445-9e9f-7010b2494518, group_id=-1003646058428, reply_language='en' (created 2026-07-08). Deno tests 15/15 (one env-dependent failure passes with COMMUNITY_GUARD_GROUP_ID set). Deployed only telegram-community-webhook on 22 October 2026 around 17:10 MYT (source SHA-256 cb6da1e8a677499e0b5de925317009585d381855ec54c3e74c24b6ff9ff2207c).
+- [ ] Acceptance (a)-(d) unverified: needs real messages in group -1003646058428 (Vietnamese question → English reply; thanks → English; translate-to-Vietnamese → Vietnamese translation with English framing) plus another group and DM staying Vietnamese, each confirmed via the [GROUP_LANG] log line.

@@ -1,5 +1,10 @@
 # Roadmap
 
+## Caption page automatic recovery
+- [x] Enable caption_sessions publication safely; preserve table structure and server functions.
+- [x] Add parallel 4-second polling, immediate visibility/focus/online catch-up, and 2-second Realtime reconnect without UI changes.
+- [ ] Verify live captions, blocked-WebSocket polling, and one-minute hidden-tab catch-up; publish and identify deployed revision.
+
 ## Caption operators admin UI
 - [x] Add management beside DM bot using the oldest settings row for reads and writes; preserve existing admin gate.
 - [x] Support DM-user search, numeric-ID entry, owner label, confirmed removal, and last-operator protection; reread after every write.

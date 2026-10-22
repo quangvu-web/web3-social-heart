@@ -49,6 +49,14 @@ function formatDuration(startIso: string | null, endIso: string | null, now: num
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
+// Cỡ chữ dòng dịch: theo tỉ lệ 88% dòng gốc (sát kích thước, đọc rõ cho
+// khách quốc tế) nhưng không bao giờ nhỏ hơn 16px. Phân cấp chính/phụ
+// thể hiện bằng màu, không bằng cỡ chữ.
+export function captionSubFontSize(fontSize: number): number {
+  return Math.max(16, Math.round(fontSize * 0.88));
+}
+
+
 export default function CaptionsPage() {
   const { code } = useParams<{ code: string }>();
   const [session, setSession] = useState<CaptionSession | null>(null);
@@ -296,8 +304,9 @@ export default function CaptionsPage() {
           {main ?? line.text_source}
         </div>
         {sub && (
-          <div className="mt-1 text-slate-400 leading-snug" style={{ fontSize: Math.max(14, fontSize - 10) }}>
+          <div className="mt-1 text-slate-400 leading-snug" style={{ fontSize: captionSubFontSize(fontSize) }}>
             {sub}
+
           </div>
         )}
       </div>

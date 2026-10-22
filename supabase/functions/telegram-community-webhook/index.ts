@@ -4880,6 +4880,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
     : null;
   if (cacheKey) {
     const cached = await getAiCachedResponse({ adminClient, groupId: chatId, cacheKey });
+    console.log("[GROUP_LANG] cache", { chatId, bucket: userLangBucket, cacheHit: Boolean(cached) });
     if (cached) {
       await sendMessage(chatId, cached, { reply_to_message_id: message.message_id, skipAutoDelete: true });
       await markAiMessageLock({

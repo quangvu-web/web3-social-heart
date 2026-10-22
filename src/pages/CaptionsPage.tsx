@@ -64,6 +64,7 @@ export default function CaptionsPage() {
   const maxSeq = useRef(0);
   const unreadBase = useRef(0);
   const linesCountRef = useRef(0);
+  const autoScrollGuard = useRef(0);
 
   // Đồng hồ thời lượng
   useEffect(() => {
@@ -224,7 +225,10 @@ export default function CaptionsPage() {
     linesCountRef.current = lines.length;
     const el = scrollRef.current;
     if (stickToBottom.current) {
-      if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+      if (el) requestAnimationFrame(() => {
+        autoScrollGuard.current = Date.now();
+        el.scrollTop = el.scrollHeight;
+      });
       setJumpState((prev) => (prev.visible ? { visible: false, count: 0 } : prev));
     } else {
       const count = lines.length - unreadBase.current;

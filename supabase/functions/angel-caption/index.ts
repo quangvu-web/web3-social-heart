@@ -7,8 +7,8 @@
 //   stop           POST  (x-caption-token) — kết thúc phiên, bot rời phòng, tóm tắt
 //   summarize      POST  (x-caption-token) — tóm tắt song ngữ + đăng nhóm cộng đồng
 //
-// Nguyên tắc: chỉ dịch đoạn final; lỗi từng sự kiện → log + vẫn trả 200 (trừ
-// sai chữ ký) để Recall không retry dồn dập; lỗi dịch → ghi dòng chỉ với text gốc.
+// Chỉ dịch đoạn final; lỗi dịch → ghi dòng chỉ với text gốc.
+// Đóng phiên phải ghi thành công trước ACK; tóm tắt chạy nền, lỗi đóng cho phép retry.
 
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
@@ -278,12 +278,83 @@ async function runSummarize(admin: SupabaseClient, sessionId: string) {
   ].join("\n");
 
   await sendSummaryToCommunity(admin, text, session.created_by_chat_id ?? null);
+  console.log("[angel-caption] summary_finished", { session_id: sessionId });
+}
+
+// Lazy work factories keep AI/Recall calls outside the webhook acknowledgement path.
+function scheduleCaptionWork(kind: "summarize" | "reconcile", sessionId?: string) {
+  const runtime = (globalThis as typeof globalThis & {
+    EdgeRuntime?: { waitUntil: (task: Promise<unknown>) => void };
+  }).EdgeRuntime;
+  const failure = () => console.error("[angel-caption] background_failed", { kind, session_id: sessionId ?? null });
+  if (runtime?.waitUntil) {
+    const task = Promise.resolve().then(() => kind === "reconcile"
+      ? reconcileOrphanSessions()
+      : sessionId ? runSummarize(getAdmin(), sessionId) : undefined).catch(failure);
+    runtime.waitUntil(task);
+    return;
+  }
+  const url = Deno.env.get("SUPABASE_URL");
+  const token = Deno.env.get("CAPTION_INTERNAL_TOKEN");
+  if (!url || !token) { failure(); return; }
+  // One authenticated hop only; background requests never kick another reconcile.
+  void fetch(`${url}/functions/v1/angel-caption?action=${kind}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-caption-token": token, "x-caption-background": "1" },
+    body: JSON.stringify({ session_id: sessionId }),
+  }).then((response) => { if (!response.ok) failure(); }).catch(failure);
+}
+
+function reconcileOnTouch(req: Request) {
+  if (req.headers.get("x-caption-background") !== "1") scheduleCaptionWork("reconcile");
+}
+
+async function closeCaptionSession(admin: SupabaseClient, session: { id: string; status: string }, finalStatus: "ended" | "failed") {
+  if (!["pending", "joining", "live"].includes(session.status)) return false;
+  // Counted compare-and-swap gives exactly one delivery/reconciler the summary.
+  const { error, count } = await admin.from("caption_sessions")
+    .update({ status: finalStatus, ended_at: new Date().toISOString() }, { count: "exact" })
+    .eq("id", session.id).eq("status", session.status);
+  if (error) throw new Error("caption_close_write_failed");
+  if (count !== 1) return false;
+  if (finalStatus === "ended") scheduleCaptionWork("summarize", session.id);
+  return true;
+}
+
+async function reconcileOrphanSessions() {
+  const admin = getAdmin();
+  const cutoff = new Date(Date.now() - 3 * 60_000).toISOString();
+  const { data: sessions, error } = await admin.from("caption_sessions")
+    .select("id, status, recall_bot_id, created_at")
+    .in("status", ["joining", "live"]).not("recall_bot_id", "is", null)
+    .lt("created_at", cutoff).order("created_at", { ascending: true }).limit(5);
+  if (error) throw new Error("caption_reconcile_lookup_failed");
+  for (const session of (sessions ?? []).slice(0, 5)) {
+    if (!session.recall_bot_id || Date.parse(session.created_at) >= Date.parse(cutoff)) continue;
+    try {
+      const bot = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/`, {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!bot.ok) {
+        console.warn("[angel-caption] reconcile_bot_lookup_failed", { session_id: session.id, status: bot.status });
+        continue;
+      }
+      const changes = Array.isArray(bot.data?.status_changes) ? bot.data.status_changes : [];
+      const code = changes.at(-1)?.code ?? "";
+      if (code !== "call_ended" && code !== "done") continue;
+      const closed = await closeCaptionSession(admin, session, "ended");
+      console.log("[angel-caption] reconcile_result", { session_id: session.id, code, result: closed ? "closed" : "ignored" });
+    } catch {
+      console.error("[angel-caption] reconcile_failed", { session_id: session.id });
+    }
+  }
 }
 
 // ---------- Action: start ----------
 
 async function handleStart(req: Request): Promise<Response> {
   if (!checkInternalToken(req)) return json({ error: "Unauthorized" }, 401);
+  reconcileOnTouch(req);
 
   let body: { meeting_url?: string; telegram_user_id?: number; telegram_chat_id?: number };
   try {
@@ -441,13 +512,26 @@ async function handleBotStatusChange(
   const botId = payload.data?.bot?.id ?? payload.data?.bot_id ?? null;
   const code = payload.data?.data?.code ?? payload.data?.status?.code ?? "";
   const session = await findSessionByBot(admin, botId, metadataSessionId);
-  if (!session || !code) return;
+  const logResult = (result: string) => console.log("[angel-caption] bot_status_delivery", {
+    event: "bot.status_change", code, session_id: session?.id ?? null, result,
+  });
+  if (!session || !code) { logResult(!session ? "session_not_found" : "ignored"); return; }
+
+  if (code === "call_ended" || code === "done" || code === "fatal") {
+    try {
+      const closed = await closeCaptionSession(admin, session, code === "fatal" ? "failed" : "ended");
+      logResult(closed ? "closed" : "ignored");
+    } catch (error) { logResult("write_failed"); throw error; }
+    return;
+  }
+  if (session.status === "ended" || session.status === "failed") { logResult("ignored"); return; }
 
   const nowIso = new Date().toISOString();
   if (code === "in_waiting_room" || code === "joining") {
     if (session.status === "pending") {
       await admin.from("caption_sessions").update({ status: "joining" }).eq("id", session.id);
     }
+    logResult("joining");
     return;
   }
   if (code === "in_call_recording" || code === "in_call_not_recording") {
@@ -472,23 +556,14 @@ async function handleBotStatusChange(
         console.warn("[angel-caption] meeting chat message failed", { status: chatRes.status, bot_id: botId });
       }
     }
+    logResult("live");
     return;
   }
-  if (code === "call_ended" || code === "done" || code === "fatal") {
-    const finalStatus = code === "fatal" ? "failed" : "ended";
-    await admin
-      .from("caption_sessions")
-      .update({ status: finalStatus, ended_at: nowIso })
-      .eq("id", session.id);
-    if (finalStatus === "ended") {
-      await runSummarize(admin, session.id).catch((e) =>
-        console.warn("[angel-caption] auto summarize failed", e instanceof Error ? e.message : String(e))
-      );
-    }
-  }
+  logResult("ignored");
 }
 
 async function handleRecallWebhook(req: Request): Promise<Response> {
+  const receivedAt = performance.now();
   const rawBody = await req.text(); // PHẢI đọc raw trước khi parse JSON
   const secret = Deno.env.get("RECALL_VERIFICATION_SECRET") ?? "";
   const valid = await verifySvixSignature({
@@ -521,9 +596,13 @@ async function handleRecallWebhook(req: Request): Promise<Response> {
     // Lỗi từng sự kiện: log + vẫn 200 để Recall không retry dồn dập.
     console.error("[angel-caption] event handling failed", {
       event,
-      error: e instanceof Error ? e.message : String(e),
+      error: event === "bot.status_change" ? "status_processing_failed" : e instanceof Error ? e.message : String(e),
     });
+    if (event === "bot.status_change") return json({ error: "Status persistence failed" }, 503);
   }
+  if (event === "bot.status_change") console.log("[angel-caption] webhook_ack", {
+    event, response_ms: Math.round(performance.now() - receivedAt), status: 200,
+  });
   return json({ ok: true });
 }
 
@@ -531,6 +610,7 @@ async function handleRecallWebhook(req: Request): Promise<Response> {
 
 async function handleStop(req: Request): Promise<Response> {
   if (!checkInternalToken(req)) return json({ error: "Unauthorized" }, 401);
+  reconcileOnTouch(req);
 
   let body: { session_id?: string; public_code?: string };
   try {
@@ -572,6 +652,7 @@ async function handleStop(req: Request): Promise<Response> {
 
 async function handleSummarize(req: Request): Promise<Response> {
   if (!checkInternalToken(req)) return json({ error: "Unauthorized" }, 401);
+  reconcileOnTouch(req);
   let body: { session_id?: string; public_code?: string };
   try {
     body = await req.json();
@@ -608,6 +689,10 @@ Deno.serve(withUsage("angel-caption", "Angel Caption Bot", async (req) => {
       return await handleStop(req);
     case "summarize":
       return await handleSummarize(req);
+    case "reconcile":
+      if (!checkInternalToken(req)) return json({ error: "Unauthorized" }, 401);
+      await reconcileOrphanSessions();
+      return json({ ok: true });
     default:
       return json({ error: "Unknown action" }, 404);
   }

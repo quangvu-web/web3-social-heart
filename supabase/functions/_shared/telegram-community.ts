@@ -2210,11 +2210,12 @@ async function repairLanguageWithAngel(params: {
   originalUserMessage: string;
   langBucket: AngelLanguageBucket;
   telegramGroupContext?: TelegramGroupContext | null;
+  provider?: "funcore" | "lovable";
 }): Promise<string> {
   const langName = LANG_NAME[params.langBucket];
   const languageDirective = angelLanguageDirective(params.langBucket);
   const result = await callAngelCore({
-    forceProvider: "funcore",
+    forceProvider: params.provider ?? "funcore",
     max_tokens: 800,
     messages: withTelegramGroupContext([
       { role: "system", content: languageDirective },
@@ -3095,21 +3096,27 @@ ${addressRule}`;
     // Language repair: chỉ khi reply THỰC SỰ vi phạm ngôn ngữ. Short DM skip đã ngầm
     // bảo đảm `_langOk`, nên guard `_shortDmSkip` cũng chặn ở đây.
     if (!_shortDmSkip && !hasTelegramVerbatimContent(reply) && replyViolatesAngelLanguageBucket(reply, langBucket)) {
-      try {
-        const repaired = sanitizeForTelegramHtml(await repairLanguageWithAngel({
-          reply,
-          originalUserMessage,
-          langBucket,
-          telegramGroupContext: params.telegramGroupContext,
-        }));
-        if (repaired && !replyViolatesAngelLanguageBucket(repaired, langBucket)) {
-          reply = repaired;
-          console.log(`[askAngel] language repair ok lang=${langBucket} len=${reply.length}`);
-        } else {
-          console.warn(`[askAngel] language repair rejected lang=${langBucket}`);
+      // Group language policy (forcedLangBucket) must hold: if FUN Core keeps the
+      // original language, fall back to the gateway for a second repair attempt.
+      const providers: Array<"funcore" | "lovable"> = params.forcedLangBucket ? ["funcore", "lovable"] : ["funcore"];
+      for (const prov of providers) {
+        try {
+          const repaired = sanitizeForTelegramHtml(await repairLanguageWithAngel({
+            reply,
+            originalUserMessage,
+            langBucket,
+            telegramGroupContext: params.telegramGroupContext,
+            provider: prov,
+          }));
+          if (repaired && !replyViolatesAngelLanguageBucket(repaired, langBucket)) {
+            reply = repaired;
+            console.log(`[askAngel] language repair ok lang=${langBucket} provider=${prov} len=${reply.length}`);
+            break;
+          }
+          console.warn(`[askAngel] language repair rejected lang=${langBucket} provider=${prov}`);
+        } catch (e) {
+          console.warn(`[askAngel] language repair failed lang=${langBucket} provider=${prov}`, e);
         }
-      } catch (e) {
-        console.warn(`[askAngel] language repair failed lang=${langBucket}`, e);
       }
     }
 

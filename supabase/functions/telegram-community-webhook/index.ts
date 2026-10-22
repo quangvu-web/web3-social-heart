@@ -4775,6 +4775,14 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
   }
   const groupLanguage = resolveGroupReplyLanguage(prompt, (settings as any)?.reply_language);
   const userLangBucket = groupLanguage.bucket;
+  console.log("[GROUP_LANG]", {
+    chatId,
+    settingsId: (settings as any)?.id ?? null,
+    settingsGroupId: (settings as any)?.group_id ?? null,
+    replyLanguage: (settings as any)?.reply_language ?? null,
+    bucket: userLangBucket,
+    hasPolicyNote: Boolean(groupLanguage.policyNote),
+  });
   const addressRuleOverride = addressRuleForActor({ actorKind, isGroupSenderChat, isOwner, settings, text: prompt, chatId, username: user?.username ?? null });
   const lock = await acquireAiMessageLock({
     adminClient,
@@ -4872,6 +4880,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
     : null;
   if (cacheKey) {
     const cached = await getAiCachedResponse({ adminClient, groupId: chatId, cacheKey });
+    console.log("[GROUP_LANG] cache", { chatId, bucket: userLangBucket, cacheHit: Boolean(cached) });
     if (cached) {
       await sendMessage(chatId, cached, { reply_to_message_id: message.message_id, skipAutoDelete: true });
       await markAiMessageLock({

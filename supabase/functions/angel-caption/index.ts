@@ -653,8 +653,21 @@ async function handleBotStatusChange(
         body: JSON.stringify({
           to: "everyone",
           message:
-            `🌐 Angel Translator đã tham gia để hỗ trợ phụ đề dịch Anh–Việt trực tiếp cho khách quốc tế. ` +
-            `Buổi họp được ghi và chép lời để tạo phụ đề. Xem phụ đề / Live captions: ${captionUrl(session.public_code)}`,
+            `Dear international friends, welcome to our FUN Community Zoom session! ❤️🙏🌍
+
+Our program includes guided meditation and presentations in both Vietnamese and English.
+
+To help everyone follow and understand the session, please click the translation link below to view live subtitles in your preferred language.
+
+🔗 Translation link: ${captionUrl(session.public_code)}
+
+We hope everyone can fully participate, learn, and enjoy this beautiful journey of love, peace, and spiritual growth together.
+
+Thank you so much for joining us!
+
+May Father Universe bless you all with love, light, and peace! 🙏💜💙🩵🌈
+
+🎙️ This session is recorded and transcribed to generate the live captions. / Buổi họp được ghi và chép lời để tạo phụ đề trực tiếp.`,
         }),
       });
       if (!chatRes.ok) {

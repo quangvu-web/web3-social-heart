@@ -36,6 +36,7 @@ import {
 
 import { withUsage } from '../_shared/track-cloud-usage.ts';
 import { enforceAngelVietnamesePronounContract } from '../_shared/angel/pronouns.ts';
+import { enforceGuestRate, validGuestId, guestImageIntent, GUEST_IMAGE_MESSAGE, GUEST_LIMIT_MESSAGE, GUEST_PUBLIC_POLICY } from './guest.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,7 +47,7 @@ const corsHeaders = {
 
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
-type AngelChatRequest = { messages: ChatMessage[] };
+type AngelChatRequest = { messages: ChatMessage[]; guest?: boolean; guest_id?: string };
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -69,6 +70,49 @@ Deno.serve(withUsage('angel-chat', 'Angel AI · DM', async (req) => {
       return json(500, { error: 'Supabase env not configured' });
     }
 
+    const body = (await req.json()) as AngelChatRequest;
+    // Guest admission is separate from getUser; no user history, memory, RAG or image router.
+    if (body.guest === true) {
+      const suppliedKey = req.headers.get('apikey');
+      const publishableKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
+      if (suppliedKey !== supabaseAnonKey && (!publishableKey || suppliedKey !== publishableKey)) {
+        return json(401, { error: 'Unauthorized guest' });
+      }
+      if (!validGuestId(body.guest_id)) return json(400, { error: 'Invalid guest ID' });
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (!serviceKey) return json(503, { error: 'Guest chat temporarily unavailable' });
+      const guestMessages = (Array.isArray(body.messages) ? body.messages : []).slice(-20)
+        .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+        .map(m => ({ role: m.role, content: m.content.slice(0, 1500).trim() }))
+        .filter(m => m.content);
+      const last = guestMessages.at(-1);
+      if (!last || last.role !== 'user') return json(400, { error: 'Last message must be from user' });
+      const rateClient = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+      const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || '';
+      const decision = await enforceGuestRate(rateClient, body.guest_id, ip);
+      console.log('[angel-chat] guest_admission', { decision });
+      if (decision === 'unavailable') return json(503, { error: 'Bé ơi, Angel chưa kiểm tra được giới hạn. Bé thử lại sau nhé 💛\nAngel cannot verify the chat limit right now. Please try again later 💛' });
+      if (decision === 'limited') return json(429, { error: GUEST_LIMIT_MESSAGE });
+      if (guestImageIntent(last.content)) return json(200, { reply: GUEST_IMAGE_MESSAGE });
+      try {
+        // Text-only gateway, NOT the FUN Core router (which can create images or search knowledge).
+        const result = await callAngelCore({
+          forceProvider: 'lovable', model: 'google/gemini-2.5-flash', max_tokens: 1000,
+          messages: [
+            { role: 'system', content: OFFICIAL_FACTS },
+            { role: 'system', content: GUEST_PUBLIC_POLICY },
+            ...guestMessages,
+          ],
+        });
+        if (!result.text) return json(502, { error: 'Angel has no reply yet. Please try again 💛' });
+        console.log('[angel-chat] guest_reply', { provider: result.provider });
+        return json(200, { reply: enforceAngelVietnamesePronounContract(result.text) });
+      } catch {
+        console.warn('[angel-chat] guest_reply_failed');
+        return json(502, { error: 'Bé ơi, Angel chưa trả lời được. Bé thử lại sau nhé 💛\nAngel cannot reply right now. Please try again later 💛' });
+      }
+    }
+
     const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false },
@@ -76,7 +120,6 @@ Deno.serve(withUsage('angel-chat', 'Angel AI · DM', async (req) => {
     const { data: userData, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !userData.user) return json(401, { error: 'Unauthorized' });
 
-    const body = (await req.json()) as AngelChatRequest;
     const messages = Array.isArray(body?.messages) ? body.messages : [];
     if (messages.length === 0) return json(400, { error: 'Missing messages' });
 

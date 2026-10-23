@@ -24,6 +24,7 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
   const starts: Record<string, unknown>[] = [];
   const stops: Record<string, unknown>[] = [];
   const replies: string[] = [];
+  const replyChats: unknown[] = [];
   let settingsReads = 0;
   let operatorIds: unknown = [5373909526, 42];
   let rejectSettings = false;
@@ -31,6 +32,7 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
   let latestReads = 0;
   let aiCalls = 0;
   let rejectStart = false;
+  let alreadyRunningStart = false;
   Deno.env.get = (name) => env[name];
   Deno.serve = (() => ({})) as unknown as typeof Deno.serve;
   console.log = () => {};
@@ -39,7 +41,9 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
     const url = new URL(String(input));
     if (url.hostname === "api.telegram.org") {
       if (url.pathname.endsWith("/sendMessage")) {
-        replies.push(JSON.parse(String(init?.body)).text);
+        const message = JSON.parse(String(init?.body));
+        replies.push(message.text);
+        replyChats.push(message.chat_id);
         return Response.json({ ok: true, result: { message_id: 900 } });
       }
       throw new Error("Unexpected Telegram call");
@@ -53,6 +57,14 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
       assert.equal(new Headers(init?.headers).get("x-caption-token"), "fixture-only");
       if (url.searchParams.get("action") === "start") {
         starts.push(body);
+        if (alreadyRunningStart) {
+          return Response.json({
+            already_running: true,
+            public_code: "existing-code",
+            caption_url: "https://app.fixture.invalid/captions/existing-code",
+            started_at: "2026-10-23T02:19:00.000Z",
+          });
+        }
         return rejectStart
           ? Response.json({ error: "fixture" }, { status: 400 })
           : Response.json({ caption_url: "https://app.fixture.invalid/captions/test" });
@@ -154,6 +166,17 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
     await send("/caption_stop", 5373909526);
     assert.equal(stops.length, 4);
     assert.equal(latestReads, 1);
+    // A duplicate start returns only the existing caption link to the requesting operator.
+    rejectSettings = false;
+    operatorIds = [5373909526];
+    alreadyRunningStart = true;
+    const beforeDuplicateReply = replies.length;
+    await send("/caption https://zoom.us/j/123", 5373909526);
+    assert.equal(starts.length, 5);
+    assert.equal(replies.length, beforeDuplicateReply + 1);
+    assert.match(replies.at(-1) ?? "", /đã có.*Angel Translator.*đang chạy/i);
+    assert.match(replies.at(-1) ?? "", /https:\/\/app\.fixture\.invalid\/captions\/existing-code/);
+    assert.equal(replyChats.at(-1), 5373909526);
   } finally {
     Deno.env.get = originalGet;
     globalThis.fetch = originalFetch;

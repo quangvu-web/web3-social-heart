@@ -374,7 +374,7 @@ async function findActiveSessionByKey(admin: SupabaseClient, meetingKey: string)
     .maybeSingle();
   if (error) {
     console.error("[angel-caption] dedupe lookup failed", { code: error.code ?? "unknown" });
-    return null;
+    throw new Error("caption_dedupe_lookup_failed");
   }
   return data ?? null;
 }
@@ -424,7 +424,13 @@ async function handleStart(req: Request): Promise<Response> {
 
   // Chống trùng: cùng một phòng họp chỉ có một bot Angel Translator đang chạy.
   if (meetingKey) {
-    const existing = await findActiveSessionByKey(admin, meetingKey);
+    let existing: ActiveSession | null;
+    try {
+      existing = await findActiveSessionByKey(admin, meetingKey);
+    } catch {
+      // Không thể xác nhận phiên cũ thì dừng an toàn, tránh tạo thêm bot khi DB đang lỗi.
+      return json({ error: "Chưa kiểm tra được phiên phụ đề hiện tại. Bé thử lại sau ít phút nhé." }, 503);
+    }
     if (existing) {
       let reuse = true;
       if (existing.recall_bot_id) {
@@ -469,11 +475,18 @@ async function handleStart(req: Request): Promise<Response> {
   if (insertErr || !session) {
     // Hai lệnh đua nhau thật: partial unique index bắt được → trả phiên đang chạy, không trả 500.
     if (insertErr?.code === "23505" && meetingKey) {
-      const winner = await findActiveSessionByKey(admin, meetingKey);
+      let winner: ActiveSession | null;
+      try {
+        winner = await findActiveSessionByKey(admin, meetingKey);
+      } catch {
+        // Không trả 500 cho xung đột unique; yêu cầu thử lại nếu chưa đọc được phiên thắng.
+        return json({ error: "Phiên phụ đề vừa được tạo nhưng chưa đọc lại được. Bé thử lại sau ít phút nhé." }, 503);
+      }
       if (winner) {
         console.log("[angel-caption] dedupe_race_caught", { session_id: winner.id, meeting_key: meetingKey });
         return json(alreadyRunningPayload(winner));
       }
+      return json({ error: "Phiên phụ đề vừa thay đổi trạng thái. Bé thử lại sau ít phút nhé." }, 503);
     }
     console.error("[angel-caption] session insert failed", { error_code: insertErr?.code ?? "unknown" });
     return json({ error: "Không tạo được phiên phụ đề." }, 500);

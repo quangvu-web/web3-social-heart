@@ -125,12 +125,6 @@ export function AngelFAB() {
   }, [user, historyId]);
 
   useEffect(() => {
-    if (!historyId) return;
-    // Avoid saving the previous identity's messages during an identity transition.
-    // Load occurs in the effect above; save only explicit chat changes below.
-  }, [historyId]);
-
-  useEffect(() => {
     if (!open) return;
     const t = setTimeout(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });

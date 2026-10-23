@@ -76,7 +76,19 @@ Deno.serve(withUsage('angel-chat', 'Angel AI · DM', async (req) => {
       const suppliedKey = req.headers.get('apikey');
       const publishableKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
       if (suppliedKey !== supabaseAnonKey && (!publishableKey || suppliedKey !== publishableKey)) {
-        return json(401, { error: 'Unauthorized guest' });
+        // Projects may have multiple active public keys after a remix/key rotation.
+        // Verify alternate public keys against this project's Auth gateway, never
+        // trust an unverified decoded JWT as authorization or accept a service key.
+        let publicCandidate = suppliedKey?.startsWith('sb_publishable_') ?? false;
+        try {
+          const payload = suppliedKey?.split('.')[1];
+          if (payload) publicCandidate = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))).role === 'anon';
+        } catch { publicCandidate = false; }
+        if (!suppliedKey || !publicCandidate) return json(401, { error: 'Unauthorized guest' });
+        const verification = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+          headers: { apikey: suppliedKey }, signal: AbortSignal.timeout(5000),
+        });
+        if (!verification.ok) return json(401, { error: 'Unauthorized guest' });
       }
       if (!validGuestId(body.guest_id)) return json(400, { error: 'Invalid guest ID' });
       const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');

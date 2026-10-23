@@ -203,32 +203,68 @@ async function summarizeSession(lines: Array<{ speaker_name: string | null; text
 // ---------- Telegram: gửi tóm tắt vào nhóm cộng đồng ----------
 
 async function sendSummaryToCommunity(admin: SupabaseClient, text: string, dmChatId: number | null) {
-  // Tái dùng cơ chế của telegram-community-daily-report: nhóm cộng đồng chính
-  // lấy từ telegram_community_settings.member_alerts_chat_id.
-  const { data: groups, error } = await admin
+  const { data: primary, error: primaryError } = await admin
     .from("telegram_community_settings")
-    .select("group_id, member_alerts_chat_id")
-    .not("member_alerts_chat_id", "is", null)
-    .limit(1);
-  if (error) {
-    console.warn("[angel-caption] community group lookup failed", { error_code: error.code ?? "unknown" });
+    .select("caption_summary_chat_id, member_alerts_chat_id")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  let target = primary?.caption_summary_chat_id ? String(primary.caption_summary_chat_id) : null;
+  let failureReason = "chưa cấu hình nhóm nhận";
+  if (primaryError) {
+    console.warn("[angel-caption] community group lookup failed", { error_code: primaryError.code ?? "unknown" });
+    failureReason = "không đọc được cấu hình nhóm";
+  } else if (!target) {
+    // Legacy fallback only; daily/weekly reports keep their own shared setting.
+    const { data: fallback, error: fallbackError } = await admin
+      .from("telegram_community_settings")
+      .select("member_alerts_chat_id")
+      .not("member_alerts_chat_id", "is", null)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (fallbackError) {
+      console.warn("[angel-caption] community group fallback lookup failed", { error_code: fallbackError.code ?? "unknown" });
+      failureReason = "không đọc được cấu hình nhóm";
+    } else if (fallback?.member_alerts_chat_id) {
+      target = String(fallback.member_alerts_chat_id);
+    }
   }
-  const target = groups?.[0]?.member_alerts_chat_id ? String(groups[0].member_alerts_chat_id) : null;
+  let groupDelivered = false;
   if (target) {
-    const res = await callCommunityTelegram("sendMessage", {
-      chat_id: target,
-      text,
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    });
-    if (!res.ok) console.warn("[angel-caption] summary send to community failed", { status: res.status });
+    try {
+      const res = await callCommunityTelegram("sendMessage", {
+        chat_id: target,
+        text,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+      });
+      groupDelivered = res.ok;
+      if (!res.ok) {
+        const description = typeof res.data?.description === "string"
+          ? res.data.description : typeof res.data?.error === "string" ? res.data.error : `HTTP ${res.status}`;
+        failureReason = description.slice(0, 160);
+        console.warn("[angel-caption] summary send to community failed", {
+          chat_id: target, status: res.status, description,
+        });
+      }
+    } catch (error) {
+      failureReason = "lỗi kết nối Telegram";
+      console.warn("[angel-caption] summary send to community failed", {
+        chat_id: target, status: 0,
+        description: error instanceof Error ? error.message : String(error),
+      });
+    }
   } else {
-    console.warn("[angel-caption] no community alert chat configured; summary not posted");
+    console.warn("[angel-caption] no community summary chat configured; summary not posted");
   }
   if (dmChatId) {
+    const deliveryStatus = groupDelivered
+      ? "📣 Tóm tắt đã được đăng vào nhóm cộng đồng."
+      : `⚠️ Chưa đăng được tóm tắt vào nhóm cộng đồng (lý do: ${escapeHtml(failureReason)}). Bé vẫn nhận bản sao tại đây.`;
     const res = await callCommunityTelegram("sendMessage", {
       chat_id: dmChatId,
-      text,
+      text: `${text}\n${deliveryStatus}`,
       parse_mode: "HTML",
       disable_web_page_preview: true,
     });

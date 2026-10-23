@@ -23,6 +23,7 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
   };
   const starts: Record<string, unknown>[] = [];
   const stops: Record<string, unknown>[] = [];
+  const replays: Record<string, unknown>[] = [];
   const replies: string[] = [];
   const replyChats: unknown[] = [];
   let settingsReads = 0;
@@ -69,6 +70,10 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
           ? Response.json({ error: "fixture" }, { status: 400 })
           : Response.json({ caption_url: "https://app.fixture.invalid/captions/test" });
       }
+      if (url.searchParams.get("action") === "summarize") {
+        replays.push(body);
+        return Response.json({ ok: true });
+      }
       stops.push(body);
       return Response.json({ ok: true });
     }
@@ -82,6 +87,10 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
         : Response.json({ caption_operator_ids: operatorIds });
     }
     if (url.pathname.endsWith("/caption_sessions")) {
+      if (url.searchParams.has("public_code")) {
+        assert.equal(url.searchParams.get("status"), "eq.ended");
+        return Response.json({ id: "ended-session", public_code: "cgx8324s4sxw" });
+      }
       assert.equal(url.searchParams.get("status"), "in.(joining,live)");
       assert.equal(url.searchParams.get("order"), "created_at.desc");
       assert.equal(url.searchParams.get("limit"), "1");
@@ -111,6 +120,8 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
     assert.equal(starts.length, 2);
     await send("/caption_stop@fixture_bot");
     assert.deepEqual(stops, [{ session_id: "fixture-session" }]);
+    assert.match(replies.at(-1) ?? "", /Tóm tắt song ngữ sẽ được gửi tới bé; kết quả đăng nhóm sẽ được báo trong bản tóm tắt/);
+    assert.doesNotMatch(replies.at(-1) ?? "", /sẽ được đăng vào nhóm cộng đồng/);
     await send("/caption_invalid");
     assert.equal(starts.length, 2);
     rejectStart = true;
@@ -177,6 +188,9 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
     assert.match(replies.at(-1) ?? "", /đã có.*Angel Translator.*đang chạy/i);
     assert.match(replies.at(-1) ?? "", /https:\/\/app\.fixture\.invalid\/captions\/existing-code/);
     assert.equal(replyChats.at(-1), 5373909526);
+    await send("/caption_resend cgx8324s4sxw", 5373909526);
+    assert.deepEqual(replays, [{ session_id: "ended-session" }]);
+    assert.match(replies.at(-1) ?? "", /đang gửi lại tóm tắt/);
   } finally {
     Deno.env.get = originalGet;
     globalThis.fetch = originalFetch;

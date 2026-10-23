@@ -1258,7 +1258,7 @@ export async function handlePrivateMessage(message: TelegramMessage) {
             `🔗 Link phụ đề trực tiếp: ${data.caption_url}\n\n` +
             `1️⃣ Khi bot <b>Angel Translator 🌐</b> gõ cửa phòng, bé duyệt cho bot vào nhé.\n` +
             `2️⃣ Link phụ đề sẽ được bot tự gửi vào chat phòng họp — nếu không thấy, bé dán tay link trên.\n` +
-            `3️⃣ Họp xong nhắn /caption_stop, hoặc cứ kết thúc họp — bot tự rời và đăng tóm tắt vào nhóm 💛`,
+            `3️⃣ Họp xong nhắn /caption_stop, hoặc cứ kết thúc họp — bot tự rời; bản tóm tắt gửi DM sẽ báo kết quả đăng nhóm 💛`,
           { skipAutoDelete: true },
         );
       } catch (err) {
@@ -1271,6 +1271,46 @@ export async function handlePrivateMessage(message: TelegramMessage) {
       await replyDm(
         "🌐 Bé gửi kèm link phòng họp nhé: <code>/caption https://zoom.us/j/...</code>\nAngel hỗ trợ Zoom, Google Meet và Microsoft Teams 💛",
       );
+      return;
+    }
+
+    if (/^\/caption_resend(@|\s|$)/i.test(text)) {
+      if (!await isCaptionOperator(adminClient, tgUserId)) {
+        await replyDm("🌐 Lệnh gửi lại tóm tắt chỉ dành cho người phụ trách được cấp quyền nhé 💛");
+        return;
+      }
+      const code = text.match(/^\/caption_resend(?:@\S+)?\s+([a-z0-9]{12})\s*$/i)?.[1] ?? null;
+      if (!code) {
+        await replyDm("Bé gửi mã phiên đã kết thúc: <code>/caption_resend xxxxxxxxxxxx</code>");
+        return;
+      }
+      const { data: endedSession, error: sessionError } = await adminClient
+        .from("caption_sessions")
+        .select("id, public_code")
+        .eq("public_code", code)
+        .eq("status", "ended")
+        .maybeSingle();
+      if (sessionError || !endedSession) {
+        await replyDm("Angel không tìm thấy phiên đã kết thúc với mã này.");
+        return;
+      }
+      const internalToken = Deno.env.get("CAPTION_INTERNAL_TOKEN") ?? "";
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      if (!internalToken || !supabaseUrl) {
+        await replyDm("Angel chưa sẵn sàng gửi lại tóm tắt lúc này. Bé thử lại sau nhé 💛");
+        return;
+      }
+      await replyDm("📝 Angel đang gửi lại tóm tắt của phiên này. Bản sao DM sẽ báo kết quả đăng nhóm nhé 💛");
+      const replay = fetch(`${supabaseUrl}/functions/v1/angel-caption?action=summarize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-caption-token": internalToken, "x-caption-background": "1" },
+        body: JSON.stringify({ session_id: endedSession.id }),
+      }).then((response) => {
+        if (!response.ok) console.warn("[dm] caption summary replay failed", { session_id: endedSession.id, status: response.status });
+      }).catch(() => console.warn("[dm] caption summary replay failed", { session_id: endedSession.id, status: 0 }));
+      const runtime = (globalThis as typeof globalThis & { EdgeRuntime?: { waitUntil(task: Promise<unknown>): void } }).EdgeRuntime;
+      if (runtime?.waitUntil) runtime.waitUntil(replay);
+      else await replay;
       return;
     }
   
@@ -1318,7 +1358,7 @@ export async function handlePrivateMessage(message: TelegramMessage) {
           return;
         }
         await replyDm(
-          "✅ Angel đã cho bot rời phòng họp. Tóm tắt song ngữ sẽ được đăng vào nhóm cộng đồng trong ít phút nữa nhé 💛",
+          "✅ Angel đã cho bot rời phòng họp. Tóm tắt song ngữ sẽ được gửi tới bé; kết quả đăng nhóm sẽ được báo trong bản tóm tắt nhé 💛",
           { skipAutoDelete: true },
         );
       } catch (err) {

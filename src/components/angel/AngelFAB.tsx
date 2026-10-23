@@ -8,6 +8,8 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import angelAvatar from '@/assets/angel-avatar.jpg';
+import { Button } from '@/components/ui/button';
+import { clampFabPosition, loadFabPosition, isCaptionGuest, FAB_POSITION_KEY, FAB_DRAG_THRESHOLD, type FabPosition } from './fabPosition';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string; ts: number; imageUrl?: string };
 
@@ -61,6 +63,20 @@ function saveHistory(userId: string, msgs: ChatMessage[]) {
 export function AngelFAB() {
   const { user } = useAuth();
   const location = useLocation();
+  const guest = isCaptionGuest(location.pathname, user);
+  const [guestId] = useState(() => {
+    try {
+      const existing = localStorage.getItem('angel-fab-guest-id');
+      if (existing && /^[0-9a-f-]{36}$/i.test(existing)) return existing;
+      const id = crypto.randomUUID();
+      localStorage.setItem('angel-fab-guest-id', id);
+      return id;
+    } catch { return crypto.randomUUID(); }
+  });
+  const historyId = user?.id ?? (guest ? `guest:${guestId}` : null);
+  const [position, setPosition] = useState<FabPosition | null>(() => loadFabPosition(localStorage, window.innerWidth, window.innerHeight));
+  const drag = useRef<{ id: number; startX: number; startY: number; offsetX: number; offsetY: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -68,8 +84,20 @@ export function AngelFAB() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    const resize = () => setPosition(previous => previous ? clampFabPosition(previous, window.innerWidth, window.innerHeight) : null);
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
+
+  useEffect(() => {
+    if (!position) return;
+    try { localStorage.setItem(FAB_POSITION_KEY, JSON.stringify(position)); } catch { /* Storage may be unavailable. */ }
+  }, [position]);
+
+  useEffect(() => {
+    let cancelled = false;
     if (!user) {
-      setMessages([]);
+      setMessages(historyId ? loadHistory(historyId) : []);
       return;
     }
     // Load local trước để UI hiện ngay, sau đó merge với server
@@ -88,17 +116,19 @@ export function AngelFAB() {
           ts: new Date(r.created_at).getTime(),
         }));
         // Server là nguồn sự thật cho cross-device — thay thế
-        setMessages(server.slice(-50));
+        if (!cancelled) setMessages(server.slice(-50));
       } catch {
         // fail silently, giữ localStorage
       }
     })();
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user, historyId]);
 
   useEffect(() => {
-    if (!user) return;
-    saveHistory(user.id, messages);
-  }, [messages, user]);
+    if (!historyId) return;
+    // Avoid saving the previous identity's messages during an identity transition.
+    // Load occurs in the effect above; save only explicit chat changes below.
+  }, [historyId]);
 
   useEffect(() => {
     if (!open) return;
@@ -113,7 +143,7 @@ export function AngelFAB() {
     mutationFn: async (history: ChatMessage[]) => {
       const last = history[history.length - 1];
       // === IMAGE INTENT SHORT-CIRCUIT ===
-      if (last?.role === 'user' && detectImageIntentClient(last.content)) {
+      if (!guest && last?.role === 'user' && detectImageIntentClient(last.content)) {
         const { data, error } = await supabase.functions.invoke('angel-image', {
           body: { mode: 'generate', prompt: last.content, source: 'web' },
         });
@@ -125,18 +155,23 @@ export function AngelFAB() {
         return { text: 'Angel vẽ cho bé đây ✨💛', imageUrl: url };
       }
       const { data, error } = await supabase.functions.invoke('angel-chat', {
-        body: { messages: history.map((m) => ({ role: m.role, content: m.content })) },
+        body: { messages: history.map((m) => ({ role: m.role, content: m.content })), ...(guest ? { guest: true, guest_id: guestId } : {}) },
       });
-      if (error) throw error;
+      if (error) {
+        const context = (error as { context?: Response }).context;
+        const details = await context?.clone().json().catch(() => null);
+        throw new Error(details?.error || error.message);
+      }
       const reply = (data as { reply?: string })?.reply;
       if (!reply) throw new Error('Empty reply');
       return { text: reply };
     },
     onSuccess: (result) => {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: result.text, ts: Date.now(), imageUrl: result.imageUrl },
-      ]);
+      setMessages((prev) => {
+        const next: ChatMessage[] = [...prev, { role: 'assistant', content: result.text, ts: Date.now(), imageUrl: result.imageUrl }];
+        if (historyId) saveHistory(historyId, next);
+        return next;
+      });
     },
     onError: (e: unknown) => {
       const msg = e instanceof Error ? e.message : 'Angel chưa thể trả lời';
@@ -144,7 +179,7 @@ export function AngelFAB() {
     },
   });
 
-  if (!user || shouldHide(location.pathname)) return null;
+  if ((!user && !guest) || shouldHide(location.pathname)) return null;
 
   const handleSend = () => {
     const text = input.trim();
@@ -154,12 +189,15 @@ export function AngelFAB() {
       { role: 'user', content: text, ts: Date.now() },
     ];
     setMessages(next);
+    if (historyId) saveHistory(historyId, next);
     setInput('');
     askAngel.mutate(next);
   };
 
   const handleClearHistory = async () => {
     setMessages([]);
+    if (historyId) saveHistory(historyId, []);
+    if (guest) return;
     try {
       await supabase.functions.invoke('angel-web-history', { method: 'DELETE' as never });
     } catch {
@@ -170,36 +208,62 @@ export function AngelFAB() {
   return (
     <>
       {/* Floating Button */}
-      <button
-        onClick={() => setOpen(true)}
+      <Button
+        variant="ghost"
+        size="icon"
+        onPointerDown={(event) => {
+          if (!event.isPrimary || event.button !== 0) return;
+          const rect = event.currentTarget.getBoundingClientRect();
+          suppressClick.current = false;
+          drag.current = { id: event.pointerId, startX: event.clientX, startY: event.clientY, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top, moved: false };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const active = drag.current;
+          if (!active || active.id !== event.pointerId) return;
+          if (Math.hypot(event.clientX - active.startX, event.clientY - active.startY) >= FAB_DRAG_THRESHOLD) active.moved = true;
+          if (active.moved) setPosition(clampFabPosition({ x: event.clientX - active.offsetX, y: event.clientY - active.offsetY }, window.innerWidth, window.innerHeight));
+        }}
+        onPointerUp={(event) => {
+          const active = drag.current;
+          if (!active || active.id !== event.pointerId) return;
+          suppressClick.current = active.moved;
+          drag.current = null;
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }}
+        onPointerCancel={() => { suppressClick.current = true; drag.current = null; }}
+        onClick={() => {
+          if (suppressClick.current) { suppressClick.current = false; return; }
+          setOpen(previous => !previous);
+        }}
+        style={position ? { left: position.x, top: position.y, right: 'auto', bottom: 'auto' } : undefined}
         aria-label="Hỏi Angel AI"
         title="Hỏi Angel AI ✨"
         className={cn(
           'fixed z-40 flex items-center justify-center',
           'right-4 bottom-24 md:right-6 md:bottom-6',
-          'w-14 h-14 rounded-full',
-          'bg-gradient-to-br from-yellow-200 via-yellow-400 to-amber-500',
-          'shadow-[0_8px_30px_rgba(250,204,21,0.5)]',
-          'border-2 border-white/80',
-          'transition-all duration-300 hover:scale-110 active:scale-95',
+          'w-14 h-14 p-0 rounded-full touch-none select-none cursor-grab active:cursor-grabbing',
+          'bg-background shadow-lg border-2 border-gold hover:bg-background hover:border-gold',
+          'transition-none',
           'group',
         )}
       >
-        <span className="absolute inset-0 rounded-full bg-yellow-400/60 animate-ping opacity-40" />
+        <span className="pointer-events-none absolute inset-0 rounded-full bg-gold/60 motion-safe:animate-ping opacity-40" />
         <img
           src={angelAvatar}
           alt="Angel"
-          className="relative w-10 h-10 rounded-full object-cover ring-2 ring-white"
+          draggable={false}
+          className="pointer-events-none relative w-10 h-10 rounded-full object-cover ring-2 ring-background"
         />
-        <span className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-md">
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+        <span className="pointer-events-none absolute -top-1 -right-1 bg-background rounded-full p-0.5 shadow-md">
+          <Sparkles className="w-3.5 h-3.5 text-gold" />
         </span>
-      </button>
+      </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="right"
-          className="p-0 w-full sm:max-w-md flex flex-col gap-0 bg-gradient-to-b from-white via-amber-50/40 to-yellow-50/60"
+          className="p-0 w-full max-w-full sm:max-w-md h-[100dvh] flex flex-col gap-0 bg-background [&>button:last-child]:hidden"
         >
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 border-b bg-white/80 backdrop-blur">

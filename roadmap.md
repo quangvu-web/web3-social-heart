@@ -3,7 +3,7 @@
 ## Caption Angel FAB drag and guest chat
 - [ ] Add pointer-based dragging, remembered position, viewport clamping and tap/drag separation without moving the chat panel.
 - [ ] Allow signed-out caption viewers to use text-only public Angel chat with client-only guest history; preserve authenticated chat and image authorization.
-- [ ] Guest rate-limit implementation awaits confirmation: backend has no standard rate-limiting primitive; proposed custom limits are 5 messages/minute and 60/day by guest ID plus IP.
+- [x] User confirmed custom quotas of 5 messages/minute and 60/day independently by guest ID and IP; live read confirmed existing check_rate_limit RPC uses atomic INSERT ON CONFLICT. No schema change needed.
 - [ ] Verify clean-browser drag/reload, English/Vietnamese chat, image refusal, throttling and authenticated regressions; publish and verify live revision.
 
 ## Caption session closure repair

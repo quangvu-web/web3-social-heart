@@ -124,6 +124,19 @@ Deno.test("Reconciliation limits to five joining/live sessions and skips those u
   assert.equal(rows[8].status, "live");
 });
 
+Deno.test("Stale and unannounced candidate lists share a five-bot Recall budget", async () => {
+  const stale = Array.from({ length: 5 }, (_, i) => row(`stale-${i}`, "live", 10 + i));
+  const unannounced = Array.from({ length: 5 }, (_, i) => ({
+    ...row(`quiet-${i}`, "joining", 2.5), chat_announced_at: null,
+  }));
+  const f = fixture([...stale, ...unannounced]);
+  await mod.reconcileOrphanSessions(); await f.drain();
+  assert.equal(f.calls.length, 5);
+  assert.equal(f.summaries.length, 5);
+  assert.ok(stale.every((session) => session.status === "ended"));
+  assert.ok(unannounced.every((session) => session.status === "joining"));
+});
+
 Deno.test("Authenticated fallback carries token, catches failure, and never recursively reconciles", async () => {
   const f = fixture([]); await f.drain();
   const originalFetch = globalThis.fetch;

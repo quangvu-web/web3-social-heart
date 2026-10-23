@@ -497,7 +497,11 @@ async function reconcileOrphanSessions() {
   if (staleError || announceError) throw new Error("caption_reconcile_lookup_failed");
   const sessions = new Map<string, NonNullable<typeof staleSessions>[number]>();
   for (const session of [...(staleSessions ?? []), ...(unannouncedSessions ?? [])]) sessions.set(session.id, session);
-  for (const session of sessions.values()) {
+  // The two overlapping queries must still share one five-bot Recall budget.
+  const candidates = [...sessions.values()]
+    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+    .slice(0, 5);
+  for (const session of candidates) {
     if (!session.recall_bot_id) continue;
     try {
       const bot = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/`, {

@@ -792,12 +792,13 @@ async function handleBotStatusChange(
   admin: SupabaseClient,
   payload: { data?: { bot?: { id?: string; metadata?: { caption_session_id?: string } }; bot_id?: string; data?: { code?: string }; status?: { code?: string } } },
   metadataSessionId: string | null,
+  event = "bot.status_change",
 ) {
   const botId = payload.data?.bot?.id ?? payload.data?.bot_id ?? null;
   const code = payload.data?.data?.code ?? payload.data?.status?.code ?? "";
   const session = await findSessionByBot(admin, botId, metadataSessionId);
   const logResult = (result: string) => console.log("[angel-caption] bot_status_delivery", {
-    event: "bot.status_change", code, session_id: session?.id ?? null, result,
+    event, code, session_id: session?.id ?? null, result,
   });
   if (!session || !code) { logResult(!session ? "session_not_found" : "ignored"); return; }
 
@@ -854,22 +855,26 @@ async function handleRecallWebhook(req: Request): Promise<Response> {
   const admin = getAdmin();
   const event = String(payload?.event ?? "");
   const metadataSessionId = payload?.data?.bot?.metadata?.caption_session_id ?? payload?.data?.metadata?.caption_session_id ?? payload?.metadata?.caption_session_id ?? null;
+  // Recall's Svix endpoint emits bot.call_ended / bot.done (not just the legacy bot.status_change).
+  const statusCode = payload?.data?.data?.code ?? payload?.data?.status?.code;
+  const isBotStatusEvent = event === "bot.status_change" ||
+    (typeof statusCode === "string" && event === `bot.${statusCode}`);
 
   try {
     if (event === "transcript.data") {
       await handleTranscriptData(admin, payload as TranscriptEvent, metadataSessionId);
-    } else if (event === "bot.status_change") {
-      await handleBotStatusChange(admin, payload, metadataSessionId);
+    } else if (isBotStatusEvent) {
+      await handleBotStatusChange(admin, payload, metadataSessionId, event);
     }
   } catch (e) {
     // Lỗi từng sự kiện: log + vẫn 200 để Recall không retry dồn dập.
     console.error("[angel-caption] event handling failed", {
       event,
-      error: event === "bot.status_change" ? "status_processing_failed" : e instanceof Error ? e.message : String(e),
+      error: isBotStatusEvent ? "status_processing_failed" : e instanceof Error ? e.message : String(e),
     });
-    if (event === "bot.status_change") return json({ error: "Status persistence failed" }, 503);
+    if (isBotStatusEvent) return json({ error: "Status persistence failed" }, 503);
   }
-  if (event === "bot.status_change") console.log("[angel-caption] webhook_ack", {
+  if (isBotStatusEvent) console.log("[angel-caption] webhook_ack", {
     event, response_ms: Math.round(performance.now() - receivedAt), status: 200,
   });
   return json({ ok: true });

@@ -55,9 +55,9 @@ function fixture(rows: Session[], writeError = false) {
 function row(id = "session-1", status = "live", ageMinutes = 10): Session {
   return { id, status, recall_bot_id: `bot-${id}`, created_at: new Date(Date.now() - ageMinutes * 60_000).toISOString(), chat_announced_at: new Date().toISOString() };
 }
-function webhook(code: string, botId = "bot-session-1") {
+function webhook(code: string, botId = "bot-session-1", event = "bot.status_change") {
   return mod.handleRecallWebhook(new Request("https://fixture.invalid", {
-    method: "POST", body: JSON.stringify({ event: "bot.status_change", data: { bot: { id: botId }, data: { code } } }),
+    method: "POST", body: JSON.stringify({ event, data: { bot: { id: botId, metadata: { caption_session_id: "session-1" } }, data: { code } } }),
   }));
 }
 
@@ -72,7 +72,7 @@ Deno.test("Terminal ACK completes below 2 seconds without waiting for a slow sum
   const began = performance.now();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("ACK blocked")), 1900); });
-  const response = await Promise.race([webhook("call_ended"), timeout]).finally(() => { if (timer !== undefined) clearTimeout(timer); });
+  const response = await Promise.race([webhook("call_ended", "bot-session-1", "bot.call_ended"), timeout]).finally(() => { if (timer !== undefined) clearTimeout(timer); });
   assert.equal(response.status, 200);
   assert.ok(performance.now() - began < 2000);
   assert.equal(session.status, "ended");
@@ -83,15 +83,15 @@ Deno.test("Terminal ACK completes below 2 seconds without waiting for a slow sum
 
 Deno.test("call_ended then done schedules one summary and stale live cannot reopen", async () => {
   const session = row(); const f = fixture([session]);
-  await webhook("call_ended"); const endedAt = session.ended_at;
-  await webhook("done"); await webhook("in_call_recording"); await f.drain();
+  await webhook("call_ended", "bot-session-1", "bot.call_ended"); const endedAt = session.ended_at;
+  await webhook("done", "bot-session-1", "bot.done"); await webhook("in_call_recording", "bot-session-1", "bot.in_call_recording"); await f.drain();
   assert.equal(session.status, "ended"); assert.equal(session.ended_at, endedAt);
   assert.deepEqual(f.summaries, [session.id]);
 });
 
 Deno.test("Persistence failure returns 503 for Recall retry and does not summarize", async () => {
   const session = row(); const f = fixture([session], true);
-  assert.equal((await webhook("done")).status, 503);
+  assert.equal((await webhook("done", "bot-session-1", "bot.done")).status, 503);
   await f.drain(); assert.equal(session.status, "live"); assert.equal(f.summaries.length, 0);
 });
 

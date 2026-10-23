@@ -5,6 +5,8 @@ export function formatSummaryForTelegram(escapedBody: string): string {
     .split("\n")
     .map((line) => {
       let formatted = line.replace(/^- /, "• ");
+      // Some model replies prefix an already dashed Q&A label with another list dash.
+      formatted = formatted.replace(/^• <b>- (Câu hỏi|Trả lời|Q|A):<\/b>/, "• <b>$1:</b>");
       if (/^#+\s*/.test(formatted)) {
         formatted = formatted.replace(/^#+\s*/, "");
         if (!/^<b>.*<\/b>$/.test(formatted)) formatted = `<b>${formatted}</b>`;

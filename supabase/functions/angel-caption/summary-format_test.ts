@@ -24,3 +24,10 @@ Deno.test("preserves escaped transcript characters while adding only safe Telegr
     "• A &lt; B &amp; C, <b>x &gt; y</b>",
   );
 });
+
+Deno.test("does not show two dashes when Q&A labels follow a list marker", () => {
+  assert.equal(
+    formatSummaryForTelegram("- **- Câu hỏi:** Nội dung?\n- **- A:** Answer."),
+    "• <b>Câu hỏi:</b> Nội dung?\n• <b>A:</b> Answer.",
+  );
+});

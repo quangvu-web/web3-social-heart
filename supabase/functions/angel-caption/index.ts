@@ -353,6 +353,57 @@ async function reconcileOrphanSessions() {
 
 // ---------- Action: start ----------
 
+interface ActiveSession {
+  id: string;
+  public_code: string;
+  status: string;
+  recall_bot_id: string | null;
+  started_at: string | null;
+  created_at: string;
+}
+
+/** Phiên đang hoạt động (pending/joining/live) mới nhất của cùng một phòng họp. */
+async function findActiveSessionByKey(admin: SupabaseClient, meetingKey: string): Promise<ActiveSession | null> {
+  const { data, error } = await admin
+    .from("caption_sessions")
+    .select("id, public_code, status, recall_bot_id, started_at, created_at")
+    .eq("meeting_key", meetingKey)
+    .in("status", ["pending", "joining", "live"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error("[angel-caption] dedupe lookup failed", { code: error.code ?? "unknown" });
+    return null;
+  }
+  return data ?? null;
+}
+
+/** Tra trạng thái bot thật trên Recall: true = bot đã kết thúc; null = không tra được (coi như còn chạy). */
+async function isRecallBotFinished(botId: string): Promise<boolean | null> {
+  try {
+    const bot = await recallFetch(`/api/v1/bot/${encodeURIComponent(botId)}/`, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!bot.ok) return null;
+    const changes = Array.isArray(bot.data?.status_changes) ? bot.data.status_changes : [];
+    const code = changes.at(-1)?.code ?? "";
+    return code === "call_ended" || code === "done";
+  } catch {
+    return null;
+  }
+}
+
+function alreadyRunningPayload(session: ActiveSession) {
+  return {
+    already_running: true,
+    session_id: session.id,
+    public_code: session.public_code,
+    caption_url: captionUrl(session.public_code),
+    started_at: session.started_at ?? session.created_at,
+  };
+}
+
 async function handleStart(req: Request): Promise<Response> {
   if (!checkInternalToken(req)) return json({ error: "Unauthorized" }, 401);
   reconcileOnTouch(req);
@@ -369,12 +420,45 @@ async function handleStart(req: Request): Promise<Response> {
   }
 
   const admin = getAdmin();
+  const meetingKey = extractMeetingKey(meetingUrl);
+
+  // Chống trùng: cùng một phòng họp chỉ có một bot Angel Translator đang chạy.
+  if (meetingKey) {
+    const existing = await findActiveSessionByKey(admin, meetingKey);
+    if (existing) {
+      let reuse = true;
+      if (existing.recall_bot_id) {
+        const finished = await isRecallBotFinished(existing.recall_bot_id);
+        if (finished === true) {
+          // Lưới tự lành: phiên kẹt (bot đã kết thúc mà phiên chưa đóng) không được khoá chết
+          // các buổi sau dùng chung link phòng cá nhân.
+          const closed = await closeCaptionSession(admin, existing, "ended");
+          console.log("[angel-caption] dedupe_stuck_session_closed", { session_id: existing.id, closed });
+          reuse = false;
+        } else if (finished === null) {
+          // Không tra được trạng thái bot (lỗi mạng) → thà trả link cũ còn hơn sinh bot trùng.
+          console.warn("[angel-caption] dedupe_bot_lookup_failed", { session_id: existing.id });
+        }
+      } else if (Date.now() - Date.parse(existing.created_at) > 3 * 60_000) {
+        // Phiên chưa có bot mà đã quá cửa sổ đua 3 phút → kẹt, đóng và tạo mới.
+        const closed = await closeCaptionSession(admin, existing, "failed");
+        console.log("[angel-caption] dedupe_botless_session_closed", { session_id: existing.id, closed });
+        reuse = false;
+      }
+      if (reuse) {
+        console.log("[angel-caption] dedupe_reuse_session", { session_id: existing.id, meeting_key: meetingKey });
+        return json(alreadyRunningPayload(existing));
+      }
+    }
+  }
+
   const publicCode = generatePublicCode();
   const { data: session, error: insertErr } = await admin
     .from("caption_sessions")
     .insert({
       public_code: publicCode,
       meeting_url: meetingUrl,
+      meeting_key: meetingKey,
       platform: detectPlatform(meetingUrl),
       status: "pending",
       created_by_telegram_id: body.telegram_user_id ?? null,
@@ -383,6 +467,14 @@ async function handleStart(req: Request): Promise<Response> {
     .select("id, public_code")
     .single();
   if (insertErr || !session) {
+    // Hai lệnh đua nhau thật: partial unique index bắt được → trả phiên đang chạy, không trả 500.
+    if (insertErr?.code === "23505" && meetingKey) {
+      const winner = await findActiveSessionByKey(admin, meetingKey);
+      if (winner) {
+        console.log("[angel-caption] dedupe_race_caught", { session_id: winner.id, meeting_key: meetingKey });
+        return json(alreadyRunningPayload(winner));
+      }
+    }
     console.error("[angel-caption] session insert failed", { error_code: insertErr?.code ?? "unknown" });
     return json({ error: "Không tạo được phiên phụ đề." }, 500);
   }

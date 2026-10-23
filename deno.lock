@@ -34,7 +34,7 @@
     "npm:@radix-ui/react-toggle-group@^1.1.10": "1.1.19_@types+react@18.3.31_@types+react-dom@18.3.7__@types+react@18.3.31_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:@radix-ui/react-toggle@^1.1.9": "1.1.18_@types+react@18.3.31_@types+react-dom@18.3.7__@types+react@18.3.31_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:@radix-ui/react-tooltip@^1.2.7": "1.2.16_@types+react@18.3.31_@types+react-dom@18.3.7__@types+react@18.3.31_react@18.3.1_react-dom@18.3.1__react@18.3.1",
-    "npm:@rainbow-me/rainbowkit@^2.2.9": "2.2.11_@tanstack+react-query@5.101.4__react@18.3.1_react@18.3.1_react-dom@18.3.1__react@18.3.1_viem@2.55.10__typescript@5.9.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_wagmi@2.19.5__@tanstack+react-query@5.101.4___react@18.3.1__react@18.3.1__typescript@5.9.3__viem@2.55.10___typescript@5.9.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@wagmi+core@2.22.1___typescript@5.9.3___viem@2.55.10____typescript@5.9.3____zod@4.4.3____ws@8.21.0_____bufferutil@4.1.0_____utf-8-validate@5.0.10___@types+react@18.3.31___react@18.3.1___use-sync-external-store@1.4.0____react@18.3.1___zod@4.4.3__@types+react@18.3.31__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3__fastestsmallesttextencoderdecoder@1.0.22_@vanilla-extract+css@1.20.1_typescript@5.9.3_@types+react@18.3.31_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22",
+    "npm:@rainbow-me/rainbowkit@^2.2.9": "2.2.11_@tanstack+react-query@5.101.4__react@18.3.1_react@18.3.1_react-dom@18.3.1__react@18.3.1_viem@2.55.10__typescript@5.8.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_wagmi@2.19.5__@tanstack+react-query@5.101.4___react@18.3.1__react@18.3.1__typescript@5.8.3__viem@2.55.10___typescript@5.8.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@wagmi+core@2.22.1___typescript@5.8.3___viem@2.55.10____typescript@5.8.3____zod@4.4.3____ws@8.21.0_____bufferutil@4.1.0_____utf-8-validate@5.0.10___@types+react@18.3.31___react@18.3.1___use-sync-external-store@1.4.0____react@18.3.1___zod@4.4.3__@types+react@18.3.31__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3__fastestsmallesttextencoderdecoder@1.0.22_@vanilla-extract+css@1.20.1_typescript@5.8.3_@types+react@18.3.31_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22",
     "npm:@supabase/supabase-js@2": "2.118.0",
     "npm:@supabase/supabase-js@2.45.0": "2.45.0",
     "npm:@supabase/supabase-js@^2.116.0": "2.118.0",
@@ -47,17 +47,17 @@
     "npm:@types/react-dom@^18.3.7": "18.3.7_@types+react@18.3.31",
     "npm:@types/react@^18.3.23": "18.3.31",
     "npm:@vitejs/plugin-react-swc@^3.11.0": "3.11.0_vite@5.4.21__@types+node@22.20.1_@types+node@22.20.1",
-    "npm:@walletconnect/utils@2.21.1": "2.21.1_typescript@5.9.3_zod@4.4.3",
+    "npm:@walletconnect/utils@2.21.1": "2.21.1_typescript@5.8.3_zod@4.4.3",
     "npm:agora-rtc-sdk-ng@^4.24.2": "4.24.6",
     "npm:assert@2.1.0": "2.1.0",
     "npm:autoprefixer@^10.4.21": "10.5.4_postcss@8.5.25",
-    "npm:bitcoinjs-lib@^7.0.1": "7.0.1_typescript@5.9.3",
+    "npm:bitcoinjs-lib@^7.0.1": "7.0.1_typescript@5.8.3",
     "npm:buffer@^6.0.3": "6.0.3",
     "npm:class-variance-authority@~0.7.1": "0.7.1",
     "npm:clsx@^2.1.1": "2.1.1",
     "npm:cmdk@^1.1.1": "1.1.1_react@18.3.1_react-dom@18.3.1__react@18.3.1_@types+react@18.3.31_@types+react-dom@18.3.7__@types+react@18.3.31",
     "npm:date-fns@^4.1.0": "4.4.0",
-    "npm:ecpair@^3.0.1": "3.0.1_typescript@5.9.3",
+    "npm:ecpair@^3.0.1": "3.0.1_typescript@5.8.3",
     "npm:embla-carousel-react@^8.6.0": "8.6.0_react@18.3.1_embla-carousel@8.6.0",
     "npm:eslint-plugin-react-hooks@^5.2.0": "5.2.0_eslint@9.39.5",
     "npm:eslint-plugin-react-refresh@~0.4.20": "0.4.26_eslint@9.39.5",
@@ -88,13 +88,14 @@
     "npm:tiny-secp256k1@^2.2.4": "2.2.4",
     "npm:ts-ebml@^3.0.2": "3.0.2",
     "npm:tus-js-client@^4.3.1": "4.3.1",
-    "npm:typescript-eslint@^8.38.0": "8.65.0_eslint@9.39.5_typescript@5.9.3_@typescript-eslint+parser@8.65.0__eslint@9.39.5__typescript@5.9.3",
-    "npm:typescript@^5.8.3": "5.9.3",
+    "npm:typescript-eslint@^8.38.0": "8.65.0_eslint@9.39.5_typescript@5.8.3_@typescript-eslint+parser@8.65.0__eslint@9.39.5__typescript@5.8.3",
+    "npm:typescript@5.8.3": "5.8.3",
+    "npm:typescript@^5.8.3": "5.8.3",
     "npm:vaul@~0.9.9": "0.9.9_react@18.3.1_react-dom@18.3.1__react@18.3.1_@types+react@18.3.31_@types+react-dom@18.3.7__@types+react@18.3.31",
-    "npm:viem@^2.38.6": "2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
+    "npm:viem@^2.38.6": "2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
     "npm:vite-plugin-pwa@^1.2.0": "1.3.0_vite@5.4.21__@types+node@22.20.1_workbox-build@7.4.1__ajv@8.20.0__@babel+core@7.29.7__rollup@4.62.4_workbox-window@7.4.1_@types+node@22.20.1",
     "npm:vite@^5.4.19": "5.4.21_@types+node@22.20.1",
-    "npm:wagmi@^2.19.2": "2.19.5_@tanstack+react-query@5.101.4__react@18.3.1_react@18.3.1_typescript@5.9.3_viem@2.55.10__typescript@5.9.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_@wagmi+core@2.22.1__typescript@5.9.3__viem@2.55.10___typescript@5.9.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@types+react@18.3.31__react@18.3.1__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3_@types+react@18.3.31_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22",
+    "npm:wagmi@^2.19.2": "2.19.5_@tanstack+react-query@5.101.4__react@18.3.1_react@18.3.1_typescript@5.8.3_viem@2.55.10__typescript@5.8.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_@wagmi+core@2.22.1__typescript@5.8.3__viem@2.55.10___typescript@5.8.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@types+react@18.3.31__react@18.3.1__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3_@types+react@18.3.31_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22",
     "npm:xlsx@0.18.5": "0.18.5",
     "npm:zod@^4.4.3": "4.4.3"
   },
@@ -1016,7 +1017,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@babel/types/-/types-7.29.8.tgz"
     },
-    "@base-org/account@2.4.0_typescript@5.9.3_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@base-org/account@2.4.0_typescript@5.8.3_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-A4Umpi8B9/pqR78D1Yoze4xHyQaujioVRqqO3d6xuDFw9VRtjg6tK3bPlwE0aW+nVH/ntllCpPa2PbI8Rnjcug==",
       "dependencies": [
         "@coinbase/cdp-sdk",
@@ -1024,9 +1025,9 @@
         "clsx@1.2.1",
         "eventemitter3@5.0.1",
         "idb-keyval",
-        "ox@0.6.9_typescript@5.9.3_zod@4.4.3",
+        "ox@0.6.9_typescript@5.8.3_zod@4.4.3",
         "preact",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
         "zustand@5.0.3_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@base-org/account/-/account-2.4.0.tgz"
@@ -1035,20 +1036,20 @@
       "integrity": "sha512-ckS3+vyJb5qGpEYv/s1OebUHDi/xSNtfgw1wqKZo7MR9F2z+qXr0q5XagafAG/9O0QPVIUfST0smluYSTpYFkg==",
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@bufbuild/protobuf/-/protobuf-2.10.1.tgz"
     },
-    "@coinbase/cdp-sdk@1.54.0_@solana+kit@5.5.1__typescript@5.9.3__fastestsmallesttextencoderdecoder@1.0.22_typescript@5.9.3_zod@3.25.76_axios@1.16.0_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@coinbase/cdp-sdk@1.54.0_@solana+kit@5.5.1__typescript@5.8.3__fastestsmallesttextencoderdecoder@1.0.22_typescript@5.8.3_zod@3.25.76_axios@1.16.0_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-FfIJVEKAXgmr+dkXn/NBQO04/pps+oIgqEIdcmG67WZh+m07OsVnvSBEqEvbFO+VjSdaQAKu69EpO3NdHJd2Iw==",
       "dependencies": [
         "@solana-program/system",
         "@solana-program/token",
         "@solana/kit",
-        "abitype@1.0.6_typescript@5.9.3_zod@3.25.76",
+        "abitype@1.0.6_typescript@5.8.3_zod@3.25.76",
         "axios@1.16.0",
         "axios-retry",
         "bs58",
         "jose",
         "md5",
         "uncrypto",
-        "viem@2.55.10_typescript@5.9.3_zod@3.25.76_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
+        "viem@2.55.10_typescript@5.8.3_zod@3.25.76_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
         "zod@3.25.76"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@coinbase/cdp-sdk/-/cdp-sdk-1.54.0.tgz"
@@ -1068,16 +1069,16 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@coinbase/wallet-sdk/-/wallet-sdk-3.9.3.tgz"
     },
-    "@coinbase/wallet-sdk@4.3.6_typescript@5.9.3_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3": {
+    "@coinbase/wallet-sdk@4.3.6_typescript@5.8.3_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3": {
       "integrity": "sha512-4q8BNG1ViL4mSAAvPAtpwlOs1gpC+67eQtgIwNvT3xyeyFFd+guwkc8bcX5rTmQhXpqnhzC4f0obACbP9CqMSA==",
       "dependencies": [
         "@noble/hashes@1.4.0",
         "clsx@1.2.1",
         "eventemitter3@5.0.1",
         "idb-keyval",
-        "ox@0.6.9_typescript@5.9.3_zod@4.4.3",
+        "ox@0.6.9_typescript@5.8.3_zod@4.4.3",
         "preact",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
         "zustand@5.0.3_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@coinbase/wallet-sdk/-/wallet-sdk-4.3.6.tgz"
@@ -1673,12 +1674,12 @@
       "integrity": "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==",
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@floating-ui/utils/-/utils-0.2.12.tgz"
     },
-    "@gemini-wallet/core@0.3.2_viem@2.55.10__typescript@5.9.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_typescript@5.9.3_zod@4.4.3": {
+    "@gemini-wallet/core@0.3.2_viem@2.55.10__typescript@5.8.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-Z4aHi3ECFf5oWYWM3F1rW83GJfB9OvhBYPTmb5q+VyK3uvzvS48lwo+jwh2eOoCRWEuT/crpb9Vwp2QaS5JqgQ==",
       "dependencies": [
         "@metamask/rpc-errors@7.0.2",
         "eventemitter3@5.0.1",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@gemini-wallet/core/-/core-0.3.2.tgz"
     },
@@ -3103,7 +3104,7 @@
       "integrity": "sha512-JtyZR+mqgBibTo8xea3B6ZRmzZiM/YeVBtUkas6zMuXjAlfIFIW2FgqeM9eLyvEaYX66vr6DJMK+4U6LV0KhNw==",
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@radix-ui/rect/-/rect-1.1.3.tgz"
     },
-    "@rainbow-me/rainbowkit@2.2.11_@tanstack+react-query@5.101.4__react@18.3.1_react@18.3.1_react-dom@18.3.1__react@18.3.1_viem@2.55.10__typescript@5.9.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_wagmi@2.19.5__@tanstack+react-query@5.101.4___react@18.3.1__react@18.3.1__typescript@5.9.3__viem@2.55.10___typescript@5.9.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@wagmi+core@2.22.1___typescript@5.9.3___viem@2.55.10____typescript@5.9.3____zod@4.4.3____ws@8.21.0_____bufferutil@4.1.0_____utf-8-validate@5.0.10___@types+react@18.3.31___react@18.3.1___use-sync-external-store@1.4.0____react@18.3.1___zod@4.4.3__@types+react@18.3.31__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3__fastestsmallesttextencoderdecoder@1.0.22_@vanilla-extract+css@1.20.1_typescript@5.9.3_@types+react@18.3.31_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@rainbow-me/rainbowkit@2.2.11_@tanstack+react-query@5.101.4__react@18.3.1_react@18.3.1_react-dom@18.3.1__react@18.3.1_viem@2.55.10__typescript@5.8.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_wagmi@2.19.5__@tanstack+react-query@5.101.4___react@18.3.1__react@18.3.1__typescript@5.8.3__viem@2.55.10___typescript@5.8.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@wagmi+core@2.22.1___typescript@5.8.3___viem@2.55.10____typescript@5.8.3____zod@4.4.3____ws@8.21.0_____bufferutil@4.1.0_____utf-8-validate@5.0.10___@types+react@18.3.31___react@18.3.1___use-sync-external-store@1.4.0____react@18.3.1___zod@4.4.3__@types+react@18.3.31__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3__fastestsmallesttextencoderdecoder@1.0.22_@vanilla-extract+css@1.20.1_typescript@5.8.3_@types+react@18.3.31_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-FHPsRHMBpuHHhuyKktAR13O9agmsUUunDnVEP4hG1dSZ2JojXLUSWyLG28VbGIJakHYylkNguiLFnqM/BM8ERA==",
       "dependencies": [
         "@tanstack/react-query",
@@ -3116,7 +3117,7 @@
         "react-dom",
         "react-remove-scroll",
         "ua-parser-js@2.0.10",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
         "wagmi"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@rainbow-me/rainbowkit/-/rainbowkit-2.2.11.tgz"
@@ -3125,39 +3126,39 @@
       "integrity": "sha512-4An71tdz9X8+3sI4Qqqd2LWd9vS39J7sqd9EU4Scw7TJE/qB10Flv/UuqbPVgfQV9XoK8Np6jNquZitnZq5i+Q==",
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@remix-run/router/-/router-1.23.3.tgz"
     },
-    "@reown/appkit-common@1.7.8_typescript@5.9.3_zod@3.22.4": {
+    "@reown/appkit-common@1.7.8_typescript@5.8.3_zod@3.22.4": {
       "integrity": "sha512-ridIhc/x6JOp7KbDdwGKY4zwf8/iK8EYBl+HtWrruutSLwZyVi5P8WaZa+8iajL6LcDcDF7LoyLwMTym7SRuwQ==",
       "dependencies": [
         "big.js",
         "dayjs",
-        "viem@2.55.10_typescript@5.9.3_zod@3.22.4_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
+        "viem@2.55.10_typescript@5.8.3_zod@3.22.4_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@reown/appkit-common/-/appkit-common-1.7.8.tgz"
     },
-    "@reown/appkit-common@1.7.8_typescript@5.9.3_zod@4.4.3": {
+    "@reown/appkit-common@1.7.8_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-ridIhc/x6JOp7KbDdwGKY4zwf8/iK8EYBl+HtWrruutSLwZyVi5P8WaZa+8iajL6LcDcDF7LoyLwMTym7SRuwQ==",
       "dependencies": [
         "big.js",
         "dayjs",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@reown/appkit-common/-/appkit-common-1.7.8.tgz"
     },
-    "@reown/appkit-controllers@1.7.8_@types+react@18.3.31_react@18.3.1_typescript@5.9.3_zod@4.4.3": {
+    "@reown/appkit-controllers@1.7.8_@types+react@18.3.31_react@18.3.1_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-IdXlJlivrlj6m63VsGLsjtPHHsTWvKGVzWIP1fXZHVqmK+rZCBDjCi9j267Rb9/nYRGHWBtlFQhO8dK35WfeDA==",
       "dependencies": [
-        "@reown/appkit-common@1.7.8_typescript@5.9.3_zod@4.4.3",
+        "@reown/appkit-common@1.7.8_typescript@5.8.3_zod@4.4.3",
         "@reown/appkit-wallet",
-        "@walletconnect/universal-provider@2.21.0_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/universal-provider@2.21.0_typescript@5.8.3_zod@4.4.3",
         "valtio",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@reown/appkit-controllers/-/appkit-controllers-1.7.8.tgz"
     },
-    "@reown/appkit-pay@1.7.8_valtio@1.13.2__@types+react@18.3.31__react@18.3.1_@types+react@18.3.31_react@18.3.1_typescript@5.9.3_zod@4.4.3": {
+    "@reown/appkit-pay@1.7.8_valtio@1.13.2__@types+react@18.3.31__react@18.3.1_@types+react@18.3.31_react@18.3.1_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-OSGQ+QJkXx0FEEjlpQqIhT8zGJKOoHzVnyy/0QFrl3WrQTjCzg0L6+i91Ad5Iy1zb6V5JjqtfIFpRVRWN4M3pw==",
       "dependencies": [
-        "@reown/appkit-common@1.7.8_typescript@5.9.3_zod@4.4.3",
+        "@reown/appkit-common@1.7.8_typescript@5.8.3_zod@4.4.3",
         "@reown/appkit-controllers",
         "@reown/appkit-ui",
         "@reown/appkit-utils",
@@ -3173,10 +3174,10 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@reown/appkit-polyfills/-/appkit-polyfills-1.7.8.tgz"
     },
-    "@reown/appkit-scaffold-ui@1.7.8_valtio@1.13.2__@types+react@18.3.31__react@18.3.1_typescript@5.9.3_@types+react@18.3.31_react@18.3.1_zod@4.4.3": {
+    "@reown/appkit-scaffold-ui@1.7.8_valtio@1.13.2__@types+react@18.3.31__react@18.3.1_typescript@5.8.3_@types+react@18.3.31_react@18.3.1_zod@4.4.3": {
       "integrity": "sha512-RCeHhAwOrIgcvHwYlNWMcIDibdI91waaoEYBGw71inE0kDB8uZbE7tE6DAXJmDkvl0qPh+DqlC4QbJLF1FVYdQ==",
       "dependencies": [
-        "@reown/appkit-common@1.7.8_typescript@5.9.3_zod@4.4.3",
+        "@reown/appkit-common@1.7.8_typescript@5.8.3_zod@4.4.3",
         "@reown/appkit-controllers",
         "@reown/appkit-ui",
         "@reown/appkit-utils",
@@ -3185,10 +3186,10 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@reown/appkit-scaffold-ui/-/appkit-scaffold-ui-1.7.8.tgz"
     },
-    "@reown/appkit-ui@1.7.8_typescript@5.9.3_@types+react@18.3.31_react@18.3.1_zod@4.4.3": {
+    "@reown/appkit-ui@1.7.8_typescript@5.8.3_@types+react@18.3.31_react@18.3.1_zod@4.4.3": {
       "integrity": "sha512-1hjCKjf6FLMFzrulhl0Y9Vb9Fu4royE+SXCPSWh4VhZhWqlzUFc7kutnZKx8XZFVQH4pbBvY62SpRC93gqoHow==",
       "dependencies": [
-        "@reown/appkit-common@1.7.8_typescript@5.9.3_zod@4.4.3",
+        "@reown/appkit-common@1.7.8_typescript@5.8.3_zod@4.4.3",
         "@reown/appkit-controllers",
         "@reown/appkit-wallet",
         "lit",
@@ -3196,34 +3197,34 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@reown/appkit-ui/-/appkit-ui-1.7.8.tgz"
     },
-    "@reown/appkit-utils@1.7.8_valtio@1.13.2__@types+react@18.3.31__react@18.3.1_@types+react@18.3.31_react@18.3.1_typescript@5.9.3_zod@4.4.3": {
+    "@reown/appkit-utils@1.7.8_valtio@1.13.2__@types+react@18.3.31__react@18.3.1_@types+react@18.3.31_react@18.3.1_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-8X7UvmE8GiaoitCwNoB86pttHgQtzy4ryHZM9kQpvjQ0ULpiER44t1qpVLXNM4X35O0v18W0Dk60DnYRMH2WRw==",
       "dependencies": [
-        "@reown/appkit-common@1.7.8_typescript@5.9.3_zod@4.4.3",
+        "@reown/appkit-common@1.7.8_typescript@5.8.3_zod@4.4.3",
         "@reown/appkit-controllers",
         "@reown/appkit-polyfills",
         "@reown/appkit-wallet",
         "@walletconnect/logger",
-        "@walletconnect/universal-provider@2.21.0_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/universal-provider@2.21.0_typescript@5.8.3_zod@4.4.3",
         "valtio",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@reown/appkit-utils/-/appkit-utils-1.7.8.tgz"
     },
-    "@reown/appkit-wallet@1.7.8_typescript@5.9.3_zod@3.22.4": {
+    "@reown/appkit-wallet@1.7.8_typescript@5.8.3_zod@3.22.4": {
       "integrity": "sha512-kspz32EwHIOT/eg/ZQbFPxgXq0B/olDOj3YMu7gvLEFz4xyOFd/wgzxxAXkp5LbG4Cp++s/elh79rVNmVFdB9A==",
       "dependencies": [
-        "@reown/appkit-common@1.7.8_typescript@5.9.3_zod@3.22.4",
+        "@reown/appkit-common@1.7.8_typescript@5.8.3_zod@3.22.4",
         "@reown/appkit-polyfills",
         "@walletconnect/logger",
         "zod@3.22.4"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@reown/appkit-wallet/-/appkit-wallet-1.7.8.tgz"
     },
-    "@reown/appkit@1.7.8_valtio@1.13.2__@types+react@18.3.31__react@18.3.1_@types+react@18.3.31_react@18.3.1_typescript@5.9.3_zod@4.4.3": {
+    "@reown/appkit@1.7.8_valtio@1.13.2__@types+react@18.3.31__react@18.3.1_@types+react@18.3.31_react@18.3.1_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-51kTleozhA618T1UvMghkhKfaPcc9JlKwLJ5uV+riHyvSoWPKPRIa5A6M1Wano5puNyW0s3fwywhyqTHSilkaA==",
       "dependencies": [
-        "@reown/appkit-common@1.7.8_typescript@5.9.3_zod@4.4.3",
+        "@reown/appkit-common@1.7.8_typescript@5.8.3_zod@4.4.3",
         "@reown/appkit-controllers",
         "@reown/appkit-pay",
         "@reown/appkit-polyfills",
@@ -3232,10 +3233,10 @@
         "@reown/appkit-utils",
         "@reown/appkit-wallet",
         "@walletconnect/types@2.21.0",
-        "@walletconnect/universal-provider@2.21.0_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/universal-provider@2.21.0_typescript@5.8.3_zod@4.4.3",
         "bs58",
         "valtio",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@reown/appkit/-/appkit-1.7.8.tgz"
     },
@@ -3459,7 +3460,7 @@
       "cpu": ["x64"],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@rollup/rollup-win32-x64-msvc/-/rollup-win32-x64-msvc-4.62.4.tgz"
     },
-    "@safe-global/safe-apps-provider@0.18.6_typescript@5.9.3_zod@4.4.3": {
+    "@safe-global/safe-apps-provider@0.18.6_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-4LhMmjPWlIO8TTDC2AwLk44XKXaK6hfBTWyljDm0HQ6TWlOEijVWNrt2s3OCVMSxlXAcEzYfqyu1daHZooTC2Q==",
       "dependencies": [
         "@safe-global/safe-apps-sdk",
@@ -3467,11 +3468,11 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@safe-global/safe-apps-provider/-/safe-apps-provider-0.18.6.tgz"
     },
-    "@safe-global/safe-apps-sdk@9.1.0_typescript@5.9.3_zod@4.4.3": {
+    "@safe-global/safe-apps-sdk@9.1.0_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-N5p/ulfnnA2Pi2M3YeWjULeWbjo7ei22JwU/IXnhoHzKq3pYCN6ynL9mJBOlvDVv892EgLPCWCOwQk/uBT2v0Q==",
       "dependencies": [
         "@safe-global/safe-gateway-typescript-sdk",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@safe-global/safe-apps-sdk/-/safe-apps-sdk-9.1.0.tgz"
     },
@@ -3543,21 +3544,21 @@
       "integrity": "sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==",
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@socket.io/component-emitter/-/component-emitter-3.1.2.tgz"
     },
-    "@solana-program/system@0.10.0_@solana+kit@5.5.1__typescript@5.9.3__fastestsmallesttextencoderdecoder@1.0.22_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana-program/system@0.10.0_@solana+kit@5.5.1__typescript@5.8.3__fastestsmallesttextencoderdecoder@1.0.22_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-Go+LOEZmqmNlfr+Gjy5ZWAdY5HbYzk2RBewD9QinEU/bBSzpFfzqDRT55JjFRBGJUvMgf3C2vfXEGT4i8DSI4g==",
       "dependencies": [
         "@solana/kit"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana-program/system/-/system-0.10.0.tgz"
     },
-    "@solana-program/token@0.9.0_@solana+kit@5.5.1__typescript@5.9.3__fastestsmallesttextencoderdecoder@1.0.22_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana-program/token@0.9.0_@solana+kit@5.5.1__typescript@5.8.3__fastestsmallesttextencoderdecoder@1.0.22_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-vnZxndd4ED4Fc56sw93cWZ2djEeeOFxtaPS8SPf5+a+JZjKA/EnKqzbE1y04FuMhIVrLERQ8uR8H2h72eZzlsA==",
       "dependencies": [
         "@solana/kit"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana-program/token/-/token-0.9.0.tgz"
     },
-    "@solana/accounts@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/accounts@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-TfOY9xixg5rizABuLVuZ9XI2x2tmWUC/OoN556xwfDlhBHBjKfszicYYOyD6nbFmwTGYarCmyGIdteXxTXIdhQ==",
       "dependencies": [
         "@solana/addresses",
@@ -3573,7 +3574,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/accounts/-/accounts-5.5.1.tgz"
     },
-    "@solana/addresses@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/addresses@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-5xoah3Q9G30HQghu/9BiHLb5pzlPKRC3zydQDmE3O9H//WfayxTFppsUDCL6FjYUHqj/wzK6CWHySglc2RkpdA==",
       "dependencies": [
         "@solana/assertions",
@@ -3588,7 +3589,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/addresses/-/addresses-5.5.1.tgz"
     },
-    "@solana/assertions@5.5.1_typescript@5.9.3": {
+    "@solana/assertions@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-YTCSWAlGwSlVPnWtWLm3ukz81wH4j2YaCveK+TjpvUU88hTy6fmUqxi0+hvAMAe4zKXpJyj3Az7BrLJRxbIm4Q==",
       "dependencies": [
         "@solana/errors",
@@ -3599,7 +3600,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/assertions/-/assertions-5.5.1.tgz"
     },
-    "@solana/codecs-core@5.5.1_typescript@5.9.3": {
+    "@solana/codecs-core@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-TgBt//bbKBct0t6/MpA8ElaOA3sa8eYVvR7LGslCZ84WiAwwjCY0lW/lOYsFHJQzwREMdUyuEyy5YWBKtdh8Rw==",
       "dependencies": [
         "@solana/errors",
@@ -3610,7 +3611,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/codecs-core/-/codecs-core-5.5.1.tgz"
     },
-    "@solana/codecs-data-structures@5.5.1_typescript@5.9.3": {
+    "@solana/codecs-data-structures@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-97bJWGyUY9WvBz3mX1UV3YPWGDTez6btCfD0ip3UVEXJbItVuUiOkzcO5iFDUtQT5riKT6xC+Mzl+0nO76gd0w==",
       "dependencies": [
         "@solana/codecs-core",
@@ -3623,7 +3624,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/codecs-data-structures/-/codecs-data-structures-5.5.1.tgz"
     },
-    "@solana/codecs-numbers@5.5.1_typescript@5.9.3": {
+    "@solana/codecs-numbers@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-rllMIZAHqmtvC0HO/dc/21wDuWaD0B8Ryv8o+YtsICQBuiL/0U4AGwH7Pi5GNFySYk0/crSuwfIqQFtmxNSPFw==",
       "dependencies": [
         "@solana/codecs-core",
@@ -3635,7 +3636,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/codecs-numbers/-/codecs-numbers-5.5.1.tgz"
     },
-    "@solana/codecs-strings@5.5.1_fastestsmallesttextencoderdecoder@1.0.22_typescript@5.9.3": {
+    "@solana/codecs-strings@5.5.1_fastestsmallesttextencoderdecoder@1.0.22_typescript@5.8.3": {
       "integrity": "sha512-7klX4AhfHYA+uKKC/nxRGP2MntbYQCR3N6+v7bk1W/rSxYuhNmt+FN8aoThSZtWIKwN6BEyR1167ka8Co1+E7A==",
       "dependencies": [
         "@solana/codecs-core",
@@ -3650,7 +3651,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/codecs-strings/-/codecs-strings-5.5.1.tgz"
     },
-    "@solana/codecs@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/codecs@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-Vea29nJub/bXjfzEV7ZZQ/PWr1pYLZo3z0qW0LQL37uKKVzVFRQlwetd7INk3YtTD3xm9WUYr7bCvYUk3uKy2g==",
       "dependencies": [
         "@solana/codecs-core",
@@ -3665,7 +3666,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/codecs/-/codecs-5.5.1.tgz"
     },
-    "@solana/errors@5.5.1_typescript@5.9.3": {
+    "@solana/errors@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-vFO3p+S7HoyyrcAectnXbdsMfwUzY2zYFUc2DEe5BwpiE9J1IAxPBGjOWO6hL1bbYdBrlmjNx8DXCslqS+Kcmg==",
       "dependencies": [
         "chalk@5.6.2",
@@ -3678,7 +3679,7 @@
       "bin": true,
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/errors/-/errors-5.5.1.tgz"
     },
-    "@solana/fast-stable-stringify@5.5.1_typescript@5.9.3": {
+    "@solana/fast-stable-stringify@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-Ni7s2FN33zTzhTFgRjEbOVFO+UAmK8qi3Iu0/GRFYK4jN696OjKHnboSQH/EacQ+yGqS54bfxf409wU5dsLLCw==",
       "dependencies": [
         "typescript"
@@ -3688,7 +3689,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/fast-stable-stringify/-/fast-stable-stringify-5.5.1.tgz"
     },
-    "@solana/functional@5.5.1_typescript@5.9.3": {
+    "@solana/functional@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-tTHoJcEQq3gQx5qsdsDJ0LEJeFzwNpXD80xApW9o/PPoCNimI3SALkZl+zNW8VnxRrV3l3yYvfHWBKe/X3WG3w==",
       "dependencies": [
         "typescript"
@@ -3698,7 +3699,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/functional/-/functional-5.5.1.tgz"
     },
-    "@solana/instruction-plans@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/instruction-plans@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-7z3CB7YMcFKuVvgcnNY8bY6IsZ8LG61Iytbz7HpNVGX2u1RthOs1tRW8luTzSG1MPL0Ox7afyAVMYeFqSPHnaQ==",
       "dependencies": [
         "@solana/errors",
@@ -3714,7 +3715,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/instruction-plans/-/instruction-plans-5.5.1.tgz"
     },
-    "@solana/instructions@5.5.1_typescript@5.9.3": {
+    "@solana/instructions@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-h0G1CG6S+gUUSt0eo6rOtsaXRBwCq1+Js2a+Ps9Bzk9q7YHNFA75/X0NWugWLgC92waRp66hrjMTiYYnLBoWOQ==",
       "dependencies": [
         "@solana/codecs-core",
@@ -3726,7 +3727,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/instructions/-/instructions-5.5.1.tgz"
     },
-    "@solana/keys@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/keys@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-KRD61cL7CRL+b4r/eB9dEoVxIf/2EJ1Pm1DmRYhtSUAJD2dJ5Xw8QFuehobOGm9URqQ7gaQl+Fkc1qvDlsWqKg==",
       "dependencies": [
         "@solana/assertions",
@@ -3741,7 +3742,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/keys/-/keys-5.5.1.tgz"
     },
-    "@solana/kit@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/kit@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-irKUGiV2yRoyf+4eGQ/ZeCRxa43yjFEL1DUI5B0DkcfZw3cr0VJtVJnrG8OtVF01vT0OUfYOcUn6zJW5TROHvQ==",
       "dependencies": [
         "@solana/accounts",
@@ -3773,7 +3774,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/kit/-/kit-5.5.1.tgz"
     },
-    "@solana/nominal-types@5.5.1_typescript@5.9.3": {
+    "@solana/nominal-types@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-I1ImR+kfrLFxN5z22UDiTWLdRZeKtU0J/pkWkO8qm/8WxveiwdIv4hooi8pb6JnlR4mSrWhq0pCIOxDYrL9GIQ==",
       "dependencies": [
         "typescript"
@@ -3783,7 +3784,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/nominal-types/-/nominal-types-5.5.1.tgz"
     },
-    "@solana/offchain-messages@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/offchain-messages@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-g+xHH95prTU+KujtbOzj8wn+C7ZNoiLhf3hj6nYq3MTyxOXtBEysguc97jJveUZG0K97aIKG6xVUlMutg5yxhw==",
       "dependencies": [
         "@solana/addresses",
@@ -3801,7 +3802,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/offchain-messages/-/offchain-messages-5.5.1.tgz"
     },
-    "@solana/options@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/options@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-eo971c9iLNLmk+yOFyo7yKIJzJ/zou6uKpy6mBuyb/thKtS/haiKIc3VLhyTXty3OH2PW8yOlORJnv4DexJB8A==",
       "dependencies": [
         "@solana/codecs-core",
@@ -3816,7 +3817,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/options/-/options-5.5.1.tgz"
     },
-    "@solana/plugin-core@5.5.1_typescript@5.9.3": {
+    "@solana/plugin-core@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-VUZl30lDQFJeiSyNfzU1EjYt2QZvoBFKEwjn1lilUJw7KgqD5z7mbV7diJhT+dLFs36i0OsjXvq5kSygn8YJ3A==",
       "dependencies": [
         "typescript"
@@ -3826,7 +3827,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/plugin-core/-/plugin-core-5.5.1.tgz"
     },
-    "@solana/programs@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/programs@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-7U9kn0Jsx1NuBLn5HRTFYh78MV4XN145Yc3WP/q5BlqAVNlMoU9coG5IUTJIG847TUqC1lRto3Dnpwm6T4YRpA==",
       "dependencies": [
         "@solana/addresses",
@@ -3838,7 +3839,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/programs/-/programs-5.5.1.tgz"
     },
-    "@solana/promises@5.5.1_typescript@5.9.3": {
+    "@solana/promises@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-T9lfuUYkGykJmppEcssNiCf6yiYQxJkhiLPP+pyAc2z84/7r3UVIb2tNJk4A9sucS66pzJnVHZKcZVGUUp6wzA==",
       "dependencies": [
         "typescript"
@@ -3848,7 +3849,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/promises/-/promises-5.5.1.tgz"
     },
-    "@solana/rpc-api@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/rpc-api@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-XWOQQPhKl06Vj0xi3RYHAc6oEQd8B82okYJ04K7N0Vvy3J4PN2cxeK7klwkjgavdcN9EVkYCChm2ADAtnztKnA==",
       "dependencies": [
         "@solana/addresses",
@@ -3869,7 +3870,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc-api/-/rpc-api-5.5.1.tgz"
     },
-    "@solana/rpc-parsed-types@5.5.1_typescript@5.9.3": {
+    "@solana/rpc-parsed-types@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-HEi3G2nZqGEsa3vX6U0FrXLaqnUCg4SKIUrOe8CezD+cSFbRTOn3rCLrUmJrhVyXlHoQVaRO9mmeovk31jWxJg==",
       "dependencies": [
         "typescript"
@@ -3879,7 +3880,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc-parsed-types/-/rpc-parsed-types-5.5.1.tgz"
     },
-    "@solana/rpc-spec-types@5.5.1_typescript@5.9.3": {
+    "@solana/rpc-spec-types@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-6OFKtRpIEJQs8Jb2C4OO8KyP2h2Hy1MFhatMAoXA+0Ik8S3H+CicIuMZvGZ91mIu/tXicuOOsNNLu3HAkrakrw==",
       "dependencies": [
         "typescript"
@@ -3889,7 +3890,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc-spec-types/-/rpc-spec-types-5.5.1.tgz"
     },
-    "@solana/rpc-spec@5.5.1_typescript@5.9.3": {
+    "@solana/rpc-spec@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-m3LX2bChm3E3by4mQrH4YwCAFY57QBzuUSWqlUw7ChuZ+oLLOq7b2czi4i6L4Vna67j3eCmB3e+4tqy1j5wy7Q==",
       "dependencies": [
         "@solana/errors",
@@ -3901,7 +3902,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc-spec/-/rpc-spec-5.5.1.tgz"
     },
-    "@solana/rpc-subscriptions-api@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/rpc-subscriptions-api@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-5Oi7k+GdeS8xR2ly1iuSFkAv6CZqwG0Z6b1QZKbEgxadE1XGSDrhM2cn59l+bqCozUWCqh4c/A2znU/qQjROlw==",
       "dependencies": [
         "@solana/addresses",
@@ -3918,7 +3919,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc-subscriptions-api/-/rpc-subscriptions-api-5.5.1.tgz"
     },
-    "@solana/rpc-subscriptions-channel-websocket@5.5.1_typescript@5.9.3": {
+    "@solana/rpc-subscriptions-channel-websocket@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-7tGfBBrYY8TrngOyxSHoCU5shy86iA9SRMRrPSyBhEaZRAk6dnbdpmUTez7gtdVo0BCvh9nzQtUycKWSS7PnFQ==",
       "dependencies": [
         "@solana/errors",
@@ -3933,7 +3934,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc-subscriptions-channel-websocket/-/rpc-subscriptions-channel-websocket-5.5.1.tgz"
     },
-    "@solana/rpc-subscriptions-spec@5.5.1_typescript@5.9.3": {
+    "@solana/rpc-subscriptions-spec@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-iq+rGq5fMKP3/mKHPNB6MC8IbVW41KGZg83Us/+LE3AWOTWV1WT20KT2iH1F1ik9roi42COv/TpoZZvhKj45XQ==",
       "dependencies": [
         "@solana/errors",
@@ -3947,7 +3948,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc-subscriptions-spec/-/rpc-subscriptions-spec-5.5.1.tgz"
     },
-    "@solana/rpc-subscriptions@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/rpc-subscriptions@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-CTMy5bt/6mDh4tc6vUJms9EcuZj3xvK0/xq8IQ90rhkpYvate91RjBP+egvjgSayUg9yucU9vNuUpEjz4spM7w==",
       "dependencies": [
         "@solana/errors",
@@ -3968,7 +3969,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc-subscriptions/-/rpc-subscriptions-5.5.1.tgz"
     },
-    "@solana/rpc-transformers@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/rpc-transformers@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-OsWqLCQdcrRJKvHiMmwFhp9noNZ4FARuMkHT5us3ustDLXaxOjF0gfqZLnMkulSLcKt7TGXqMhBV+HCo7z5M8Q==",
       "dependencies": [
         "@solana/errors",
@@ -3983,7 +3984,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc-transformers/-/rpc-transformers-5.5.1.tgz"
     },
-    "@solana/rpc-transport-http@5.5.1_typescript@5.9.3": {
+    "@solana/rpc-transport-http@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-yv8GoVSHqEV0kUJEIhkdOVkR2SvJ6yoWC51cJn2rSV7plr6huLGe0JgujCmB7uZhhaLbcbP3zxXxu9sOjsi7Fg==",
       "dependencies": [
         "@solana/errors",
@@ -3997,7 +3998,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc-transport-http/-/rpc-transport-http-5.5.1.tgz"
     },
-    "@solana/rpc-types@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/rpc-types@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-bibTFQ7PbHJJjGJPmfYC2I+/5CRFS4O2p9WwbFraX1Keeel+nRrt/NBXIy8veP5AEn2sVJIyJPpWBRpCx1oATA==",
       "dependencies": [
         "@solana/addresses",
@@ -4013,7 +4014,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc-types/-/rpc-types-5.5.1.tgz"
     },
-    "@solana/rpc@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/rpc@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-ku8zTUMrkCWci66PRIBC+1mXepEnZH/q1f3ck0kJZ95a06bOTl5KU7HeXWtskkyefzARJ5zvCs54AD5nxjQJ+A==",
       "dependencies": [
         "@solana/errors",
@@ -4032,7 +4033,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/rpc/-/rpc-5.5.1.tgz"
     },
-    "@solana/signers@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/signers@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-FY0IVaBT2kCAze55vEieR6hag4coqcuJ31Aw3hqRH7mv6sV8oqwuJmUrx+uFwOp1gwd5OEAzlv6N4hOOple4sQ==",
       "dependencies": [
         "@solana/addresses",
@@ -4051,7 +4052,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/signers/-/signers-5.5.1.tgz"
     },
-    "@solana/subscribable@5.5.1_typescript@5.9.3": {
+    "@solana/subscribable@5.5.1_typescript@5.8.3": {
       "integrity": "sha512-9K0PsynFq0CsmK1CDi5Y2vUIJpCqkgSS5yfDN0eKPgHqEptLEaia09Kaxc90cSZDZU5mKY/zv1NBmB6Aro9zQQ==",
       "dependencies": [
         "@solana/errors",
@@ -4062,7 +4063,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/subscribable/-/subscribable-5.5.1.tgz"
     },
-    "@solana/sysvars@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/sysvars@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-k3Quq87Mm+geGUu1GWv6knPk0ALsfY6EKSJGw9xUJDHzY/RkYSBnh0RiOrUhtFm2TDNjOailg8/m0VHmi3reFA==",
       "dependencies": [
         "@solana/accounts",
@@ -4076,7 +4077,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/sysvars/-/sysvars-5.5.1.tgz"
     },
-    "@solana/transaction-confirmation@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/transaction-confirmation@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-j4mKlYPHEyu+OD7MBt3jRoX4ScFgkhZC6H65on4Fux6LMScgivPJlwnKoZMnsgxFgWds0pl+BYzSiALDsXlYtw==",
       "dependencies": [
         "@solana/addresses",
@@ -4096,7 +4097,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/transaction-confirmation/-/transaction-confirmation-5.5.1.tgz"
     },
-    "@solana/transaction-messages@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/transaction-messages@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-aXyhMCEaAp3M/4fP0akwBBQkFPr4pfwoC5CLDq999r/FUwDax2RE/h4Ic7h2Xk+JdcUwsb+rLq85Y52hq84XvQ==",
       "dependencies": [
         "@solana/addresses",
@@ -4115,7 +4116,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@solana/transaction-messages/-/transaction-messages-5.5.1.tgz"
     },
-    "@solana/transactions@5.5.1_typescript@5.9.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@solana/transactions@5.5.1_typescript@5.8.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-8hHtDxtqalZ157pnx6p8k10D7J/KY/biLzfgh9R09VNLLY3Fqi7kJvJCr7M2ik3oRll56pxhraAGCC9yIT6eOA==",
       "dependencies": [
         "@solana/addresses",
@@ -4761,7 +4762,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@types/ws/-/ws-8.18.1.tgz"
     },
-    "@typescript-eslint/eslint-plugin@8.65.0_@typescript-eslint+parser@8.65.0__eslint@9.39.5__typescript@5.9.3_eslint@9.39.5_typescript@5.9.3": {
+    "@typescript-eslint/eslint-plugin@8.65.0_@typescript-eslint+parser@8.65.0__eslint@9.39.5__typescript@5.8.3_eslint@9.39.5_typescript@5.8.3": {
       "integrity": "sha512-IEgob78X12rHpUmtcwFsXhZdVGJtwTVP8FiCLZkR6GlYVrl2PcuB+KhCE5BlVC/eQpQnu8WXRtkHZuPar+gCRA==",
       "dependencies": [
         "@eslint-community/regexpp",
@@ -4778,7 +4779,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.65.0.tgz"
     },
-    "@typescript-eslint/parser@8.65.0_eslint@9.39.5_typescript@5.9.3": {
+    "@typescript-eslint/parser@8.65.0_eslint@9.39.5_typescript@5.8.3": {
       "integrity": "sha512-CZ4nMxWwgu1HEEFNkeaCptra9QCtkmKdgf3sWh1rl1trIhmxLilgTV4cwcbQ4wemnT4sWQN8CaKOmdYx+g2gMA==",
       "dependencies": [
         "@typescript-eslint/scope-manager",
@@ -4791,7 +4792,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@typescript-eslint/parser/-/parser-8.65.0.tgz"
     },
-    "@typescript-eslint/project-service@8.65.0_typescript@5.9.3": {
+    "@typescript-eslint/project-service@8.65.0_typescript@5.8.3": {
       "integrity": "sha512-SxnPhbTsGahizDgbu7oqFH/xVtzIqMd/s+WtnSxNxJZJpLbdT5IPdzg8EZxO3+PoKahXmwJLeNQOpKJb3/bi7Q==",
       "dependencies": [
         "@typescript-eslint/tsconfig-utils",
@@ -4809,14 +4810,14 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@typescript-eslint/scope-manager/-/scope-manager-8.65.0.tgz"
     },
-    "@typescript-eslint/tsconfig-utils@8.65.0_typescript@5.9.3": {
+    "@typescript-eslint/tsconfig-utils@8.65.0_typescript@5.8.3": {
       "integrity": "sha512-j6GzGqCiRdA7Qhur2VVmKZAkBLfnHFQfx4TaJGL9RMveZqCo48jSHHO0DTgizEnGhtWnqmbtCUSrqSkdiY/0Hg==",
       "dependencies": [
         "typescript"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@typescript-eslint/tsconfig-utils/-/tsconfig-utils-8.65.0.tgz"
     },
-    "@typescript-eslint/type-utils@8.65.0_eslint@9.39.5_typescript@5.9.3": {
+    "@typescript-eslint/type-utils@8.65.0_eslint@9.39.5_typescript@5.8.3": {
       "integrity": "sha512-YjaZ7PRI5qY7ax2L3PbvX0rRyGtipAReCWs0mhhDBHjH/vl0g0BonaGXrKdKpMbIIsMIwDgbk/xzkBTyAltS5g==",
       "dependencies": [
         "@typescript-eslint/types",
@@ -4833,7 +4834,7 @@
       "integrity": "sha512-JSSwWNy+H0E/01jJEM+hrX6N0OFDzFzeIhHFSAS01tlVaevpG8cFyYRPhS5yjGOvBUx3sqQHVMjCL1CAZZMxBg==",
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@typescript-eslint/types/-/types-8.65.0.tgz"
     },
-    "@typescript-eslint/typescript-estree@8.65.0_typescript@5.9.3": {
+    "@typescript-eslint/typescript-estree@8.65.0_typescript@5.8.3": {
       "integrity": "sha512-JboAE2swaYt4tb1fHhHTABE2K+OLy09XfcTbhnk4Pw96f9dd2e9iYsJ28gBggHlo5z5x1rkyWvcPoTuNTd4oGg==",
       "dependencies": [
         "@typescript-eslint/project-service",
@@ -4849,7 +4850,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@typescript-eslint/typescript-estree/-/typescript-estree-8.65.0.tgz"
     },
-    "@typescript-eslint/utils@8.65.0_eslint@9.39.5_typescript@5.9.3": {
+    "@typescript-eslint/utils@8.65.0_eslint@9.39.5_typescript@5.8.3": {
       "integrity": "sha512-gXiwIHsYreboxeJucHKPvgwl7dXt50mF8s1/c00cP/WoVTyWKFdtfhRWwZiXYFU5H2O8vVoSLNrexFZjYS/SGA==",
       "dependencies": [
         "@eslint-community/eslint-utils",
@@ -4913,11 +4914,11 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@vitejs/plugin-react-swc/-/plugin-react-swc-3.11.0.tgz"
     },
-    "@wagmi/connectors@6.2.0_@wagmi+core@2.22.1__typescript@5.9.3__viem@2.55.10___typescript@5.9.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@types+react@18.3.31__react@18.3.1__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3_typescript@5.9.3_viem@2.55.10__typescript@5.9.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_@tanstack+react-query@5.101.4__react@18.3.1_react@18.3.1_wagmi@2.19.5__@tanstack+react-query@5.101.4___react@18.3.1__react@18.3.1__typescript@5.9.3__viem@2.55.10___typescript@5.9.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@wagmi+core@2.22.1___typescript@5.9.3___viem@2.55.10____typescript@5.9.3____zod@4.4.3____ws@8.21.0_____bufferutil@4.1.0_____utf-8-validate@5.0.10___@types+react@18.3.31___react@18.3.1___use-sync-external-store@1.4.0____react@18.3.1___zod@4.4.3__@types+react@18.3.31__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3__fastestsmallesttextencoderdecoder@1.0.22_@types+react@18.3.31_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "@wagmi/connectors@6.2.0_@wagmi+core@2.22.1__typescript@5.8.3__viem@2.55.10___typescript@5.8.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@types+react@18.3.31__react@18.3.1__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3_typescript@5.8.3_viem@2.55.10__typescript@5.8.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_@tanstack+react-query@5.101.4__react@18.3.1_react@18.3.1_wagmi@2.19.5__@tanstack+react-query@5.101.4___react@18.3.1__react@18.3.1__typescript@5.8.3__viem@2.55.10___typescript@5.8.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@wagmi+core@2.22.1___typescript@5.8.3___viem@2.55.10____typescript@5.8.3____zod@4.4.3____ws@8.21.0_____bufferutil@4.1.0_____utf-8-validate@5.0.10___@types+react@18.3.31___react@18.3.1___use-sync-external-store@1.4.0____react@18.3.1___zod@4.4.3__@types+react@18.3.31__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3__fastestsmallesttextencoderdecoder@1.0.22_@types+react@18.3.31_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-2NfkbqhNWdjfibb4abRMrn7u6rPjEGolMfApXss6HCDVt9AW2oVC6k8Q5FouzpJezElxLJSagWz9FW1zaRlanA==",
       "dependencies": [
         "@base-org/account",
-        "@coinbase/wallet-sdk@4.3.6_typescript@5.9.3_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3",
+        "@coinbase/wallet-sdk@4.3.6_typescript@5.8.3_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3",
         "@gemini-wallet/core",
         "@metamask/sdk",
         "@safe-global/safe-apps-provider",
@@ -4927,20 +4928,20 @@
         "cbw-sdk@npm:@coinbase/wallet-sdk@3.9.3",
         "porto",
         "typescript",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
       ],
       "optionalPeers": [
         "typescript"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@wagmi/connectors/-/connectors-6.2.0.tgz"
     },
-    "@wagmi/core@2.22.1_typescript@5.9.3_viem@2.55.10__typescript@5.9.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3": {
+    "@wagmi/core@2.22.1_typescript@5.8.3_viem@2.55.10__typescript@5.8.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3": {
       "integrity": "sha512-cG/xwQWsBEcKgRTkQVhH29cbpbs/TdcUJVFXCyri3ZknxhMyGv0YEjTcrNpRgt2SaswL1KrvslSNYKKo+5YEAg==",
       "dependencies": [
         "eventemitter3@5.0.1",
         "mipd",
         "typescript",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
         "zustand@5.0.0_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1"
       ],
       "optionalPeers": [
@@ -4948,7 +4949,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@wagmi/core/-/core-2.22.1.tgz"
     },
-    "@walletconnect/core@2.21.0_typescript@5.9.3_zod@4.4.3": {
+    "@walletconnect/core@2.21.0_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-o6R7Ua4myxR8aRUAJ1z3gT9nM+jd2B2mfamu6arzy1Cc6vi10fIwFWb6vg3bC8xJ6o9H3n/cN5TOW3aA9Y1XVw==",
       "dependencies": [
         "@walletconnect/heartbeat",
@@ -4963,7 +4964,7 @@
         "@walletconnect/safe-json",
         "@walletconnect/time",
         "@walletconnect/types@2.21.0",
-        "@walletconnect/utils@2.21.0_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/utils@2.21.0_typescript@5.8.3_zod@4.4.3",
         "@walletconnect/window-getters",
         "es-toolkit",
         "events",
@@ -4971,7 +4972,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@walletconnect/core/-/core-2.21.0.tgz"
     },
-    "@walletconnect/core@2.21.1_typescript@5.9.3_zod@4.4.3": {
+    "@walletconnect/core@2.21.1_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-Tp4MHJYcdWD846PH//2r+Mu4wz1/ZU/fr9av1UWFiaYQ2t2TPLDiZxjLw54AAEpMqlEHemwCgiRiAmjR1NDdTQ==",
       "dependencies": [
         "@walletconnect/heartbeat",
@@ -4986,7 +4987,7 @@
         "@walletconnect/safe-json",
         "@walletconnect/time",
         "@walletconnect/types@2.21.1",
-        "@walletconnect/utils@2.21.1_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/utils@2.21.1_typescript@5.8.3_zod@4.4.3",
         "@walletconnect/window-getters",
         "es-toolkit",
         "events",
@@ -5001,7 +5002,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@walletconnect/environment/-/environment-1.0.1.tgz"
     },
-    "@walletconnect/ethereum-provider@2.21.1_@types+react@18.3.31_react@18.3.1_typescript@5.9.3_zod@4.4.3": {
+    "@walletconnect/ethereum-provider@2.21.1_@types+react@18.3.31_react@18.3.1_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-SSlIG6QEVxClgl1s0LMk4xr2wg4eT3Zn/Hb81IocyqNSGfXpjtawWxKxiC5/9Z95f1INyBD6MctJbL/R1oBwIw==",
       "dependencies": [
         "@reown/appkit",
@@ -5010,10 +5011,10 @@
         "@walletconnect/jsonrpc-types",
         "@walletconnect/jsonrpc-utils",
         "@walletconnect/keyvaluestorage",
-        "@walletconnect/sign-client@2.21.1_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/sign-client@2.21.1_typescript@5.8.3_zod@4.4.3",
         "@walletconnect/types@2.21.1",
-        "@walletconnect/universal-provider@2.21.1_typescript@5.9.3_zod@4.4.3",
-        "@walletconnect/utils@2.21.1_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/universal-provider@2.21.1_typescript@5.8.3_zod@4.4.3",
+        "@walletconnect/utils@2.21.1_typescript@5.8.3_zod@4.4.3",
         "events"
       ],
       "deprecated": true,
@@ -5124,33 +5125,33 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@walletconnect/safe-json/-/safe-json-1.0.2.tgz"
     },
-    "@walletconnect/sign-client@2.21.0_typescript@5.9.3_zod@4.4.3": {
+    "@walletconnect/sign-client@2.21.0_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-z7h+PeLa5Au2R591d/8ZlziE0stJvdzP9jNFzFolf2RG/OiXulgFKum8PrIyXy+Rg2q95U9nRVUF9fWcn78yBA==",
       "dependencies": [
-        "@walletconnect/core@2.21.0_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/core@2.21.0_typescript@5.8.3_zod@4.4.3",
         "@walletconnect/events",
         "@walletconnect/heartbeat",
         "@walletconnect/jsonrpc-utils",
         "@walletconnect/logger",
         "@walletconnect/time",
         "@walletconnect/types@2.21.0",
-        "@walletconnect/utils@2.21.0_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/utils@2.21.0_typescript@5.8.3_zod@4.4.3",
         "events"
       ],
       "deprecated": true,
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@walletconnect/sign-client/-/sign-client-2.21.0.tgz"
     },
-    "@walletconnect/sign-client@2.21.1_typescript@5.9.3_zod@4.4.3": {
+    "@walletconnect/sign-client@2.21.1_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-QaXzmPsMnKGV6tc4UcdnQVNOz4zyXgarvdIQibJ4L3EmLat73r5ZVl4c0cCOcoaV7rgM9Wbphgu5E/7jNcd3Zg==",
       "dependencies": [
-        "@walletconnect/core@2.21.1_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/core@2.21.1_typescript@5.8.3_zod@4.4.3",
         "@walletconnect/events",
         "@walletconnect/heartbeat",
         "@walletconnect/jsonrpc-utils",
         "@walletconnect/logger",
         "@walletconnect/time",
         "@walletconnect/types@2.21.1",
-        "@walletconnect/utils@2.21.1_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/utils@2.21.1_typescript@5.8.3_zod@4.4.3",
         "events"
       ],
       "deprecated": true,
@@ -5187,7 +5188,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@walletconnect/types/-/types-2.21.1.tgz"
     },
-    "@walletconnect/universal-provider@2.21.0_typescript@5.9.3_zod@4.4.3": {
+    "@walletconnect/universal-provider@2.21.0_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-mtUQvewt+X0VBQay/xOJBvxsB3Xsm1lTwFjZ6WUwSOTR1X+FNb71hSApnV5kbsdDIpYPXeQUbGt2se1n5E5UBg==",
       "dependencies": [
         "@walletconnect/events",
@@ -5197,16 +5198,16 @@
         "@walletconnect/jsonrpc-utils",
         "@walletconnect/keyvaluestorage",
         "@walletconnect/logger",
-        "@walletconnect/sign-client@2.21.0_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/sign-client@2.21.0_typescript@5.8.3_zod@4.4.3",
         "@walletconnect/types@2.21.0",
-        "@walletconnect/utils@2.21.0_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/utils@2.21.0_typescript@5.8.3_zod@4.4.3",
         "es-toolkit",
         "events"
       ],
       "deprecated": true,
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@walletconnect/universal-provider/-/universal-provider-2.21.0.tgz"
     },
-    "@walletconnect/universal-provider@2.21.1_typescript@5.9.3_zod@4.4.3": {
+    "@walletconnect/universal-provider@2.21.1_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-Wjx9G8gUHVMnYfxtasC9poGm8QMiPCpXpbbLFT+iPoQskDDly8BwueWnqKs4Mx2SdIAWAwuXeZ5ojk5qQOxJJg==",
       "dependencies": [
         "@walletconnect/events",
@@ -5216,16 +5217,16 @@
         "@walletconnect/jsonrpc-utils",
         "@walletconnect/keyvaluestorage",
         "@walletconnect/logger",
-        "@walletconnect/sign-client@2.21.1_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/sign-client@2.21.1_typescript@5.8.3_zod@4.4.3",
         "@walletconnect/types@2.21.1",
-        "@walletconnect/utils@2.21.1_typescript@5.9.3_zod@4.4.3",
+        "@walletconnect/utils@2.21.1_typescript@5.8.3_zod@4.4.3",
         "es-toolkit",
         "events"
       ],
       "deprecated": true,
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@walletconnect/universal-provider/-/universal-provider-2.21.1.tgz"
     },
-    "@walletconnect/utils@2.21.0_typescript@5.9.3_zod@4.4.3": {
+    "@walletconnect/utils@2.21.0_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-zfHLiUoBrQ8rP57HTPXW7rQMnYxYI4gT9yTACxVW6LhIFROTF6/ytm5SKNoIvi4a5nX5dfXG4D9XwQUCu8Ilig==",
       "dependencies": [
         "@noble/ciphers@1.2.1",
@@ -5244,11 +5245,11 @@
         "detect-browser",
         "query-string",
         "uint8arrays",
-        "viem@2.23.2_typescript@5.9.3_zod@4.4.3_ws@8.18.0"
+        "viem@2.23.2_typescript@5.8.3_zod@4.4.3_ws@8.18.0"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@walletconnect/utils/-/utils-2.21.0.tgz"
     },
-    "@walletconnect/utils@2.21.1_typescript@5.9.3_zod@4.4.3": {
+    "@walletconnect/utils@2.21.1_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-VPZvTcrNQCkbGOjFRbC24mm/pzbRMUq2DSQoiHlhh0X1U7ZhuIrzVtAoKsrzu6rqjz0EEtGxCr3K1TGRqDG4NA==",
       "dependencies": [
         "@noble/ciphers@1.2.1",
@@ -5267,7 +5268,7 @@
         "detect-browser",
         "query-string",
         "uint8arrays",
-        "viem@2.23.2_typescript@5.9.3_zod@4.4.3_ws@8.18.0"
+        "viem@2.23.2_typescript@5.8.3_zod@4.4.3_ws@8.18.0"
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@walletconnect/utils/-/utils-2.21.1.tgz"
     },
@@ -5286,7 +5287,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@walletconnect/window-metadata/-/window-metadata-1.0.1.tgz"
     },
-    "abitype@1.0.6_typescript@5.9.3_zod@3.25.76": {
+    "abitype@1.0.6_typescript@5.8.3_zod@3.25.76": {
       "integrity": "sha512-MMSqYh4+C/aVqI2RQaWqbvI4Kxo5cQV40WQ4QFtDnNzCkqChm8MuENhElmynZlO0qUy/ObkEUaXtKqYnx1Kp3A==",
       "dependencies": [
         "typescript",
@@ -5298,7 +5299,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/abitype/-/abitype-1.0.6.tgz"
     },
-    "abitype@1.0.8_typescript@5.9.3_zod@4.4.3": {
+    "abitype@1.0.8_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-ZeiI6h3GnW06uYDLx0etQtX/p8E24UaHHBj57RSjK7YBFe7iuVn07EDpOeP451D06sF27VOz9JJPlIKJmXgkEg==",
       "dependencies": [
         "typescript",
@@ -5310,7 +5311,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/abitype/-/abitype-1.0.8.tgz"
     },
-    "abitype@1.2.3_typescript@5.9.3_zod@3.22.4": {
+    "abitype@1.2.3_typescript@5.8.3_zod@3.22.4": {
       "integrity": "sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg==",
       "dependencies": [
         "typescript",
@@ -5322,7 +5323,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/abitype/-/abitype-1.2.3.tgz"
     },
-    "abitype@1.2.3_typescript@5.9.3_zod@3.25.76": {
+    "abitype@1.2.3_typescript@5.8.3_zod@3.25.76": {
       "integrity": "sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg==",
       "dependencies": [
         "typescript",
@@ -5334,7 +5335,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/abitype/-/abitype-1.2.3.tgz"
     },
-    "abitype@1.2.3_typescript@5.9.3_zod@4.4.3": {
+    "abitype@1.2.3_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg==",
       "dependencies": [
         "typescript",
@@ -5644,7 +5645,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/bip174/-/bip174-3.0.0.tgz"
     },
-    "bitcoinjs-lib@7.0.1_typescript@5.9.3": {
+    "bitcoinjs-lib@7.0.1_typescript@5.8.3": {
       "integrity": "sha512-vwEmpL5Tpj0I0RBdNkcDMXePoaYSTeKY6mL6/l5esbnTs+jGdPDuLp4NY1hSh6Zk5wSgePygZ4Wx5JJao30Pww==",
       "dependencies": [
         "@noble/hashes@1.8.0",
@@ -6046,7 +6047,7 @@
       "integrity": "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==",
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/csstype/-/csstype-3.2.3.tgz"
     },
-    "cuer@0.0.3_react@18.3.1_react-dom@18.3.1__react@18.3.1_typescript@5.9.3": {
+    "cuer@0.0.3_react@18.3.1_react-dom@18.3.1__react@18.3.1_typescript@5.8.3": {
       "integrity": "sha512-f/UNxRMRCYtfLEGECAViByA3JNflZImOk11G9hwSd+44jvzrc99J35u5l+fbdQ2+ZG441GvOpaeGYBmWquZsbQ==",
       "dependencies": [
         "qr",
@@ -6338,7 +6339,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/eciesjs/-/eciesjs-0.4.18.tgz"
     },
-    "ecpair@3.0.1_typescript@5.9.3": {
+    "ecpair@3.0.1_typescript@5.8.3": {
       "integrity": "sha512-uz8wMFvtdr58TLrXnAesBsoMEyY8UudLOfApcyg40XfZjP+gt1xO4cuZSIkZ8hTMTQ8+ETgt7xSIV4eM7M6VNw==",
       "dependencies": [
         "uint8array-tools@0.0.8",
@@ -8060,7 +8061,7 @@
       "integrity": "sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A==",
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/minipass/-/minipass-7.1.3.tgz"
     },
-    "mipd@0.0.7_typescript@5.9.3": {
+    "mipd@0.0.7_typescript@5.8.3": {
       "integrity": "sha512-aAPZPNDQ3uMTdKbuO2YmAw2TxLHO0moa4YKAyETM/DTj5FloZo+a+8tU+iv4GmW+sOxKLSRwcSFuczk+Cpt6fg==",
       "dependencies": [
         "typescript"
@@ -8270,7 +8271,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/own-keys/-/own-keys-1.0.2.tgz"
     },
-    "ox@0.14.33_typescript@5.9.3_zod@3.22.4": {
+    "ox@0.14.33_typescript@5.8.3_zod@3.22.4": {
       "integrity": "sha512-rooA/4o7bBof4Ge2VH/eovfNPb/AEEYyrNj03wggc55g5HZD8Pjs/OeWhttgjic3dDcqn0r29bDuvQEdTiUemQ==",
       "dependencies": [
         "@adraffy/ens-normalize",
@@ -8279,7 +8280,7 @@
         "@noble/hashes@1.8.0",
         "@scure/bip32@1.7.0",
         "@scure/bip39@1.6.0",
-        "abitype@1.2.3_typescript@5.9.3_zod@3.22.4",
+        "abitype@1.2.3_typescript@5.8.3_zod@3.22.4",
         "eventemitter3@5.0.1",
         "typescript"
       ],
@@ -8288,7 +8289,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/ox/-/ox-0.14.33.tgz"
     },
-    "ox@0.14.33_typescript@5.9.3_zod@3.25.76": {
+    "ox@0.14.33_typescript@5.8.3_zod@3.25.76": {
       "integrity": "sha512-rooA/4o7bBof4Ge2VH/eovfNPb/AEEYyrNj03wggc55g5HZD8Pjs/OeWhttgjic3dDcqn0r29bDuvQEdTiUemQ==",
       "dependencies": [
         "@adraffy/ens-normalize",
@@ -8297,7 +8298,7 @@
         "@noble/hashes@1.8.0",
         "@scure/bip32@1.7.0",
         "@scure/bip39@1.6.0",
-        "abitype@1.2.3_typescript@5.9.3_zod@3.25.76",
+        "abitype@1.2.3_typescript@5.8.3_zod@3.25.76",
         "eventemitter3@5.0.1",
         "typescript"
       ],
@@ -8306,7 +8307,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/ox/-/ox-0.14.33.tgz"
     },
-    "ox@0.14.33_typescript@5.9.3_zod@4.4.3": {
+    "ox@0.14.33_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-rooA/4o7bBof4Ge2VH/eovfNPb/AEEYyrNj03wggc55g5HZD8Pjs/OeWhttgjic3dDcqn0r29bDuvQEdTiUemQ==",
       "dependencies": [
         "@adraffy/ens-normalize",
@@ -8315,7 +8316,7 @@
         "@noble/hashes@1.8.0",
         "@scure/bip32@1.7.0",
         "@scure/bip39@1.6.0",
-        "abitype@1.2.3_typescript@5.9.3_zod@4.4.3",
+        "abitype@1.2.3_typescript@5.8.3_zod@4.4.3",
         "eventemitter3@5.0.1",
         "typescript"
       ],
@@ -8324,7 +8325,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/ox/-/ox-0.14.33.tgz"
     },
-    "ox@0.6.7_typescript@5.9.3_zod@4.4.3": {
+    "ox@0.6.7_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-17Gk/eFsFRAZ80p5eKqv89a57uXjd3NgIf1CaXojATPBuujVc/fQSVhBeAU9JCRB+k7J50WQAyWTxK19T9GgbA==",
       "dependencies": [
         "@adraffy/ens-normalize",
@@ -8332,7 +8333,7 @@
         "@noble/hashes@1.8.0",
         "@scure/bip32@1.7.0",
         "@scure/bip39@1.6.0",
-        "abitype@1.2.3_typescript@5.9.3_zod@4.4.3",
+        "abitype@1.2.3_typescript@5.8.3_zod@4.4.3",
         "eventemitter3@5.0.1",
         "typescript"
       ],
@@ -8341,7 +8342,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/ox/-/ox-0.6.7.tgz"
     },
-    "ox@0.6.9_typescript@5.9.3_zod@4.4.3": {
+    "ox@0.6.9_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-wi5ShvzE4eOcTwQVsIPdFr+8ycyX+5le/96iAJutaZAvCes1J0+RvpEPg5QDPDiaR0XQQAvZVl7AwqQcINuUug==",
       "dependencies": [
         "@adraffy/ens-normalize",
@@ -8349,7 +8350,7 @@
         "@noble/hashes@1.8.0",
         "@scure/bip32@1.7.0",
         "@scure/bip39@1.6.0",
-        "abitype@1.2.3_typescript@5.9.3_zod@4.4.3",
+        "abitype@1.2.3_typescript@5.8.3_zod@4.4.3",
         "eventemitter3@5.0.1",
         "typescript"
       ],
@@ -8358,7 +8359,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/ox/-/ox-0.6.9.tgz"
     },
-    "ox@0.9.17_typescript@5.9.3_zod@4.4.3": {
+    "ox@0.9.17_typescript@5.8.3_zod@4.4.3": {
       "integrity": "sha512-rKAnhzhRU3Xh3hiko+i1ZxywZ55eWQzeS/Q4HRKLx2PqfHOolisZHErSsJVipGlmQKHW5qwOED/GighEw9dbLg==",
       "dependencies": [
         "@adraffy/ens-normalize",
@@ -8367,7 +8368,7 @@
         "@noble/hashes@1.8.0",
         "@scure/bip32@1.7.0",
         "@scure/bip39@1.6.0",
-        "abitype@1.2.3_typescript@5.9.3_zod@4.4.3",
+        "abitype@1.2.3_typescript@5.8.3_zod@4.4.3",
         "eventemitter3@5.0.1",
         "typescript"
       ],
@@ -8525,7 +8526,7 @@
       "integrity": "sha512-M7LhCsdNbNgiLYiP4WjsfLUuFmCfnjdF6jKe2R9NKl4WFN+HZPGHJZ9lnLP7f9ZnKe3U9nuWD0szirmj+migUg==",
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/pony-cause/-/pony-cause-2.1.11.tgz"
     },
-    "porto@0.2.35_@tanstack+react-query@5.101.4__react@18.3.1_@wagmi+core@2.22.1__typescript@5.9.3__viem@2.55.10___typescript@5.9.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@types+react@18.3.31__react@18.3.1__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3_react@18.3.1_typescript@5.9.3_viem@2.55.10__typescript@5.9.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_wagmi@2.19.5__@tanstack+react-query@5.101.4___react@18.3.1__react@18.3.1__typescript@5.9.3__viem@2.55.10___typescript@5.9.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@wagmi+core@2.22.1___typescript@5.9.3___viem@2.55.10____typescript@5.9.3____zod@4.4.3____ws@8.21.0_____bufferutil@4.1.0_____utf-8-validate@5.0.10___@types+react@18.3.31___react@18.3.1___use-sync-external-store@1.4.0____react@18.3.1___zod@4.4.3__@types+react@18.3.31__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3__fastestsmallesttextencoderdecoder@1.0.22_@types+react@18.3.31_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "porto@0.2.35_@tanstack+react-query@5.101.4__react@18.3.1_@wagmi+core@2.22.1__typescript@5.8.3__viem@2.55.10___typescript@5.8.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@types+react@18.3.31__react@18.3.1__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3_react@18.3.1_typescript@5.8.3_viem@2.55.10__typescript@5.8.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_wagmi@2.19.5__@tanstack+react-query@5.101.4___react@18.3.1__react@18.3.1__typescript@5.8.3__viem@2.55.10___typescript@5.8.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@wagmi+core@2.22.1___typescript@5.8.3___viem@2.55.10____typescript@5.8.3____zod@4.4.3____ws@8.21.0_____bufferutil@4.1.0_____utf-8-validate@5.0.10___@types+react@18.3.31___react@18.3.1___use-sync-external-store@1.4.0____react@18.3.1___zod@4.4.3__@types+react@18.3.31__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3__fastestsmallesttextencoderdecoder@1.0.22_@types+react@18.3.31_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-gu9FfjjvvYBgQXUHWTp6n3wkTxVtEcqFotM7i3GEZeoQbvLGbssAicCz6hFZ8+xggrJWwi/RLmbwNra50SMmUQ==",
       "dependencies": [
         "@tanstack/react-query",
@@ -8533,10 +8534,10 @@
         "hono",
         "idb-keyval",
         "mipd",
-        "ox@0.9.17_typescript@5.9.3_zod@4.4.3",
+        "ox@0.9.17_typescript@5.8.3_zod@4.4.3",
         "react",
         "typescript",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
         "wagmi",
         "zod@4.4.3",
         "zustand@5.0.3_@types+react@18.3.31_react@18.3.1_use-sync-external-store@1.4.0__react@18.3.1"
@@ -9812,7 +9813,7 @@
       "integrity": "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==",
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/tr46/-/tr46-0.0.3.tgz"
     },
-    "ts-api-utils@2.5.0_typescript@5.9.3": {
+    "ts-api-utils@2.5.0_typescript@5.8.3": {
       "integrity": "sha512-OJ/ibxhPlqrMM0UiNHJ/0CKQkoKF243/AEmplt3qpRgkW8VG7IfOS41h7V8TjITqdByHzrjcS/2si+y4lIh8NA==",
       "dependencies": [
         "typescript"
@@ -9922,7 +9923,7 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/typed-array-length/-/typed-array-length-1.0.8.tgz"
     },
-    "typescript-eslint@8.65.0_eslint@9.39.5_typescript@5.9.3_@typescript-eslint+parser@8.65.0__eslint@9.39.5__typescript@5.9.3": {
+    "typescript-eslint@8.65.0_eslint@9.39.5_typescript@5.8.3_@typescript-eslint+parser@8.65.0__eslint@9.39.5__typescript@5.8.3": {
       "integrity": "sha512-/ggrHAwyjENDusvyxbuqxAC2dTnZg/Z8F+fgQtYIz+L6n/9HfSlEZcFGV/NsMNa6CkGk0xUjUAFwC0vHOflvIA==",
       "dependencies": [
         "@typescript-eslint/eslint-plugin",
@@ -9934,10 +9935,10 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/typescript-eslint/-/typescript-eslint-8.65.0.tgz"
     },
-    "typescript@5.9.3": {
-      "integrity": "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==",
+    "typescript@5.8.3": {
+      "integrity": "sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==",
       "bin": true,
-      "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/typescript/-/typescript-5.9.3.tgz"
+      "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/typescript/-/typescript-5.8.3.tgz"
     },
     "ua-is-frozen@0.1.2": {
       "integrity": "sha512-RwKDW2p3iyWn4UbaxpP2+VxwqXh0jpvdxsYpZ5j/MLLiQOfbsV5shpgQiw93+KMYQPcteeMQ289MaAFzs3G9pw==",
@@ -10166,7 +10167,7 @@
       "bin": true,
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/uuid/-/uuid-9.0.1.tgz"
     },
-    "valibot@1.4.2_typescript@5.9.3": {
+    "valibot@1.4.2_typescript@5.8.3": {
       "integrity": "sha512-gjdCvJ6d3RyHAneqxMYMW9QMCwYMb3jpOO0IyHZV1bnRHFBHrX3VkIILt5XYR0WhwHiH7Mty8ovuPZ/O3gamrg==",
       "dependencies": [
         "typescript"
@@ -10231,16 +10232,16 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/victory-vendor/-/victory-vendor-36.9.2.tgz"
     },
-    "viem@2.23.2_typescript@5.9.3_zod@4.4.3_ws@8.18.0": {
+    "viem@2.23.2_typescript@5.8.3_zod@4.4.3_ws@8.18.0": {
       "integrity": "sha512-NVmW/E0c5crMOtbEAqMF0e3NmvQykFXhLOc/CkLIXOlzHSA6KXVz3CYVmaKqBF8/xtjsjHAGjdJN3Ru1kFJLaA==",
       "dependencies": [
         "@noble/curves@1.8.1",
         "@noble/hashes@1.7.1",
         "@scure/bip32@1.6.2",
         "@scure/bip39@1.5.4",
-        "abitype@1.0.8_typescript@5.9.3_zod@4.4.3",
+        "abitype@1.0.8_typescript@5.8.3_zod@4.4.3",
         "isows@1.0.6_ws@8.18.0",
-        "ox@0.6.7_typescript@5.9.3_zod@4.4.3",
+        "ox@0.6.7_typescript@5.8.3_zod@4.4.3",
         "typescript",
         "ws@8.18.0"
       ],
@@ -10249,16 +10250,16 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/viem/-/viem-2.23.2.tgz"
     },
-    "viem@2.55.10_typescript@5.9.3_zod@3.22.4_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10": {
+    "viem@2.55.10_typescript@5.8.3_zod@3.22.4_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10": {
       "integrity": "sha512-Q9Ba+/ma81U2M5o5P2AQ7Ux8rTIwmCZvUcr8rKdQ22bV0IBFHllM2m5gWDP8hFaUN2nH2oW3QG44amRazflYNQ==",
       "dependencies": [
         "@noble/curves@1.9.1",
         "@noble/hashes@1.8.0",
         "@scure/bip32@1.7.0",
         "@scure/bip39@1.6.0",
-        "abitype@1.2.3_typescript@5.9.3_zod@3.22.4",
+        "abitype@1.2.3_typescript@5.8.3_zod@3.22.4",
         "isows@1.0.7_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
-        "ox@0.14.33_typescript@5.9.3_zod@3.22.4",
+        "ox@0.14.33_typescript@5.8.3_zod@3.22.4",
         "typescript",
         "ws@8.21.0_bufferutil@4.1.0_utf-8-validate@5.0.10"
       ],
@@ -10267,16 +10268,16 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/viem/-/viem-2.55.10.tgz"
     },
-    "viem@2.55.10_typescript@5.9.3_zod@3.25.76_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10": {
+    "viem@2.55.10_typescript@5.8.3_zod@3.25.76_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10": {
       "integrity": "sha512-Q9Ba+/ma81U2M5o5P2AQ7Ux8rTIwmCZvUcr8rKdQ22bV0IBFHllM2m5gWDP8hFaUN2nH2oW3QG44amRazflYNQ==",
       "dependencies": [
         "@noble/curves@1.9.1",
         "@noble/hashes@1.8.0",
         "@scure/bip32@1.7.0",
         "@scure/bip39@1.6.0",
-        "abitype@1.2.3_typescript@5.9.3_zod@3.25.76",
+        "abitype@1.2.3_typescript@5.8.3_zod@3.25.76",
         "isows@1.0.7_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
-        "ox@0.14.33_typescript@5.9.3_zod@3.25.76",
+        "ox@0.14.33_typescript@5.8.3_zod@3.25.76",
         "typescript",
         "ws@8.21.0_bufferutil@4.1.0_utf-8-validate@5.0.10"
       ],
@@ -10285,16 +10286,16 @@
       ],
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/viem/-/viem-2.55.10.tgz"
     },
-    "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10": {
+    "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10": {
       "integrity": "sha512-Q9Ba+/ma81U2M5o5P2AQ7Ux8rTIwmCZvUcr8rKdQ22bV0IBFHllM2m5gWDP8hFaUN2nH2oW3QG44amRazflYNQ==",
       "dependencies": [
         "@noble/curves@1.9.1",
         "@noble/hashes@1.8.0",
         "@scure/bip32@1.7.0",
         "@scure/bip39@1.6.0",
-        "abitype@1.2.3_typescript@5.9.3_zod@4.4.3",
+        "abitype@1.2.3_typescript@5.8.3_zod@4.4.3",
         "isows@1.0.7_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10",
-        "ox@0.14.33_typescript@5.9.3_zod@4.4.3",
+        "ox@0.14.33_typescript@5.8.3_zod@4.4.3",
         "typescript",
         "ws@8.21.0_bufferutil@4.1.0_utf-8-validate@5.0.10"
       ],
@@ -10336,7 +10337,7 @@
       "integrity": "sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==",
       "tarball": "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/w3c-keyname/-/w3c-keyname-2.2.8.tgz"
     },
-    "wagmi@2.19.5_@tanstack+react-query@5.101.4__react@18.3.1_react@18.3.1_typescript@5.9.3_viem@2.55.10__typescript@5.9.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_@wagmi+core@2.22.1__typescript@5.9.3__viem@2.55.10___typescript@5.9.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@types+react@18.3.31__react@18.3.1__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3_@types+react@18.3.31_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22": {
+    "wagmi@2.19.5_@tanstack+react-query@5.101.4__react@18.3.1_react@18.3.1_typescript@5.8.3_viem@2.55.10__typescript@5.8.3__zod@4.4.3__ws@8.21.0___bufferutil@4.1.0___utf-8-validate@5.0.10_@wagmi+core@2.22.1__typescript@5.8.3__viem@2.55.10___typescript@5.8.3___zod@4.4.3___ws@8.21.0____bufferutil@4.1.0____utf-8-validate@5.0.10__@types+react@18.3.31__react@18.3.1__use-sync-external-store@1.4.0___react@18.3.1__zod@4.4.3_@types+react@18.3.31_use-sync-external-store@1.4.0__react@18.3.1_zod@4.4.3_fastestsmallesttextencoderdecoder@1.0.22": {
       "integrity": "sha512-RQUfKMv6U+EcSNNGiPbdkDtJwtuFxZWLmvDiQmjjBgkuPulUwDJsKhi7gjynzJdsx2yDqhHCXkKsbbfbIsHfcQ==",
       "dependencies": [
         "@tanstack/react-query",
@@ -10345,7 +10346,7 @@
         "react",
         "typescript",
         "use-sync-external-store@1.4.0_react@18.3.1",
-        "viem@2.55.10_typescript@5.9.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
+        "viem@2.55.10_typescript@5.8.3_zod@4.4.3_ws@8.21.0__bufferutil@4.1.0__utf-8-validate@5.0.10"
       ],
       "optionalPeers": [
         "typescript"

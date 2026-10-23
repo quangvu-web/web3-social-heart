@@ -91,10 +91,45 @@ export function wordsToSentence(words: RecallWord[]): { text: string; startSec: 
   // Recall trả words đã tách; nối bằng space rồi dọn space trước dấu câu.
   const text = parts
     .join(" ")
-    .replace(/\s+([,.!?;:%)\]])/g, "$1")
+    .replace(/\s+([,.!?;:%…)\]])/g, "$1")
+    .replace(/(\d)\.\s+(?=\d)/g, "$1.")
     .replace(/([(\[])\s+/g, "$1")
     .trim();
   return { text, startSec };
+}
+
+/** Chia một lượt nói final thành các câu ngắn, giữ mốc của từ đầu mỗi câu. */
+export function splitCaptionSentences(words: RecallWord[]): Array<{ text: string; startSec: number | null }> {
+  const nonempty = (words ?? []).filter((word) => String(word?.text ?? "").trim());
+  const sentences: Array<{ text: string; startSec: number | null }> = [];
+  let pending: RecallWord[] = [];
+  const flush = (count = pending.length) => {
+    const chunk = pending.splice(0, count);
+    const sentence = wordsToSentence(chunk);
+    if (sentence.text) sentences.push(sentence);
+  };
+
+  for (let i = 0; i < nonempty.length; i++) {
+    const word = nonempty[i];
+    const value = String(word.text).trim();
+    pending.push(word);
+    const previous = i > 0 ? String(nonempty[i - 1].text).trim() : "";
+    const next = i + 1 < nonempty.length ? String(nonempty[i + 1].text).trim() : "";
+    const numericDot = /\.$/.test(value) && /\d$/.test(value.slice(0, -1) || previous) && /^\d/.test(next);
+    if (/[.!?…][”"')\]]*$/.test(value) && !numericDot) {
+      flush();
+      continue;
+    }
+    if (pending.length > 45) {
+      let cutoff = -1;
+      for (let j = pending.length - 1; j >= 29; j--) {
+        if (/[;,]$/.test(String(pending[j].text).trim())) { cutoff = j + 1; break; }
+      }
+      flush(cutoff > 0 ? cutoff : 45);
+    }
+  }
+  if (pending.length) flush();
+  return sentences;
 }
 
 const VI_DIACRITIC_RE = /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i;

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import ts from "npm:typescript@5.8.3";
+import { splitCaptionSentences } from "./caption-utils.ts";
 
 // Exercise the production webhook handlers in isolation: no Recall, AI or database calls.
 const source = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
@@ -11,6 +12,7 @@ function getAdmin() { return admin; }
 function json(value, status = 200) { return Response.json(value, { status }); }
 async function verifySvixSignature() { return true; }
 function wordsToSentence(words) { return { text: words.map(w => w.text).join(' '), startSec: 1 }; }
+function splitCaptionSentences(words) { return globalThis.__captionSplit(words); }
 function applyHearingCorrections(text) { return text; }
 function detectSourceLang() { return 'en'; }
 async function computeDedupeKey() { return 'fixture-dedupe'; }
@@ -23,6 +25,7 @@ ${handlers}
 export { handleRecallWebhook };
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
 const { setAdmin, handleRecallWebhook } = await import(`data:application/javascript,${encodeURIComponent(isolated)}`);
+(globalThis as Record<string, unknown>).__captionSplit = splitCaptionSentences;
 
 function fixture(status: string, startedAt: string | null = null, metadataOnly = false) {
   const updates: Record<string, unknown>[] = [];

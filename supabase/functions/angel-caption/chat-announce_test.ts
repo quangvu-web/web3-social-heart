@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import ts from "npm:typescript@5.8.3";
+import { splitCaptionSentences } from "./caption-utils.ts";
 
 const source = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
 const helpers = source.slice(source.indexOf("// Lazy work factories"), source.indexOf("// ---------- Action: start"));
@@ -16,6 +17,7 @@ function json(value, status = 200) { return Response.json(value, { status }); }
 async function verifySvixSignature() { return true; }
 async function runSummarize() {}
 function wordsToSentence(words) { return { text: words.map((word) => word.text).join(" "), startSec: 1 }; }
+function splitCaptionSentences(words) { return globalThis.__captionSplit(words); }
 function applyHearingCorrections(text) { return text; }
 function detectSourceLang() { return "en"; }
 async function computeDedupeKey() { return "line-1"; }
@@ -27,6 +29,7 @@ export async function callAnnounce(...args) { return announceCaptionLink(...args
 export { handleAnnounce, handleBotStatusChange, handleTranscriptData, reconcileOrphanSessions, scheduleCaptionWork, probeJoinAnnouncement };
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
 const mod = await import(`data:application/javascript,${encodeURIComponent(isolated)}`);
+(globalThis as Record<string, unknown>).__captionSplit = splitCaptionSentences;
 
 type Row = Record<string, unknown>;
 function fixture(status = "joining", ageMinutes = 3) {

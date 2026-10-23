@@ -53,7 +53,7 @@ export function extractMeetingKey(meetingUrl: string): string | null {
       const m = path.match(/\/([a-z]{3}-[a-z]{4}-[a-z]{3})(\/|$)/i);
       if (m) return `meet:${m[1].toLowerCase()}`;
     }
-    const normalized = `${host}${path}`;
+    const normalized = `${host}${path.toLowerCase()}`;
     return normalized || null;
   } catch {
     return null;

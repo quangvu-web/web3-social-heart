@@ -16,6 +16,7 @@ import { withUsage } from "../_shared/track-cloud-usage.ts";
 import { callAiGateway, gatewayText } from "../_shared/ai-gateway-retry.ts";
 import { callCommunityTelegram } from "../_shared/telegram-community.ts";
 import { MODELS } from "../_shared/angel/models.ts";
+import { formatSummaryForTelegram } from "./summary-format.ts";
 import {
   applyHearingCorrections,
   computeDedupeKey,
@@ -182,8 +183,13 @@ async function summarizeSession(lines: Array<{ speaker_name: string | null; text
           role: "system",
           content:
             "Bạn là trợ lý tóm tắt buổi họp cộng đồng FUN. Tóm tắt SONG NGỮ theo đúng cấu trúc sau, mỗi phần có bản Tiếng Việt rồi bản English:\n" +
-            "1) Chủ đề chính / Main topic\n2) Điểm chính (3–7 ý) / Key points\n3) Câu hỏi & trả lời nổi bật / Notable Q&A\n4) Việc cần làm sau họp (nếu có) / Action items\n" +
-            `Viết ngắn gọn, gạch đầu dòng, không markdown code block. ${GLOSSARY_NOTE}`,
+            "🎯 **1) Chủ đề chính / Main topic**\n" +
+            "💡 **2) Điểm chính / Key points**\n" +
+            "❓ **3) Câu hỏi & trả lời nổi bật / Notable Q&A**\n" +
+            "✅ **4) Việc cần làm sau họp / Action items**\n" +
+            "Trong mỗi mục, viết tiếng Việt trước rồi English; mục Điểm chính có 3–7 ý, mục Việc cần làm chỉ nêu việc có thật trong buổi họp. " +
+            "Mỗi ý một dòng bắt đầu bằng '- '. Trong Q&A, bao đậm các nhãn **- Câu hỏi:**, **- Trả lời:**, **- Q:**, **- A:**. " +
+            `Ngoài các cặp ** theo mẫu trên, không dùng ký tự * ở bất cứ đâu khác; không dùng markdown code block. Viết ngắn gọn. ${GLOSSARY_NOTE}`,
         },
         { role: "user", content: `TRANSCRIPT:\n${transcript}` },
       ],
@@ -311,7 +317,7 @@ async function runSummarize(admin: SupabaseClient, sessionId: string) {
     `⏱ Thời lượng / Duration: ~${minutes} phút / min`,
     `🔗 Xem lại toàn bộ phụ đề / Full transcript: ${captionUrl(session.public_code)}`,
     "",
-    escapeHtml(summary.vi).replace(/\n/g, "\n"),
+    formatSummaryForTelegram(escapeHtml(summary.vi)),
   ].join("\n");
 
   await sendSummaryToCommunity(admin, text, session.created_by_chat_id ?? null);

@@ -283,7 +283,7 @@ async function runSummarize(admin: SupabaseClient, sessionId: string) {
 }
 
 // Lazy work factories keep AI/Recall calls outside the webhook acknowledgement path.
-function scheduleCaptionWork(kind: "summarize" | "reconcile", sessionId?: string) {
+function scheduleCaptionWork(kind: "summarize" | "reconcile" | "announce", sessionId?: string) {
   const runtime = (globalThis as typeof globalThis & {
     EdgeRuntime?: { waitUntil: (task: Promise<unknown>) => void };
   }).EdgeRuntime;
@@ -291,7 +291,9 @@ function scheduleCaptionWork(kind: "summarize" | "reconcile", sessionId?: string
   if (runtime?.waitUntil) {
     const task = Promise.resolve().then(() => kind === "reconcile"
       ? reconcileOrphanSessions()
-      : sessionId ? runSummarize(getAdmin(), sessionId) : undefined).catch(failure);
+      : sessionId ? kind === "announce"
+        ? runCaptionAnnouncement(getAdmin(), sessionId, "transcript")
+        : runSummarize(getAdmin(), sessionId) : undefined).catch(failure);
     runtime.waitUntil(task);
     return;
   }
@@ -322,16 +324,139 @@ async function closeCaptionSession(admin: SupabaseClient, session: { id: string;
   return true;
 }
 
+interface CaptionAnnouncementSession {
+  id: string;
+  public_code: string;
+  recall_bot_id: string | null;
+}
+
+async function announceCaptionLink(
+  admin: SupabaseClient,
+  session: CaptionAnnouncementSession,
+  trigger: "status" | "transcript" | "reconcile",
+) {
+  const logResult = (result: string) => console.log("[angel-caption] chat_announce", {
+    session_id: session.id, trigger, result,
+  });
+  const claimedAt = new Date().toISOString();
+  const { count, error } = await admin.from("caption_sessions")
+    .update({ chat_announced_at: claimedAt }, { count: "exact" })
+    .eq("id", session.id).is("chat_announced_at", null);
+  if (error) {
+    console.warn("[angel-caption] chat announce claim failed", { session_id: session.id, trigger, code: error.code ?? "unknown" });
+    logResult("claim_failed");
+    return;
+  }
+  if (count !== 1) { logResult("claimed_by_other"); return; }
+
+  try {
+    if (!session.recall_bot_id) throw new Error("recall_bot_id_missing");
+    const chatRes = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/send_chat_message/`, {
+      method: "POST",
+      body: JSON.stringify({
+        to: "everyone",
+        message:
+          `Dear international friends, welcome to our FUN Community Zoom session! ❤️🙏🌍
+
+Our program includes guided meditation and presentations in both Vietnamese and English.
+
+To help everyone follow and understand the session, please click the translation link below to view live subtitles in your preferred language.
+
+🔗 Translation link: ${captionUrl(session.public_code)}
+
+We hope everyone can fully participate, learn, and enjoy this beautiful journey of love, peace, and spiritual growth together.
+
+Thank you so much for joining us!
+
+May Father Universe bless you all with love, light, and peace! 🙏💜💙🩵🌈
+
+🎙️ This session is recorded and transcribed to generate the live captions. / Buổi họp được ghi và chép lời để tạo phụ đề trực tiếp.`,
+      }),
+    });
+    if (!chatRes.ok) throw new Error(`recall_status_${chatRes.status}`);
+    logResult("sent");
+  } catch (error) {
+    const rollback = await admin.from("caption_sessions")
+      .update({ chat_announced_at: null }, { count: "exact" })
+      .eq("id", session.id).eq("chat_announced_at", claimedAt);
+    console.warn("[angel-caption] meeting chat message failed", {
+      session_id: session.id, trigger,
+      error: error instanceof Error ? error.message : String(error),
+      rollback_code: rollback.error?.code ?? null,
+    });
+    logResult(rollback.error || rollback.count !== 1 ? "rollback_failed" : "recall_failed_rolled_back");
+  }
+}
+
+async function runCaptionAnnouncement(
+  admin: SupabaseClient,
+  sessionId: string,
+  trigger: "transcript" | "reconcile",
+) {
+  const { data: session, error } = await admin.from("caption_sessions")
+    .select("id, public_code, recall_bot_id, status")
+    .eq("id", sessionId).maybeSingle();
+  if (error) throw new Error("caption_announce_lookup_failed");
+  if (!session || !["pending", "joining", "live"].includes(session.status)) return;
+  await announceCaptionLink(admin, session, trigger);
+}
+
+// A short background probe covers quiet rooms when Recall's status webhook never arrives.
+// The normal status/transcript/reconcile paths remain the durable fallbacks.
+async function probeJoinAnnouncement(
+  session: CaptionAnnouncementSession,
+  attempts = 6,
+  intervalMs = 8_000,
+) {
+  if (!session.recall_bot_id) return;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    try {
+      const bot = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/`, {
+        signal: AbortSignal.timeout(4_000),
+      });
+      if (!bot.ok) continue;
+      const changes = Array.isArray(bot.data?.status_changes) ? bot.data.status_changes : [];
+      const code = changes.at(-1)?.code ?? "";
+      if (code === "call_ended" || code === "done") return;
+      if (code === "in_call_recording" || code === "in_call_not_recording") {
+        await announceCaptionLink(getAdmin(), session, "reconcile");
+        return;
+      }
+    } catch {
+      console.warn("[angel-caption] join_announce_probe_failed", { session_id: session.id, attempt: attempt + 1 });
+    }
+  }
+}
+
+function scheduleJoinAnnouncementProbe(session: CaptionAnnouncementSession) {
+  const runtime = (globalThis as typeof globalThis & {
+    EdgeRuntime?: { waitUntil: (task: Promise<unknown>) => void };
+  }).EdgeRuntime;
+  if (!runtime?.waitUntil) return;
+  runtime.waitUntil(probeJoinAnnouncement(session).catch(() => {
+    console.warn("[angel-caption] join_announce_probe_failed", { session_id: session.id });
+  }));
+}
+
 async function reconcileOrphanSessions() {
   const admin = getAdmin();
-  const cutoff = new Date(Date.now() - 3 * 60_000).toISOString();
-  const { data: sessions, error } = await admin.from("caption_sessions")
-    .select("id, status, recall_bot_id, created_at")
+  const closeCutoff = new Date(Date.now() - 3 * 60_000).toISOString();
+  const announceCutoff = new Date(Date.now() - 2 * 60_000).toISOString();
+  const { data: staleSessions, error: staleError } = await admin.from("caption_sessions")
+    .select("id, public_code, status, recall_bot_id, created_at, chat_announced_at")
     .in("status", ["joining", "live"]).not("recall_bot_id", "is", null)
-    .lt("created_at", cutoff).order("created_at", { ascending: true }).limit(5);
-  if (error) throw new Error("caption_reconcile_lookup_failed");
-  for (const session of (sessions ?? []).slice(0, 5)) {
-    if (!session.recall_bot_id || Date.parse(session.created_at) >= Date.parse(cutoff)) continue;
+    .lt("created_at", closeCutoff).order("created_at", { ascending: true }).limit(5);
+  const { data: unannouncedSessions, error: announceError } = await admin.from("caption_sessions")
+    .select("id, public_code, status, recall_bot_id, created_at, chat_announced_at")
+    .in("status", ["joining", "live"]).not("recall_bot_id", "is", null)
+    .is("chat_announced_at", null)
+    .lt("created_at", announceCutoff).order("created_at", { ascending: true }).limit(5);
+  if (staleError || announceError) throw new Error("caption_reconcile_lookup_failed");
+  const sessions = new Map<string, NonNullable<typeof staleSessions>[number]>();
+  for (const session of [...(staleSessions ?? []), ...(unannouncedSessions ?? [])]) sessions.set(session.id, session);
+  for (const session of sessions.values()) {
+    if (!session.recall_bot_id) continue;
     try {
       const bot = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/`, {
         signal: AbortSignal.timeout(10_000),
@@ -342,9 +467,13 @@ async function reconcileOrphanSessions() {
       }
       const changes = Array.isArray(bot.data?.status_changes) ? bot.data.status_changes : [];
       const code = changes.at(-1)?.code ?? "";
-      if (code !== "call_ended" && code !== "done") continue;
-      const closed = await closeCaptionSession(admin, session, "ended");
-      console.log("[angel-caption] reconcile_result", { session_id: session.id, code, result: closed ? "closed" : "ignored" });
+      if ((code === "call_ended" || code === "done") && Date.parse(session.created_at) < Date.parse(closeCutoff)) {
+        const closed = await closeCaptionSession(admin, session, "ended");
+        console.log("[angel-caption] reconcile_result", { session_id: session.id, code, result: closed ? "closed" : "ignored" });
+      } else if ((code === "in_call_recording" || code === "in_call_not_recording") &&
+        session.chat_announced_at === null && Date.parse(session.created_at) < Date.parse(announceCutoff)) {
+        await announceCaptionLink(admin, session, "reconcile");
+      }
     } catch {
       console.error("[angel-caption] reconcile_failed", { session_id: session.id });
     }
@@ -505,6 +634,8 @@ async function handleStart(req: Request): Promise<Response> {
     .update({ recall_bot_id: bot.botId, status: "joining" })
     .eq("id", session.id);
 
+  scheduleJoinAnnouncementProbe({ ...session, recall_bot_id: bot.botId });
+
   return json({
     session_id: session.id,
     public_code: session.public_code,
@@ -531,7 +662,7 @@ async function findSessionByBot(admin: SupabaseClient, botId: string | null, met
   if (botId) {
     const { data } = await admin
       .from("caption_sessions")
-      .select("id, public_code, status, started_at")
+      .select("id, public_code, recall_bot_id, status, started_at")
       .eq("recall_bot_id", botId)
       .maybeSingle();
     if (data) return data;
@@ -539,7 +670,7 @@ async function findSessionByBot(admin: SupabaseClient, botId: string | null, met
   if (metadataSessionId) {
     const { data } = await admin
       .from("caption_sessions")
-      .select("id, public_code, status, started_at")
+      .select("id, public_code, recall_bot_id, status, started_at")
       .eq("id", metadataSessionId)
       .maybeSingle();
     if (data) return data;
@@ -561,6 +692,7 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
       .update({ status: "live", ...(!session.started_at ? { started_at: new Date().toISOString() } : {}) })
       .eq("id", session.id)
       .in("status", ["pending", "joining"]);
+    scheduleCaptionWork("announce", session.id);
   }
 
   const words = payload.data?.data?.words ?? [];
@@ -641,40 +773,12 @@ async function handleBotStatusChange(
     return;
   }
   if (code === "in_call_recording" || code === "in_call_not_recording") {
-    const firstLive = session.status !== "live";
     await admin
       .from("caption_sessions")
       .update({ status: "live", ...(session.status !== "live" ? { started_at: nowIso } : {}) })
       .eq("id", session.id);
 
-    if (firstLive && botId) {
-      const chatRes = await recallFetch(`/api/v1/bot/${botId}/send_chat_message/`, {
-        method: "POST",
-        body: JSON.stringify({
-          to: "everyone",
-          message:
-            `Dear international friends, welcome to our FUN Community Zoom session! ❤️🙏🌍
-
-Our program includes guided meditation and presentations in both Vietnamese and English.
-
-To help everyone follow and understand the session, please click the translation link below to view live subtitles in your preferred language.
-
-🔗 Translation link: ${captionUrl(session.public_code)}
-
-We hope everyone can fully participate, learn, and enjoy this beautiful journey of love, peace, and spiritual growth together.
-
-Thank you so much for joining us!
-
-May Father Universe bless you all with love, light, and peace! 🙏💜💙🩵🌈
-
-🎙️ This session is recorded and transcribed to generate the live captions. / Buổi họp được ghi và chép lời để tạo phụ đề trực tiếp.`,
-        }),
-      });
-      if (!chatRes.ok) {
-        // Không chặn luồng — người điều phối sẽ dán link tay.
-        console.warn("[angel-caption] meeting chat message failed", { status: chatRes.status, bot_id: botId });
-      }
-    }
+    await announceCaptionLink(admin, { ...session, recall_bot_id: session.recall_bot_id ?? botId }, "status");
     logResult("live");
     return;
   }
@@ -793,6 +897,19 @@ async function handleSummarize(req: Request): Promise<Response> {
   return json({ ok: true });
 }
 
+async function handleAnnounce(req: Request): Promise<Response> {
+  if (!checkInternalToken(req)) return json({ error: "Unauthorized" }, 401);
+  let body: { session_id?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "Body JSON không hợp lệ." }, 400);
+  }
+  if (!body.session_id) return json({ error: "Thiếu session_id." }, 400);
+  await runCaptionAnnouncement(getAdmin(), body.session_id, "transcript");
+  return json({ ok: true });
+}
+
 // ---------- Entry ----------
 
 Deno.serve(withUsage("angel-caption", "Angel Caption Bot", async (req) => {
@@ -808,6 +925,8 @@ Deno.serve(withUsage("angel-caption", "Angel Caption Bot", async (req) => {
       return await handleStop(req);
     case "summarize":
       return await handleSummarize(req);
+    case "announce":
+      return await handleAnnounce(req);
     case "reconcile":
       if (!checkInternalToken(req)) return json({ error: "Unauthorized" }, 401);
       await reconcileOrphanSessions();

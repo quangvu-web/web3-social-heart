@@ -1318,7 +1318,7 @@ export async function handlePrivateMessage(message: TelegramMessage) {
           return;
         }
         await replyDm(
-          "✅ Angel đã cho bot rời phòng họp. Tóm tắt song ngữ sẽ được đăng vào nhóm cộng đồng trong ít phút nữa nhé 💛",
+          "✅ Angel đã cho bot rời phòng họp. Tóm tắt song ngữ sẽ được gửi tới bé; kết quả đăng nhóm sẽ được báo trong bản tóm tắt nhé 💛",
           { skipAutoDelete: true },
         );
       } catch (err) {

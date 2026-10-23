@@ -111,6 +111,8 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
     assert.equal(starts.length, 2);
     await send("/caption_stop@fixture_bot");
     assert.deepEqual(stops, [{ session_id: "fixture-session" }]);
+    assert.match(replies.at(-1) ?? "", /Tóm tắt song ngữ sẽ được gửi tới bé; kết quả đăng nhóm sẽ được báo trong bản tóm tắt/);
+    assert.doesNotMatch(replies.at(-1) ?? "", /sẽ được đăng vào nhóm cộng đồng/);
     await send("/caption_invalid");
     assert.equal(starts.length, 2);
     rejectStart = true;

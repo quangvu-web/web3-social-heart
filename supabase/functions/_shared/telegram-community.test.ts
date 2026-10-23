@@ -99,6 +99,7 @@ import {
   detectMeditationTopicLanguage,
   buildMeditationSummaryQuestion,
   detectTranslationTargetLanguage,
+  resolveGroupReplyLanguage,
   resolveAngelLanguageBucket,
   detectExternalBotPromotion,
   extractText,
@@ -108,6 +109,29 @@ import {
   replyViolatesAngelLanguageBucket,
   detectFactualLookupQuery,
 } from "./telegram-community.ts";
+
+Deno.test("group language policy: English setting overrides Vietnamese messages and auto stays per-message", () => {
+  const forced = resolveGroupReplyLanguage("Angel ơi, giúp mình nhé", "en");
+  assertEquals(forced.bucket, "en");
+  assertEquals(forced.botVoiceBucket, "en");
+  if (!forced.policyNote?.includes("MUST be in English")) throw new Error("missing English group policy");
+
+  const automatic = resolveGroupReplyLanguage("Angel ơi, giúp mình nhé", "auto");
+  assertEquals(automatic.bucket, "vi");
+  assertEquals(automatic.policyNote, null);
+});
+
+Deno.test("group language policy: requested translation keeps target content with English framing", () => {
+  const translation = resolveGroupReplyLanguage("dịch sang tiếng Việt: I am grateful", "en");
+  assertEquals(translation.bucket, "vi");
+  assertEquals(translation.botVoiceBucket, "en");
+  if (!translation.policyNote?.includes("translated content itself MUST be in Vietnamese")) {
+    throw new Error("missing Vietnamese translation target");
+  }
+  if (!translation.policyNote.includes("every sentence written by Angel to introduce, frame, explain, or close the translation MUST be in English")) {
+    throw new Error("missing English framing rule");
+  }
+});
 
 Deno.test("detectFactualLookupQuery: catches Fun Rich Bé Ly account lookup", () => {
   const hit = detectFactualLookupQuery("Alo cho con biết tài khoản chính thức fun rich bé Ly");
@@ -373,6 +397,18 @@ Deno.test("renderEventAssistantPrompt: blank template uses default summary block
   if (!text.includes("Angel thấy thông báo tham gia Zoom")) throw new Error("missing intro");
   if (!text.includes("<b>Chủ đề:</b>")) throw new Error("missing topic block");
   if (!text.includes("<b>Tham gia Zoom:</b>")) throw new Error("missing zoom block");
+});
+
+Deno.test("renderEventAssistantPrompt: English group ignores a Vietnamese template", () => {
+  const text = renderEventAssistantPrompt(
+    `{{intro}}\n\n<b>Chủ đề:</b> {{topic}}\n{{closing}}`,
+    { topic: "Morning meditation", event_time: "08:00" },
+    "en",
+  );
+  if (!text.includes("Angel found a community event announcement")) throw new Error("expected English intro");
+  if (!text.includes("<b>Topic:</b>\nMorning meditation")) throw new Error("expected English topic label");
+  if (!text.includes("Angel can help convert the time")) throw new Error("expected English closing");
+  if (text.includes("Chủ đề")) throw new Error("Vietnamese template overrode English group policy");
 });
 
 Deno.test("detectTelegramPreviewSpam: raw t.me channel link in text is flagged", () => {

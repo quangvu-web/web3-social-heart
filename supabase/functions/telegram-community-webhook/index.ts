@@ -723,15 +723,33 @@ async function runJoinGate(
 
     const alertChat = (settings as any).member_alerts_chat_id;
     if ((settings as any).member_alerts_enabled && alertChat) {
+      let englishGroup = false;
+      try {
+        const sourceGroupSettings = await getSettingsForGroup(adminClient, groupId);
+        englishGroup = String(sourceGroupSettings?.reply_language ?? "auto").trim().toLowerCase() === "en";
+      } catch (err) {
+        console.warn("[GROUP_LANG] join alert settings lookup failed; using auto", {
+          chatId: groupId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
       await sendMessage(
         alertChat,
-        [
-          `🚫 <b>Đã chặn thành viên khi vào nhóm</b>`,
-          `Nhóm: <code>${groupId}</code>`,
-          `Thành viên: <b>${escapeHtml(label)}</b> — <code>${member.id}</code>`,
-          `Lý do: ${escapeHtml(reasonText)}`,
-          `Hành động: ${action === "kick" ? "Mời ra khỏi nhóm" : "Chặn vĩnh viễn"}`,
-        ].join("\n"),
+        englishGroup
+          ? [
+              "🚫 <b>Blocked a member from joining the group</b>",
+              `Group: <code>${groupId}</code>`,
+              `Member: <b>${escapeHtml(label)}</b> — <code>${member.id}</code>`,
+              `Reason: ${escapeHtml(reasonText)}`,
+              `Action: ${action === "kick" ? "Removed from the group" : "Permanently banned"}`,
+            ].join("\n")
+          : [
+              `🚫 <b>Đã chặn thành viên khi vào nhóm</b>`,
+              `Nhóm: <code>${groupId}</code>`,
+              `Thành viên: <b>${escapeHtml(label)}</b> — <code>${member.id}</code>`,
+              `Lý do: ${escapeHtml(reasonText)}`,
+              `Hành động: ${action === "kick" ? "Mời ra khỏi nhóm" : "Chặn vĩnh viễn"}`,
+            ].join("\n"),
       ).catch(() => undefined);
     }
     return "removed" as const;
@@ -1103,7 +1121,7 @@ async function trackBotDmReply(params: {
 }
 
 
-async function withTyping<T>(chatId: number | string, task: () => Promise<T>): Promise<T> {
+async function withTyping<T>(chatId: number | string, task: () => Promise<T>, tickerText = "💛 Angel đang nghĩ…"): Promise<T> {
   // TẦNG A: fire-and-forget lần typing đầu (không await), song song với task chính.
   sendChatAction(chatId, "typing").catch((err) => console.warn("[typing] initial sendChatAction failed", err));
   const interval = setInterval(() => {
@@ -1119,7 +1137,7 @@ async function withTyping<T>(chatId: number | string, task: () => Promise<T>): P
   const tickerTimeout = setTimeout(async () => {
     if (tickerCancelled) return;
     try {
-      const res = await sendMessage(chatId, "💛 Angel đang nghĩ…", { skipAutoDelete: true });
+      const res = await sendMessage(chatId, tickerText, { skipAutoDelete: true });
       const mid = res?.data?.result?.message_id;
       if (!tickerCancelled && typeof mid === "number") {
         tickerMessageId = mid;
@@ -2077,15 +2095,31 @@ async function handleWelcomeCommand(message: TelegramMessage, settings: Communit
   return true;
 }
 
-async function sendScamWarningIfAllowed(chatId: number, settings: CommunitySettings): Promise<void> {
+async function sendScamWarningIfAllowed(
+  adminClient: ReturnType<typeof getClients>["adminClient"],
+  chatId: number,
+  settings: CommunitySettings,
+): Promise<void> {
   if (settings.scam_warning_enabled === false) return;
   const now = Date.now();
   const lastSentAt = scamWarningLastSentAt.get(chatId) ?? 0;
   if (now - lastSentAt < SCAM_WARNING_COOLDOWN_MS) return;
   scamWarningLastSentAt.set(chatId, now);
+  let englishGroup = false;
+  try {
+    const groupSettings = await getSettingsForGroup(adminClient, chatId);
+    englishGroup = String(groupSettings?.reply_language ?? "auto").trim().toLowerCase() === "en";
+  } catch (err) {
+    console.warn("[GROUP_LANG] scam warning settings lookup failed; using auto", {
+      chatId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
   await sendMessage(
     chatId,
-    "⚠️ Cảnh báo: Tin nhắn có dấu hiệu scam/phishing đã bị xoá. Vui lòng không bấm link đáng ngờ, không nhập OTP, mật khẩu, seed phrase hoặc private key.",
+    englishGroup
+      ? "⚠️ Warning: A message suspected of being a scam or phishing attempt was removed. Do not open suspicious links or enter your OTP, password, seed phrase, or private key."
+      : "⚠️ Cảnh báo: Tin nhắn có dấu hiệu scam/phishing đã bị xoá. Vui lòng không bấm link đáng ngờ, không nhập OTP, mật khẩu, seed phrase hoặc private key.",
     { skipAutoDelete: true },
   ).catch((err) => console.warn("[SCAM_DETECTED] warning_send_failed", err));
 }
@@ -2195,7 +2229,7 @@ async function handleTelegramScamDetection(params: {
   if (deleteOutcome === "delete_failed") {
     await notifyModerationDeleteFailure(params.adminClient, chatId, messageId);
   } else if (detection.reason !== "referral_cashback_promo") {
-    await sendScamWarningIfAllowed(chatId, params.settings);
+    await sendScamWarningIfAllowed(params.adminClient, chatId, params.settings);
   }
   return true;
 }
@@ -2755,6 +2789,20 @@ async function handleGroupCommand(
   // Náº¿u user gÃµ /start@another_bot â†’ bá» qua hoÃ n toÃ n.
   if (targetBot && botUsername && targetBot !== botUsername) return false;
 
+  const { adminClient } = getClients();
+  let groupSettings: CommunitySettings | null = null;
+  if (["rules", "feedback", "register_sender_chat"].includes(cmd)) {
+    try {
+      groupSettings = await getSettingsForGroup(adminClient, chatId);
+    } catch (err) {
+      console.warn("[GROUP_LANG] command settings lookup failed; using auto", {
+        chatId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  const englishGroup = String(groupSettings?.reply_language ?? "auto").trim().toLowerCase() === "en";
+
   const replyTo = { reply_to_message_id: message.message_id };
   const dmDeepLink = botUsername
     ? `https://t.me/${botUsername}?start=menu`
@@ -2777,7 +2825,7 @@ async function handleGroupCommand(
   if (cmd === "rules") {
     await sendMessage(
       chatId,
-      settings?.rules_message ?? "📜 Community rules are not configured yet. We'll update them soon.",
+      groupSettings?.rules_message ?? settings?.rules_message ?? "📜 Community rules are not configured yet. We'll update them soon.",
       replyTo,
     );
     return true;
@@ -2797,17 +2845,24 @@ async function handleGroupCommand(
     if (body.length < 3) {
       await sendMessage(
         chatId,
-        "💌 <b>Gửi góp ý cho Angel</b>\n\nGõ: <code>/feedback &lt;nội dung góp ý&gt;</code>\nVí dụ: <code>/feedback Angel ơi, bé mong có thêm chức năng thiền buổi sáng</code>",
+        englishGroup
+          ? "💌 <b>Send feedback to Angel</b>\n\nUse: <code>/feedback &lt;your feedback&gt;</code>\nExample: <code>/feedback Please add a morning meditation feature</code>"
+          : "💌 <b>Gửi góp ý cho Angel</b>\n\nGõ: <code>/feedback &lt;nội dung góp ý&gt;</code>\nVí dụ: <code>/feedback Angel ơi, bé mong có thêm chức năng thiền buổi sáng</code>",
         replyTo,
       );
       return true;
     }
     if (body.length > 4000) {
-      await sendMessage(chatId, "🙏 Nội dung góp ý hơi dài, bé rút gọn dưới 4000 ký tự giúp Angel nhé 💛", replyTo);
+      await sendMessage(
+        chatId,
+        englishGroup
+          ? "🙏 This feedback is too long. Please shorten it to fewer than 4,000 characters 💛"
+          : "🙏 Nội dung góp ý hơi dài, bé rút gọn dưới 4000 ký tự giúp Angel nhé 💛",
+        replyTo,
+      );
       return true;
     }
     try {
-      const { adminClient } = getClients();
       const fromId = message.from?.id ?? null;
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       if (fromId) {
@@ -2817,7 +2872,13 @@ async function handleGroupCommand(
           .eq("telegram_user_id", fromId)
           .gte("created_at", oneHourAgo);
         if ((count ?? 0) >= 3) {
-          await sendMessage(chatId, "🙏 Angel đã nhận rất nhiều góp ý từ bé rồi, xin bé đợi ~1 giờ để Angel đọc và phản hồi nhé 💛", replyTo);
+          await sendMessage(
+            chatId,
+            englishGroup
+              ? "🙏 Angel has received several feedback messages from you. Please wait about an hour so Angel can review them 💛"
+              : "🙏 Angel đã nhận rất nhiều góp ý từ bé rồi, xin bé đợi ~1 giờ để Angel đọc và phản hồi nhé 💛",
+            replyTo,
+          );
           return true;
         }
       }
@@ -2836,10 +2897,22 @@ async function handleGroupCommand(
         reply_to_message_id: replyMsg?.message_id ?? null,
         reply_to_preview: replyPreview,
       });
-      await sendMessage(chatId, "🙏 Angel đã ghi nhận góp ý của bé. Cảm ơn ánh sáng minh triết bé chia sẻ 💛✨", replyTo);
+      await sendMessage(
+        chatId,
+        englishGroup
+          ? "🙏 Angel has received your feedback. Thank you for sharing your thoughtful ideas 💛✨"
+          : "🙏 Angel đã ghi nhận góp ý của bé. Cảm ơn ánh sáng minh triết bé chia sẻ 💛✨",
+        replyTo,
+      );
     } catch (err) {
       console.warn("[group] feedback_insert_failed", { chatId, error: err instanceof Error ? err.message : String(err) });
-      await sendMessage(chatId, "🙏 Angel gặp trục trặc khi lưu góp ý. Bé thử lại sau ít phút giúp Angel nhé 💛", replyTo);
+      await sendMessage(
+        chatId,
+        englishGroup
+          ? "🙏 Angel ran into an issue saving your feedback. Please try again in a few minutes 💛"
+          : "🙏 Angel gặp trục trặc khi lưu góp ý. Bé thử lại sau ít phút giúp Angel nhé 💛",
+        replyTo,
+      );
     }
     return true;
   }
@@ -2918,11 +2991,17 @@ async function handleGroupCommand(
     if (!authorized || !targetSenderChatId) {
       await sendMessage(
         chatId,
-        "🛡️ <b>Không xác minh được quyền admin.</b>\n\n" +
+        (englishGroup
+          ? "🛡️ <b>Admin permission could not be verified.</b>\n\n" +
+            "Register a channel/sender chat as <b>trusted</b> in one of these ways:\n\n" +
+            "<b>1.</b> Use a personal admin account (not anonymous), reply to a channel message, then send <code>/register_sender_chat</code>.\n\n" +
+            "<b>2.</b> Use a personal admin account and send <code>/register_sender_chat &lt;sender_chat_id&gt; [title]</code> (the ID must start with <code>-100</code>).\n\n" +
+            "<b>3.</b> Enable <i>Anonymous Admin</i> for this group, then send <code>/register_sender_chat</code>."
+          : "🛡️ <b>Không xác minh được quyền admin.</b>\n\n" +
           "Có 3 cách đăng ký một channel/sender_chat làm <b>trusted</b>:\n\n" +
           "<b>1.</b> Dùng tài khoản admin cá nhân (không ẩn danh), <b>reply</b> vào 1 tin của channel rồi gõ <code>/register_sender_chat</code>.\n\n" +
           "<b>2.</b> Dùng tài khoản admin cá nhân, gõ <code>/register_sender_chat &lt;sender_chat_id&gt; [title]</code> (id phải bắt đầu bằng <code>-100</code>).\n\n" +
-          "<b>3.</b> Bật <i>Anonymous Admin</i> của chính group này rồi gõ <code>/register_sender_chat</code>.",
+          "<b>3.</b> Bật <i>Anonymous Admin</i> của chính group này rồi gõ <code>/register_sender_chat</code>."),
         replyTo,
       );
       return true;
@@ -2938,7 +3017,9 @@ async function handleGroupCommand(
     if (!res.ok) {
       await sendMessage(
         chatId,
-        `❌ Lưu trusted_sender_chats thất bại: <code>${escapeHtml(res.error ?? "unknown")}</code>`,
+        englishGroup
+          ? `❌ Saving the trusted sender chat failed: <code>${escapeHtml(res.error ?? "unknown")}</code>`
+          : `❌ Lưu trusted_sender_chats thất bại: <code>${escapeHtml(res.error ?? "unknown")}</code>`,
         replyTo,
       );
       return true;
@@ -2946,7 +3027,9 @@ async function handleGroupCommand(
 
     await sendMessage(
       chatId,
-      `✅ Đã đăng ký sender_chat <b>${escapeHtml(targetTitle ?? "(no title)")}</b> (id=<code>${targetSenderChatId}</code>) làm <b>trusted</b> trong group này. Angel sẽ trả lời các tin nhắn từ kênh này. <i>mode=${mode}</i>`,
+      englishGroup
+        ? `✅ Registered sender chat <b>${escapeHtml(targetTitle ?? "(no title)")}</b> (id=<code>${targetSenderChatId}</code>) as <b>trusted</b> in this group. Angel can now reply to messages from this channel. <i>mode=${mode}</i>`
+        : `✅ Đã đăng ký sender_chat <b>${escapeHtml(targetTitle ?? "(no title)")}</b> (id=<code>${targetSenderChatId}</code>) làm <b>trusted</b> trong group này. Angel sẽ trả lời các tin nhắn từ kênh này. <i>mode=${mode}</i>`,
       replyTo,
     );
     return true;
@@ -4218,6 +4301,17 @@ async function handleMeditationSummaryInvite(
     return { matched: false, handled: false };
   }
 
+  let languageSettings: CommunitySettings | null = null;
+  try {
+    languageSettings = await getSettingsForGroup(adminClient, chatId);
+  } catch (err) {
+    console.warn("[GROUP_LANG] meditation group settings lookup failed; using auto", {
+      chatId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  const forcedEnglish = String(languageSettings?.reply_language ?? "auto").trim().toLowerCase() === "en";
+
   const maxAgeMinutesRaw = Number((settings as any).meditation_summary_max_age_minutes);
   const maxAgeMinutes = Number.isFinite(maxAgeMinutesRaw) && maxAgeMinutesRaw > 0 ? maxAgeMinutesRaw : 60;
   const messageAgeSeconds = message.date ? Math.floor(Date.now() / 1000) - message.date : 0;
@@ -4256,7 +4350,7 @@ async function handleMeditationSummaryInvite(
     const question = buildMeditationSummaryQuestion({
       topic: invite.topic,
       template: (settings as any).meditation_summary_prompt,
-      language: invite.language,
+      language: forcedEnglish ? "en" : invite.language,
     });
 
     const aiReply = await withTyping(chatId, () => askAngel({
@@ -4279,9 +4373,10 @@ async function handleMeditationSummaryInvite(
         messageId,
         triggerSource: "meditation_reply",
       },
-      forcedLangBucket: invite.language,
+      forcedLangBucket: forcedEnglish ? "en" : invite.language,
+      fallbackLangBucket: forcedEnglish ? "en" : invite.language,
       mirrorAngelWeb: (settings as any).ai_mirror_angel_web !== false,
-    }));
+    }), forcedEnglish ? "💛 Angel is preparing the meditation reflection…" : undefined);
     if (aiReply && aiReply.trim().length > 0) {
       await sendMessage(chatId, aiReply, { reply_to_message_id: messageId, skipAutoDelete: true });
       console.log("[MEDITATION_SUMMARY_REPLY]", { chat_id: chatId, message_id: messageId, reply_mode: "summary", topic_len: invite.topic.length });
@@ -4427,7 +4522,21 @@ export async function handleEventAssistant(message: TelegramMessage, settings: C
     return false;
   }
 
-  const reply = buildEventSummary(detection.extracted, settings.event_assistant_prompt);
+  let languageSettings: CommunitySettings | null = null;
+  try {
+    languageSettings = await getSettingsForGroup(adminClient, chatId);
+  } catch (err) {
+    console.warn("[GROUP_LANG] event assistant group settings lookup failed; using auto", {
+      chatId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  const replyLanguage = String(languageSettings?.reply_language ?? "auto").trim().toLowerCase();
+  const reply = renderEventAssistantPrompt(
+    settings.event_assistant_prompt,
+    detection.extracted,
+    replyLanguage === "en" ? "en" : "vi",
+  );
   await sendMessage(chatId, reply, {
     reply_to_message_id: messageId,
     skipAutoDelete: true,
@@ -4780,29 +4889,31 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
 
   const aiQuestion = buildGroupAiQuestion({ message, botUsername, botId: bot?.id, isReplyToBot, triggerSource, settings });
   const prompt = aiQuestion.prompt;
-  if (!prompt) {
-    await sendMessage(chatId, "💛 Bé yêu, gõ câu hỏi sau khi tag Angel nhé. Ví dụ: <code>@" + (botUsername || "bot") + " FUN.RICH là gì?</code>", {
-      reply_to_message_id: message.message_id,
-    });
-    return;
-  }
-  // Per-group reply language: the global `settings` row (oldest) may carry
-  // reply_language='auto' while the group's own row sets e.g. 'en'. Load the
-  // group's own row; fall back to the global value when absent or unreadable.
+  // Read only this chat's language preference. The global oldest settings row
+  // may belong to a different group and must never drive this policy.
   let groupSettings: CommunitySettings | null = null;
   let groupSettingsLookupFailed = false;
   try {
     groupSettings = await getSettingsForGroup(adminClient, chatId);
   } catch (err) {
     groupSettingsLookupFailed = true;
-    console.warn("[GROUP_LANG] group settings lookup failed; falling back to global", {
+    console.warn("[GROUP_LANG] group settings lookup failed; using auto", {
       chatId,
       error: err instanceof Error ? err.message : String(err),
     });
   }
-  const replyLanguage = (groupSettings as any)?.reply_language ?? (settings as any)?.reply_language;
+  const replyLanguage = groupSettings?.reply_language ?? "auto";
   const groupLanguage = resolveGroupReplyLanguage(prompt, replyLanguage);
   const userLangBucket = groupLanguage.bucket;
+  if (!prompt) {
+    const emptyPromptReply = groupLanguage.botVoiceBucket === "en"
+      ? `💛 Please type your question after mentioning Angel. For example: <code>@${botUsername || "bot"} What is FUN.RICH?</code>`
+      : "💛 Bé yêu, gõ câu hỏi sau khi tag Angel nhé. Ví dụ: <code>@" + (botUsername || "bot") + " FUN.RICH là gì?</code>";
+    await sendMessage(chatId, emptyPromptReply, {
+      reply_to_message_id: message.message_id,
+    });
+    return;
+  }
   console.log("[GROUP_LANG]", {
     chatId,
     settingsId: (settings as any)?.id ?? null,
@@ -4961,7 +5072,10 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
     decision,
   });
   if (!decisionLimit.allowed) {
-    await sendMessage(chatId, "Bé nhắn hơi nhanh, Angel cần nghỉ một chút để giữ năng lượng cho cả nhóm. Bé thử lại sau nhé.", {
+    const rateLimitReply = groupLanguage.botVoiceBucket === "en"
+      ? "Angel is receiving many questions right now. Please try again in a few minutes 💛"
+      : "Bé nhắn hơi nhanh, Angel cần nghỉ một chút để giữ năng lượng cho cả nhóm. Bé thử lại sau nhé.";
+    await sendMessage(chatId, rateLimitReply, {
       reply_to_message_id: message.message_id,
     });
     await logAiRuntime({
@@ -5031,9 +5145,10 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
               triggerSource: "event_followup",
             },
             forcedLangBucket: userLangBucket,
-      languagePolicyNote: groupLanguage.policyNote,
+            languagePolicyNote: groupLanguage.policyNote,
+            fallbackLangBucket: groupLanguage.botVoiceBucket ?? userLangBucket,
             mirrorAngelWeb: (settings as any).ai_mirror_angel_web !== false,
-          }));
+          }), groupLanguage.botVoiceBucket === "en" ? "💛 Angel is preparing an answer…" : undefined);
         } catch (err) {
           console.warn("[EVENT_REPLY] custom prompt failed, fallback deterministic", err);
           followupAnswer = deterministicAnswer;
@@ -5118,7 +5233,9 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
   const _groupAutoIllustrate = await getFlag("image.auto_illustrate_group_posts", false);
   const _groupImageStreamer = _groupAutoIllustrate
     ? createTelegramImageStreamer(chatId, {
-        placeholderCaption: "💛 Angel đang vẽ, cả nhà chờ xíu nhé…",
+        placeholderCaption: groupLanguage.botVoiceBucket === "en"
+          ? "💛 Angel is creating an illustration. Please wait…"
+          : "💛 Angel đang vẽ, cả nhà chờ xíu nhé…",
         extra: _groupStreamExtra,
       })
     : null;
@@ -5153,14 +5270,17 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
         immediateAssistantContext: _groupImmediateContext,
       forcedLangBucket: userLangBucket,
       languagePolicyNote: groupLanguage.policyNote,
+      fallbackLangBucket: groupLanguage.botVoiceBucket ?? userLangBucket,
       mirrorAngelWeb: (settings as any).ai_mirror_angel_web !== false,
       attachments: _groupAttachments.length > 0 ? _groupAttachments : undefined,
       outImage: _groupAutoIllustrate ? _groupImageOut : undefined,
       onPartialImage: _groupStreamEnabled && _groupImageStreamer ? _groupImageStreamer.onPartial : undefined,
-    }));
+    }), groupLanguage.botVoiceBucket === "en" ? "💛 Angel is preparing an answer…" : undefined);
     // Router có ảnh → chỉ gửi khi auto-illustrate BẬT. Ngược lại drop ảnh, chỉ text.
     if (_groupAutoIllustrate && _groupImageStreamer && (_groupImageOut.image_url || _groupImageOut.image_base64)) {
-      const caption = reply || "Angel vẽ tặng cả nhà ✨💛";
+      const caption = reply || (groupLanguage.botVoiceBucket === "en"
+        ? "Angel created this illustration for everyone ✨💛"
+        : "Angel vẽ tặng cả nhà ✨💛");
       await _groupImageStreamer.finalize({
         b64: _groupImageOut.image_base64 ?? undefined,
         url: _groupImageOut.image_url ?? undefined,
@@ -5997,7 +6117,7 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
       }
       const aitestLanguage = resolveGroupReplyLanguage(
         prompt,
-        (aitestGroupSettings as any)?.reply_language ?? (settings as any)?.reply_language,
+        aitestGroupSettings?.reply_language ?? "auto",
       );
       try {
         const reply = await askAngel({
@@ -6023,6 +6143,7 @@ async function processUpdate(update: TelegramUpdate, req: Request): Promise<void
           },
           forcedLangBucket: aitestLanguage.bucket,
           languagePolicyNote: aitestLanguage.policyNote,
+          fallbackLangBucket: aitestLanguage.botVoiceBucket ?? aitestLanguage.bucket,
           mirrorAngelWeb: (settings as any).ai_mirror_angel_web !== false,
         });
         await sendMessage(message.chat.id, reply, { reply_to_message_id: message.message_id, skipAutoDelete: true });

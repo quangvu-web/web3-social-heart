@@ -902,7 +902,7 @@ export function resolveAngelLanguageBucket(text: string, forcedLangBucket?: Ange
 export function resolveGroupReplyLanguage(
   text: string,
   replyLanguage: string | null | undefined,
-): { bucket: AngelLanguageBucket; policyNote: string | null } {
+): { bucket: AngelLanguageBucket; botVoiceBucket?: AngelLanguageBucket; policyNote: string | null } {
   if (String(replyLanguage ?? "auto").trim().toLowerCase() !== "en") {
     return { bucket: resolveAngelLanguageBucket(text), policyNote: null };
   }
@@ -910,10 +910,15 @@ export function resolveGroupReplyLanguage(
   if (target && target !== "en") {
     return {
       bucket: target,
-      policyNote: `GROUP LANGUAGE POLICY — INTERNATIONAL GROUP: The member asked for a translation into ${LANG_NAME_FOR_POLICY[target]}. Output the translated content itself in ${LANG_NAME_FOR_POLICY[target]}. Every sentence of your own (lead-in, framing, notes, closing) MUST be in English.`,
+      botVoiceBucket: "en",
+      policyNote: `GROUP LANGUAGE POLICY — INTERNATIONAL GROUP: TRANSLATION REQUEST. Translate the requested source into ${LANG_NAME_FOR_POLICY[target]}. The translated content itself MUST be in ${LANG_NAME_FOR_POLICY[target]}; every sentence written by Angel to introduce, frame, explain, or close the translation MUST be in English. This is the only allowed exception to the group's English reply policy. Do not translate the requested content into English.`,
     };
   }
-  return { bucket: "en", policyNote: null };
+  return {
+    bucket: "en",
+    botVoiceBucket: "en",
+    policyNote: "GROUP LANGUAGE POLICY — INTERNATIONAL GROUP: This is a normal reply, not a translation request. Every word of Angel's response MUST be in English, regardless of the member's message language. This rule overrides user-language mirroring and any admin/persona/template instruction to use another language.",
+  };
 }
 
 const LANG_NAME_FOR_POLICY: Record<AngelLanguageBucket, string> = {
@@ -974,8 +979,8 @@ export function replyViolatesAngelLanguageBucket(text: string, langBucket: Angel
 }
 
 
-function fallbackBusy(text: string): string {
-  switch (detectLangBucket(text)) {
+function fallbackBusy(text: string, forcedBucket?: AngelLanguageBucket): string {
+  switch (forcedBucket ?? detectLangBucket(text)) {
     case "vi": return "🙏 Angel đang bận đôi chút, bé thử lại sau nhé 💛";
     case "zh": return "🙏 Angel 现在有点忙，请稍后再试 💛";
     case "ja": return "🙏 Angel は今少し忙しいです。後でもう一度お試しください 💛";
@@ -986,8 +991,8 @@ function fallbackBusy(text: string): string {
   }
 }
 
-function fallbackRateLimit(text: string): string {
-  switch (detectLangBucket(text)) {
+function fallbackRateLimit(text: string, forcedBucket?: AngelLanguageBucket): string {
+  switch (forcedBucket ?? detectLangBucket(text)) {
     case "vi": return "🙏 Bé yêu, lúc này nhiều người đang hỏi Angel quá. Bé quay lại sau vài phút nhé 💛";
     case "zh": return "🙏 现在很多人在问 Angel，请几分钟后再来 💛";
     case "ja": return "🙏 今たくさんの方が Angel に質問しています。数分後にもう一度お試しください 💛";
@@ -998,8 +1003,8 @@ function fallbackRateLimit(text: string): string {
   }
 }
 
-function fallbackRest(text: string): string {
-  switch (detectLangBucket(text)) {
+function fallbackRest(text: string, forcedBucket?: AngelLanguageBucket): string {
+  switch (forcedBucket ?? detectLangBucket(text)) {
     case "vi": return "🙏 Angel đang cần nghỉ ngơi chút xíu. Bé vui lòng quay lại sau nhé 💛";
     case "zh": return "🙏 Angel 需要稍作休息，请稍后再来 💛";
     case "ja": return "🙏 Angel は少し休憩が必要です。後でまた来てください 💛";
@@ -1010,10 +1015,10 @@ function fallbackRest(text: string): string {
   }
 }
 
-function fallbackEmpty(text: string, contextHint?: string): string {
+function fallbackEmpty(text: string, contextHint?: string, forcedBucket?: AngelLanguageBucket): string {
   const hintVi = contextHint ? ` về <b>${contextHint}</b>` : "";
   const hintEn = contextHint ? ` about <b>${contextHint}</b>` : "";
-  switch (detectLangBucket(text)) {
+  switch (forcedBucket ?? detectLangBucket(text)) {
     case "vi": return `✨ Angel muốn hiểu bé rõ hơn để đồng hành thật đúng ý nè. Bé đang quan tâm${hintVi}, hay muốn Angel chia sẻ một góc nhìn cụ thể nào? Bé kể thêm 1-2 chi tiết giúp Angel nhé 💛`;
     case "zh": return `✨ Angel 想更懂你一些，可以陪你更贴心。你现在关心的是${contextHint ? `「${contextHint}」` : "哪个方面"}，还是希望 Angel 从某个角度分享一下？多说 1-2 个细节，Angel 就能陪你更好哦 💛`;
     case "ja": return `✨ Angel はもっとあなたのお気持ちを理解したいです。今気になっているのは${contextHint ? `「${contextHint}」` : "どんなこと"}でしょうか？もう少しだけ詳しく教えていただけると、Angel が寄り添ってお答えできます 💛`;
@@ -1056,6 +1061,7 @@ export const communityCorsHeaders = {
 export type CommunitySettings = {
   id: string;
   group_id: number;
+  reply_language?: string | null;
   bot_username: string | null;
   welcome_enabled: boolean;
   anti_spam_enabled: boolean;
@@ -1215,6 +1221,11 @@ OTHER RULES:
 
 
 export const DEFAULT_EVENT_ASSISTANT_PROMPT =
+  `{{intro}}
+
+{{topic_block}}{{host_block}}{{time_block}}{{zoom_block}}{{livestream_block}}{{closing}}`;
+
+export const DEFAULT_EVENT_ASSISTANT_PROMPT_EN =
   `{{intro}}
 
 {{topic_block}}{{host_block}}{{time_block}}{{zoom_block}}{{livestream_block}}{{closing}}`;
@@ -1661,12 +1672,28 @@ function eventAssistantIntro(data: EventAssistantPromptData): string {
   return "🌸 Angel thấy đây là thông báo sự kiện cộng đồng:";
 }
 
+function eventAssistantIntroEn(data: EventAssistantPromptData): string {
+  const hasZoomInfo = Boolean(data.zoom_link || data.zoom_id || data.zoom_password);
+  const hasLivestreamInfo = Boolean(data.livestream_links?.length);
+  if (hasZoomInfo) return "🌸 Angel found this Zoom event. Here are the key details:";
+  if (hasLivestreamInfo) return "🎥 Angel found this livestream announcement. Save the link:";
+  return "🌸 Angel found a community event announcement:";
+}
+
 function eventAssistantClosing(data: EventAssistantPromptData): string {
   const hasZoomInfo = Boolean(data.zoom_link || data.zoom_id || data.zoom_password);
   const hasLivestreamInfo = Boolean(data.livestream_links?.length);
   if (hasZoomInfo) return "✨ Bé có thể hỏi Angel “PW là gì?” hoặc “mấy giờ Malaysia?” khi cần.";
   if (hasLivestreamInfo) return "✨ Bé có thể hỏi Angel gửi lại link livestream hoặc đổi giờ khi cần.";
   return "✨ Angel có thể hỗ trợ đổi giờ nếu thông báo có thời gian rõ.";
+}
+
+function eventAssistantClosingEn(data: EventAssistantPromptData): string {
+  const hasZoomInfo = Boolean(data.zoom_link || data.zoom_id || data.zoom_password);
+  const hasLivestreamInfo = Boolean(data.livestream_links?.length);
+  if (hasZoomInfo) return "✨ Ask Angel if you need the password or Malaysia time.";
+  if (hasLivestreamInfo) return "✨ Ask Angel if you need the livestream link again or want the time converted.";
+  return "✨ Angel can help convert the time when it is available.";
 }
 
 function joinEventAssistantBlock(lines: string[]): string {
@@ -1676,7 +1703,9 @@ function joinEventAssistantBlock(lines: string[]): string {
 export function renderEventAssistantPrompt(
   template: string | null | undefined,
   data: EventAssistantPromptData,
+  language: "vi" | "en" = "vi",
 ): string {
+  const isEnglish = language === "en";
   const eventTime = [data.event_time, data.event_date, data.timezone].filter(Boolean).join(" · ");
   const livestreamLinks = (data.livestream_links ?? []).slice(0, 4);
   const topicText = data.topic ?? data.title ?? "";
@@ -1687,12 +1716,12 @@ export function renderEventAssistantPrompt(
   ].filter(Boolean);
   const livestreamText = livestreamLinks.map((link) => escapeHtml(link)).join("\n");
   const values: Record<string, string> = {
-    intro: eventAssistantIntro(data),
+    intro: isEnglish ? eventAssistantIntroEn(data) : eventAssistantIntro(data),
     topic: escapeHtml(topicText),
     title: escapeHtml(data.title ?? ""),
     host: escapeHtml(data.host_name ?? ""),
     host_name: escapeHtml(data.host_name ?? ""),
-    time: escapeHtml(eventTime || "Theo thông báo"),
+    time: escapeHtml(eventTime || (isEnglish ? "As announced" : "Theo thông báo")),
     event_time: escapeHtml(data.event_time ?? ""),
     event_date: escapeHtml(data.event_date ?? ""),
     timezone: escapeHtml(data.timezone ?? ""),
@@ -1700,15 +1729,18 @@ export function renderEventAssistantPrompt(
     zoom_id: data.zoom_id ? escapeHtml(data.zoom_id) : "",
     zoom_password: data.zoom_password ? escapeHtml(data.zoom_password) : "",
     livestream_links: livestreamText,
-    closing: eventAssistantClosing(data),
-    topic_block: topicText ? joinEventAssistantBlock(["🧘 <b>Chủ đề:</b>", escapeHtml(topicText)]) : "",
-    host_block: data.host_name ? joinEventAssistantBlock(["👩 <b>Người hướng dẫn:</b>", escapeHtml(data.host_name)]) : "",
-    time_block: eventTime ? joinEventAssistantBlock(["⏰ <b>Thời gian:</b>", escapeHtml(eventTime)]) : "",
-    zoom_block: zoomLines.length ? joinEventAssistantBlock(["💻 <b>Tham gia Zoom:</b>", ...zoomLines]) : "",
-    livestream_block: livestreamText ? joinEventAssistantBlock(["🎥 <b>Livestream:</b>", livestreamText]) : "",
+    closing: isEnglish ? eventAssistantClosingEn(data) : eventAssistantClosing(data),
+    topic_block: topicText ? joinEventAssistantBlock([`🧘 <b>${isEnglish ? "Topic" : "Chủ đề"}:</b>`, escapeHtml(topicText)]) : "",
+    host_block: data.host_name ? joinEventAssistantBlock([`👩 <b>${isEnglish ? "Host" : "Người hướng dẫn"}:</b>`, escapeHtml(data.host_name)]) : "",
+    time_block: eventTime ? joinEventAssistantBlock([`⏰ <b>${isEnglish ? "Time" : "Thời gian"}:</b>`, escapeHtml(eventTime)]) : "",
+    zoom_block: zoomLines.length ? joinEventAssistantBlock([`💻 <b>${isEnglish ? "Join Zoom" : "Tham gia Zoom"}:</b>`, ...zoomLines]) : "",
+    livestream_block: livestreamText ? joinEventAssistantBlock([`🎥 <b>${isEnglish ? "Livestream" : "Livestream"}:</b>`, livestreamText]) : "",
   };
 
-  const source = template?.trim() || DEFAULT_EVENT_ASSISTANT_PROMPT;
+  // The shared admin template remains unchanged for auto groups. The English
+  // group renderer uses its fixed English structure so a Vietnamese template
+  // cannot override the per-group language policy.
+  const source = isEnglish ? DEFAULT_EVENT_ASSISTANT_PROMPT_EN : (template?.trim() || DEFAULT_EVENT_ASSISTANT_PROMPT);
   return source
     .replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (_, key: string) => values[key] ?? "")
     .replace(/\n{3,}/g, "\n\n")
@@ -2362,6 +2394,8 @@ async function askAngelReply(params: {
   forcedLangBucket?: AngelLanguageBucket;
   /** Extra per-group language policy appended to the forced language directive. */
   languagePolicyNote?: string | null;
+  /** Language for bot-authored fallback messages (can differ from translation content language). */
+  fallbackLangBucket?: AngelLanguageBucket;
   /** Khi true (mặc định): Pass 1 funcore gửi user-only, mirror Angel web chính chủ để RAG hit đúng knowledge. */
   mirrorAngelWeb?: boolean;
   /** Optional admin client — dùng để load persona override toàn cục (fallback khi group chưa set). */
@@ -2397,6 +2431,7 @@ async function askAngelReply(params: {
 ${addressRule}`;
   const originalUserMessage = params.originalUserMessage?.trim() || q;
   const langBucket = resolveAngelLanguageBucket(originalUserMessage, params.forcedLangBucket);
+  const botVoiceEnglish = params.fallbackLangBucket === "en" || params.forcedLangBucket === "en";
   let _creativeOverride = false;
   let _regenerateMode = false;
 
@@ -2439,11 +2474,15 @@ ${addressRule}`;
               return "";
             }
             g.__angelImgGroupBlock.set(throttleKey, now);
-            return "Bé ơi, Angel chỉ vẽ ảnh trong chat riêng thôi nha 💛 Bé nhắn riêng cho Angel qua @funrich_community_bot để Angel vẽ cho bé nhé ✨";
+            return botVoiceEnglish
+              ? "Angel can only create images in a private chat. Please message @funrich_community_bot directly to request an image ✨"
+              : "Bé ơi, Angel chỉ vẽ ảnh trong chat riêng thôi nha 💛 Bé nhắn riêng cho Angel qua @funrich_community_bot để Angel vẽ cho bé nhé ✨";
           }
         } catch (e) {
           console.warn("[askAngel][image] group flag check failed, blocking by default", e);
-          return "Bé ơi, Angel chỉ vẽ ảnh trong chat riêng thôi nha 💛 Bé nhắn riêng cho Angel qua @funrich_community_bot để Angel vẽ cho bé nhé ✨";
+          return botVoiceEnglish
+            ? "Angel can only create images in a private chat. Please message @funrich_community_bot directly to request an image ✨"
+            : "Bé ơi, Angel chỉ vẽ ảnh trong chat riêng thôi nha 💛 Bé nhắn riêng cho Angel qua @funrich_community_bot để Angel vẽ cho bé nhé ✨";
         }
       }
       // ===== END GROUP IMAGE BLOCK =====
@@ -2455,7 +2494,9 @@ ${addressRule}`;
             const topic = await classifyImageTopic(_imgIntent.prompt);
             if (!topic.allowed) {
               console.log("[askAngel][image] group blocked by topic guardrail", { reason: topic.reason });
-              return "Bé ơi, ở group này Angel chỉ vẽ những hình ánh sáng — thịnh vượng, yêu thương, thiên nhiên, hướng thượng thôi nè ✨ Bé đổi ý tưởng khác cho Angel vẽ nhé 💛";
+              return botVoiceEnglish
+                ? "Angel can only create uplifting images in this group, such as themes of prosperity, love, nature, and hope. Please try another idea ✨💛"
+                : "Bé ơi, ở group này Angel chỉ vẽ những hình ánh sáng — thịnh vượng, yêu thương, thiên nhiên, hướng thượng thôi nè ✨ Bé đổi ý tưởng khác cho Angel vẽ nhé 💛";
             }
           } catch (e) {
             console.warn("[askAngel][image] classifyImageTopic failed, allow by default", e);
@@ -2495,6 +2536,11 @@ ${addressRule}`;
           hasB64: !!imgResult.image_base64,
           dur: Date.now() - t0,
         });
+        if (isGroupCall && botVoiceEnglish) {
+          return _imgIntent.mode === "edit"
+            ? "Angel has edited the image for you ✨💛"
+            : "Angel has created the image for you ✨💛";
+        }
         return _imgIntent.mode === "edit"
           ? "Angel sửa ảnh cho bé đây ✨💛"
           : "Angel vẽ cho bé đây ✨💛";
@@ -2507,9 +2553,14 @@ ${addressRule}`;
             msg: e.message,
             detail: e.detail,
           });
-          return angelImageUserMessage(e);
+          return isGroupCall && botVoiceEnglish
+            ? "Angel could not create the image right now. Please try again in a few minutes 💛"
+            : angelImageUserMessage(e);
         }
         console.warn("[askAngel][image] unexpected error", e);
+        if (isGroupCall && botVoiceEnglish) {
+          return "Angel ran into a small issue while creating the image. Please try again in a few minutes 💛";
+        }
         return "Bé ơi, Angel vừa gặp trục trặc nhỏ khi vẽ 🎨 Bé thử lại sau ít phút giúp Angel nhé 💛";
       }
     }
@@ -2519,10 +2570,18 @@ ${addressRule}`;
     // để không ghi đè system prompt và không chiếm chỗ context của RAG retrieval.
     // Lovable Gateway (fallback) thì cần wrapper persona + few-shot để giữ giọng Angel.
     let messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
-    const languageDirective = angelLanguageDirective(langBucket);
-    const langHint = `USER_LANGUAGE_DETECTED=${langBucket} (${LANG_NAME[langBucket]}). You MUST reply 100% in ${LANG_NAME[langBucket]} only. Do NOT reply in Vietnamese unless the detected language is "vi".`;
+    const isMixedTranslationPolicy = Boolean(params.languagePolicyNote?.includes("TRANSLATION REQUEST"));
+    const languageDirective = isMixedTranslationPolicy
+      ? params.languagePolicyNote!.trim()
+      : angelLanguageDirective(langBucket);
+    const langHint = isMixedTranslationPolicy
+      ? params.languagePolicyNote!.trim()
+      : `USER_LANGUAGE_DETECTED=${langBucket} (${LANG_NAME[langBucket]}). You MUST reply 100% in ${LANG_NAME[langBucket]} only. Do NOT reply in Vietnamese unless the detected language is "vi".`;
+    const chatType = (params.conversationContext?.chatType ?? "").toLowerCase();
+    const isGroupConversation = chatType === "group" || chatType === "supergroup" || chatType === "channel";
+    const groupLanguagePolicyPrompt = isGroupConversation ? params.languagePolicyNote?.trim() || null : null;
     const forcedLanguageHint = params.forcedLangBucket
-      ? [angelLanguageDirective(params.forcedLangBucket), params.languagePolicyNote?.trim() || ""].filter(Boolean).join("\n\n")
+      ? [isMixedTranslationPolicy ? "" : angelLanguageDirective(params.forcedLangBucket), params.languagePolicyNote?.trim() || ""].filter(Boolean).join("\n\n")
       : "";
     let factualLookup = false;
     let factualLookupReason = "not_checked";
@@ -2798,11 +2857,16 @@ ${addressRule}`;
           ];
           console.log(`[askAngel] CREATIVE off-ramp intent=${_intent ?? "-"} regen=${_regenerateMode} history=${_history.length} lang=${langBucket}`);
         } else if (_isFactualLookup) {
-          // PURE MIRROR — 1 user message duy nhất, khớp tuyệt đối angel.fun.rich/chat.
-          messages = [{ role: "user" as const, content: originalUserMessage }];
-          console.log(`[askAngel] FACTUAL lookup → pure mirror (1 msg) reason=${factualLookupReason} q="${originalUserMessage.slice(0, 60)}"`);
+          // Keep factual lookup text intact for RAG, while honoring an explicit
+          // international-group policy as a higher-priority prompt instruction.
+          messages = [
+            ...(groupLanguagePolicyPrompt ? [{ role: "system" as const, content: groupLanguagePolicyPrompt }] : []),
+            { role: "user" as const, content: originalUserMessage },
+          ];
+          console.log(`[askAngel] FACTUAL lookup → mirror (groupPolicy=${!!groupLanguagePolicyPrompt}) reason=${factualLookupReason} q="${originalUserMessage.slice(0, 60)}"`);
         } else {
           messages = [
+            ...(groupLanguagePolicyPrompt ? [{ role: "system" as const, content: groupLanguagePolicyPrompt }] : []),
             ...(_summaryMsg ? [_summaryMsg] : []),
             ..._history,
             ..._prefixes,
@@ -3038,7 +3102,7 @@ ${addressRule}`;
       }
       if (!reply) {
         const hint = extractContextHint(messages as Array<{ role: string; content: string }>);
-        return fallbackEmpty(q, hint);
+        return fallbackEmpty(q, hint, params.fallbackLangBucket ?? params.forcedLangBucket);
       }
     }
 
@@ -3066,7 +3130,9 @@ ${addressRule}`;
       if (skipFactualRestyle) {
         console.log(`[askAngel] restyle skipped — factual concrete data reason=${factualLookupReason}`);
       }
-      if (styleRule && !skipFactualRestyle && !hasTelegramVerbatimContent(reply)) {
+      // A restyle pass is allowed to rewrite requested translated content and
+      // collapse the English framing/target-language exception into one bucket.
+      if (styleRule && !skipFactualRestyle && !isMixedTranslationPolicy && !hasTelegramVerbatimContent(reply)) {
         try {
           const { text: restyled, cached } = await getOrSetRestyleCache({
             original: reply,
@@ -3095,7 +3161,7 @@ ${addressRule}`;
 
     // Language repair: chỉ khi reply THỰC SỰ vi phạm ngôn ngữ. Short DM skip đã ngầm
     // bảo đảm `_langOk`, nên guard `_shortDmSkip` cũng chặn ở đây.
-    if (!_shortDmSkip && !hasTelegramVerbatimContent(reply) && replyViolatesAngelLanguageBucket(reply, langBucket)) {
+    if (!_shortDmSkip && !isMixedTranslationPolicy && !hasTelegramVerbatimContent(reply) && replyViolatesAngelLanguageBucket(reply, langBucket)) {
       // Group language policy (forcedLangBucket) must hold: if FUN Core keeps the
       // original language, fall back to the gateway for a second repair attempt.
       const providers: Array<"funcore" | "lovable"> = params.forcedLangBucket ? ["funcore", "lovable"] : ["funcore"];
@@ -3533,13 +3599,13 @@ ${addressRule}`;
     }
 
     let fallback: string;
-    if (isAngelCore && errStatus === 429) fallback = fallbackRateLimit(q);
-    else if (isAngelCore && errStatus === 402) fallback = fallbackRest(q);
-    else if (isAngelCore && errStatus === 500 && /not configured/i.test(errMsg)) fallback = fallbackRest(q);
+    if (isAngelCore && errStatus === 429) fallback = fallbackRateLimit(q, params.fallbackLangBucket ?? params.forcedLangBucket);
+    else if (isAngelCore && errStatus === 402) fallback = fallbackRest(q, params.fallbackLangBucket ?? params.forcedLangBucket);
+    else if (isAngelCore && errStatus === 500 && /not configured/i.test(errMsg)) fallback = fallbackRest(q, params.fallbackLangBucket ?? params.forcedLangBucket);
     else if (ytIds.length > 0) {
       fallback = "Bé ơi, Angel vừa thử đọc video YouTube này nhưng chưa lấy được nội dung (có thể video riêng tư, không có phụ đề, hoặc YouTube đang chặn tạm thời) 💛✨\n\nBé có thể tóm tắt hoặc dán transcript để Angel cùng suy ngẫm với bé nhé.";
     }
-    else fallback = fallbackBusy(q);
+    else fallback = fallbackBusy(q, params.fallbackLangBucket ?? params.forcedLangBucket);
     _finalReason = "busy";
     fallback = enforceVietnamesePronouns(fallback, senderUsername);
 

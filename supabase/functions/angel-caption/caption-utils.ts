@@ -32,6 +32,34 @@ export function isValidMeetingUrl(meetingUrl: string): boolean {
   return detectPlatform(meetingUrl) !== null;
 }
 
+/**
+ * Định danh phòng họp để chống tạo bot trùng:
+ *   - Zoom: dãy số sau /j/ trong path → "zoom:<id>" (BỎ QUA pwd và mọi query —
+ *     cùng một phòng nhưng link mời có thể khác đuôi).
+ *   - Google Meet: mã phòng xxx-xxxx-xxx trong path → "meet:<code>".
+ *   - Nền tảng khác/không trích được: URL chuẩn hoá (host + path viết thường,
+ *     bỏ query, bỏ dấu / cuối).
+ */
+export function extractMeetingKey(meetingUrl: string): string | null {
+  try {
+    const u = new URL(meetingUrl);
+    const host = u.hostname.toLowerCase();
+    const path = u.pathname.replace(/\/+$/, "");
+    if (/(^|\.)zoom\.(us|com)$/i.test(host)) {
+      const m = path.match(/\/j\/(\d+)/i);
+      if (m) return `zoom:${m[1]}`;
+    }
+    if (/(^|\.)meet\.google\.com$/i.test(host)) {
+      const m = path.match(/\/([a-z]{3}-[a-z]{4}-[a-z]{3})(\/|$)/i);
+      if (m) return `meet:${m[1].toLowerCase()}`;
+    }
+    const normalized = `${host}${path.toLowerCase()}`;
+    return normalized || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Mã phiên công khai: 12 ký tự chữ thường + số, bỏ ký tự dễ nhầm (0/o/1/l). */
 export function generatePublicCode(len = 12): string {
   const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";

@@ -954,6 +954,7 @@ export type Database = {
           created_by_telegram_id: number | null
           ended_at: string | null
           id: string
+          meeting_key: string | null
           meeting_url: string
           platform: string | null
           public_code: string
@@ -967,6 +968,7 @@ export type Database = {
           created_by_telegram_id?: number | null
           ended_at?: string | null
           id?: string
+          meeting_key?: string | null
           meeting_url: string
           platform?: string | null
           public_code: string
@@ -980,6 +982,7 @@ export type Database = {
           created_by_telegram_id?: number | null
           ended_at?: string | null
           id?: string
+          meeting_key?: string | null
           meeting_url?: string
           platform?: string | null
           public_code?: string

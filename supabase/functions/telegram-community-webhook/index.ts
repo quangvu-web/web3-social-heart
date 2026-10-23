@@ -1222,6 +1222,19 @@ export async function handlePrivateMessage(message: TelegramMessage) {
           await replyDm(`😔 ${reason}`);
           return;
         }
+        if (data.already_running) {
+          // Phòng này đã có bot đang chạy → trả lại link cũ, không tạo thêm.
+          const startedAt = data.started_at ? new Date(data.started_at) : null;
+          const hhmm = startedAt && !Number.isNaN(startedAt.getTime())
+            ? startedAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kuala_Lumpur" })
+            : null;
+          await replyDm(
+            `💛 Buổi họp này đã có <b>Angel Translator</b> đang chạy rồi${hhmm ? ` (từ ${hhmm})` : ""}.\n` +
+              `🔗 Link phụ đề đang dùng: ${data.caption_url}\n— không cần tạo thêm nhé.`,
+            { skipAutoDelete: true },
+          );
+          return;
+        }
         await replyDm(
           `🌐 <b>Angel Translator đang vào phòng họp!</b>\n\n` +
             `🔗 Link phụ đề trực tiếp: ${data.caption_url}\n\n` +

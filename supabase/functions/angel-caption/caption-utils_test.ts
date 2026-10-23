@@ -7,6 +7,7 @@ import {
   computeDedupeKey,
   detectPlatform,
   detectSourceLang,
+  extractMeetingKey,
   generatePublicCode,
   isValidMeetingUrl,
   verifySvixSignature,
@@ -38,6 +39,32 @@ Deno.test("generatePublicCode: 12 ký tự, alphabet an toàn, ngẫu nhiên", (
   assertEq(a.length, 12, "length");
   assert(/^[abcdefghjkmnpqrstuvwxyz23456789]+$/.test(a), "alphabet");
   assert(a !== b, "two codes differ");
+});
+
+Deno.test("extractMeetingKey: Zoom bỏ pwd/query, Meet lấy mã phòng, fallback chuẩn hoá", () => {
+  // Cùng một phòng Zoom, link mời khác đuôi → cùng một key.
+  assertEq(extractMeetingKey("https://zoom.us/j/8808082024?pwd=abc123"), "zoom:8808082024", "zoom with pwd");
+  assertEq(extractMeetingKey("https://zoom.us/j/8808082024?pwd=KHAC"), "zoom:8808082024", "zoom other pwd");
+  assertEq(extractMeetingKey("https://us05web.zoom.us/j/8808082024"), "zoom:8808082024", "zoom regional host");
+  assertEq(extractMeetingKey("https://zoom.com/j/123"), "zoom:123", "zoom.com");
+
+  // Google Meet: mã xxx-xxxx-xxx, viết thường.
+  assertEq(extractMeetingKey("https://meet.google.com/abc-defg-hij"), "meet:abc-defg-hij", "meet code");
+  assertEq(extractMeetingKey("https://meet.google.com/ABC-DEFG-HIJ?authuser=0"), "meet:abc-defg-hij", "meet uppercase+query");
+
+  // Teams / nền tảng khác: host + path viết thường, bỏ query và dấu / cuối.
+  assertEq(
+    extractMeetingKey("https://teams.microsoft.com/l/meetup-join/XYZ/?context=abc"),
+    "teams.microsoft.com/l/meetup-join/xyz",
+    "teams normalized",
+  );
+
+  // Hai phòng khác nhau → key khác nhau.
+  assert(
+    extractMeetingKey("https://zoom.us/j/111") !== extractMeetingKey("https://zoom.us/j/222"),
+    "different zoom rooms differ",
+  );
+  assertEq(extractMeetingKey("not-a-url"), null, "garbage rejected");
 });
 
 Deno.test("wordsToSentence: ghép words, dọn space trước dấu câu, lấy start từ đầu", () => {

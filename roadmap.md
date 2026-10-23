@@ -1,10 +1,12 @@
 # Roadmap
 
 ## Caption Angel FAB drag and guest chat
-- [ ] Add pointer-based dragging, remembered position, viewport clamping and tap/drag separation without moving the chat panel.
-- [ ] Allow signed-out caption viewers to use text-only public Angel chat with client-only guest history; preserve authenticated chat and image authorization.
-- [ ] Guest rate-limit implementation awaits confirmation: backend has no standard rate-limiting primitive; proposed custom limits are 5 messages/minute and 60/day by guest ID plus IP.
-- [ ] Verify clean-browser drag/reload, English/Vietnamese chat, image refusal, throttling and authenticated regressions; publish and verify live revision.
+- [x] Add pointer-based dragging, remembered position, viewport clamping and tap/drag separation without moving the chat panel.
+- [x] Allow signed-out caption viewers to use text-only public Angel chat with client-only guest history; preserve authenticated chat and image authorization. Deployed angel-chat source SHA-256 65641a6aa12e317a8726b7d30cdf3523d3cdb1b10dd449c0b746f6cc04e4eccf.
+- [x] User confirmed custom quotas of 5 messages/minute and 60/day independently by guest ID and IP; live read confirmed existing check_rate_limit RPC uses atomic INSERT ON CONFLICT. No schema change needed.
+- [x] Clean-browser real session safa2a34fsyw: drag restored (62,72), drag did not open panel, tap opened; actual English and Vietnamese replies, bilingual image refusal, sixth request HTTP 429. Guest logs allowed/reply/limited confirmed. Mobile panel fits 390x844, guest home hidden, no history or image requests. Bun 9/9 and Deno 10/10 pass; frontend build OK.
+- [ ] Authenticated browser acceptance remains unavailable: external unmanaged auth cannot restore a session; invalid-JWT rejection and separate guest/no-private-data paths covered by handler tests. Actual signed-in chat on captions/home requires a real signed-in check.
+- [ ] Publish and verify live revision.
 
 ## Caption session closure repair
 - [x] Persist terminal status before fast webhook acknowledgement; defer summaries with waitUntil and authenticated fallback.

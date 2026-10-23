@@ -46,6 +46,8 @@
 - Bất kỳ page nào có `MobileBottomNav` PHẢI có `pb-20` (80px) để input không bị che.
 
 ## 8. Chat / Scroll
+- Angel FAB guest chat is caption-only with client-only history; use isolated text-only gateway calls without user memory, private RAG or image routing, and fail-closed atomic application quotas on guest ID and hashed IP to protect public access. Keep signed-in getUser validation unchanged.
+- FAB coordinates are viewport-clamped and persisted independently of chat identity; use pointer capture with tap/drag separation so dragging never opens the fixed panel.
 - Caption pages keep Realtime plus independent incremental polling and return-to-tab catch-up; reconnect failed channels and clean up subscriptions/timers on unmount so captions cannot freeze after a socket drop.
 - Dùng `div` native với `overflow-y: auto` cho chat scroll. KHÔNG dùng Radix `ScrollArea`.
 

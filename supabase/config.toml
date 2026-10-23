@@ -27,3 +27,8 @@ verify_jwt = false
 # Angel Caption Bot: Recall webhooks authenticate via signature; start/stop via internal token.
 [functions.angel-caption]
 verify_jwt = false
+
+# angel-chat checks getUser for signed-in chat and validates the public key
+# plus server-side quotas for the isolated caption guest branch.
+[functions.angel-chat]
+verify_jwt = false

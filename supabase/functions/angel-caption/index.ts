@@ -401,6 +401,44 @@ async function runCaptionAnnouncement(
   await announceCaptionLink(admin, session, trigger);
 }
 
+// A short background probe covers quiet rooms when Recall's status webhook never arrives.
+// The normal status/transcript/reconcile paths remain the durable fallbacks.
+async function probeJoinAnnouncement(
+  session: CaptionAnnouncementSession,
+  attempts = 6,
+  intervalMs = 8_000,
+) {
+  if (!session.recall_bot_id) return;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    try {
+      const bot = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/`, {
+        signal: AbortSignal.timeout(4_000),
+      });
+      if (!bot.ok) continue;
+      const changes = Array.isArray(bot.data?.status_changes) ? bot.data.status_changes : [];
+      const code = changes.at(-1)?.code ?? "";
+      if (code === "call_ended" || code === "done") return;
+      if (code === "in_call_recording" || code === "in_call_not_recording") {
+        await announceCaptionLink(getAdmin(), session, "reconcile");
+        return;
+      }
+    } catch {
+      console.warn("[angel-caption] join_announce_probe_failed", { session_id: session.id, attempt: attempt + 1 });
+    }
+  }
+}
+
+function scheduleJoinAnnouncementProbe(session: CaptionAnnouncementSession) {
+  const runtime = (globalThis as typeof globalThis & {
+    EdgeRuntime?: { waitUntil: (task: Promise<unknown>) => void };
+  }).EdgeRuntime;
+  if (!runtime?.waitUntil) return;
+  runtime.waitUntil(probeJoinAnnouncement(session).catch(() => {
+    console.warn("[angel-caption] join_announce_probe_failed", { session_id: session.id });
+  }));
+}
+
 async function reconcileOrphanSessions() {
   const admin = getAdmin();
   const closeCutoff = new Date(Date.now() - 3 * 60_000).toISOString();
@@ -595,6 +633,8 @@ async function handleStart(req: Request): Promise<Response> {
     .from("caption_sessions")
     .update({ recall_bot_id: bot.botId, status: "joining" })
     .eq("id", session.id);
+
+  scheduleJoinAnnouncementProbe({ ...session, recall_bot_id: bot.botId });
 
   return json({
     session_id: session.id,

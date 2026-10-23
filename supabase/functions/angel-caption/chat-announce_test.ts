@@ -24,7 +24,7 @@ ${helpers}
 ${handlers}
 ${announceRoute}
 export async function callAnnounce(...args) { return announceCaptionLink(...args); }
-export { handleAnnounce, handleBotStatusChange, handleTranscriptData, reconcileOrphanSessions, scheduleCaptionWork };
+export { handleAnnounce, handleBotStatusChange, handleTranscriptData, reconcileOrphanSessions, scheduleCaptionWork, probeJoinAnnouncement };
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
 const mod = await import(`data:application/javascript,${encodeURIComponent(isolated)}`);
 
@@ -39,6 +39,7 @@ function fixture(status = "joining", ageMinutes = 3) {
   const recallCalls: Array<{ path: string; init?: RequestInit }> = [];
   let postFailure: "response" | "exception" | null = null;
   let postAttempts = 0;
+  const botCodes: string[] = [];
   const admin = { from(table: string) {
     const filters: Array<(candidate: Row) => boolean> = [];
     let patch: Row | null = null;
@@ -76,11 +77,12 @@ function fixture(status = "joining", ageMinutes = 3) {
       if (postFailure === "response") { postFailure = null; return { ok: false, status: 503, data: null }; }
       return { ok: true, status: 200, data: {} };
     }
-    return { ok: true, status: 200, data: { status_changes: [{ code: "in_call_recording" }] } };
+    return { ok: true, status: 200, data: { status_changes: [{ code: botCodes.shift() ?? "in_call_recording" }] } };
   });
   return {
     admin, row, lines, recallCalls,
     failNextPost(kind: "response" | "exception") { postFailure = kind; },
+    setBotCodes(...codes: string[]) { botCodes.push(...codes); },
     get postAttempts() { return postAttempts; },
     sentMessages() { return recallCalls.filter(({ path }) => path.endsWith("/send_chat_message/")); },
   };
@@ -142,6 +144,16 @@ Deno.test("reconcile announces a silent two-minute-old joining bot", async () =>
   await mod.reconcileOrphanSessions();
   assert.equal(f.postAttempts, 1);
   assert.ok(f.row.chat_announced_at);
+});
+
+Deno.test("join probe announces a fresh silent bot before the two-minute reconcile cutoff", async () => {
+  const f = fixture("joining", 0.1);
+  f.setBotCodes("joining", "in_call_recording");
+  await mod.probeJoinAnnouncement(f.row, 3, 0);
+  assert.equal(f.postAttempts, 1);
+  assert.ok(f.row.chat_announced_at);
+  await mod.handleBotStatusChange(f.admin, statusPayload(), null);
+  assert.equal(f.postAttempts, 1);
 });
 
 Deno.test("simultaneous announcement triggers claim one send", async () => {

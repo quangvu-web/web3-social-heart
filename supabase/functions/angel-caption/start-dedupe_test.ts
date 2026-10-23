@@ -15,6 +15,7 @@ export function botCount() { return createdBots; }
 function getAdmin() { return admin; }
 function checkInternalToken() { return true; }
 function reconcileOnTouch() {}
+function scheduleJoinAnnouncementProbe() {}
 function detectPlatform(v) { try { const h = new URL(v).hostname.toLowerCase(); return /(^|\\.)zoom\\.(us|com)$/.test(h) ? "zoom" : h === "meet.google.com" ? "google_meet" : h === "teams.microsoft.com" || h === "teams.live.com" ? "teams" : null; } catch { return null; } }
 function isValidMeetingUrl(v) { return detectPlatform(v) !== null; }
 function extractMeetingKey(v) { try { const u = new URL(v); const host = u.hostname.toLowerCase(); const path = u.pathname.replace(/\\/+$/, ""); if (/(^|\\.)zoom\\.(us|com)$/i.test(host)) { const m = path.match(/\\/j\\/(\\d+)/i); if (m) return "zoom:" + m[1]; } if (host === "meet.google.com") { const m = path.match(/\\/([a-z]{3}-[a-z]{4}-[a-z]{3})(\\/|$)/i); if (m) return "meet:" + m[1].toLowerCase(); } return host + path.toLowerCase() || null; } catch { return null; } }

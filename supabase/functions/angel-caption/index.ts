@@ -17,6 +17,7 @@ import { callAiGateway, gatewayText } from "../_shared/ai-gateway-retry.ts";
 import { callCommunityTelegram } from "../_shared/telegram-community.ts";
 import { MODELS } from "../_shared/angel/models.ts";
 import { formatSummaryForTelegram } from "./summary-format.ts";
+import { captionPlayerUrl, isCaptionMediaSignedUrl, playbackDeadline, playbackSuppressesTranscript } from "./playback-utils.ts";
 import {
   applyHearingCorrections,
   computeDedupeKey,
@@ -32,6 +33,7 @@ import {
 
 const RECALL_BASE = "https://ap-northeast-1.recall.ai"; // region Tokyo — cố định
 const CAPTION_PAGE_BASE = "https://web3-social-heart.lovable.app/captions";
+const PLAYER_PAGE_BASE = "https://web3-social-heart.lovable.app/angel-player";
 
 const KEYTERMS = [
   "Urantia", "Melchizedek", "Machiventa", "Nebadon", "Orvonton", "Havona",
@@ -347,7 +349,7 @@ async function runSummarize(admin: SupabaseClient, sessionId: string) {
 }
 
 // Lazy work factories keep AI/Recall calls outside the webhook acknowledgement path.
-function scheduleCaptionWork(kind: "summarize" | "reconcile" | "announce", sessionId?: string) {
+function scheduleCaptionWork(kind: "summarize" | "reconcile" | "announce" | "cleanup", sessionId?: string, playbackPath?: string | null) {
   const runtime = (globalThis as typeof globalThis & {
     EdgeRuntime?: { waitUntil: (task: Promise<unknown>) => void };
   }).EdgeRuntime;
@@ -357,6 +359,7 @@ function scheduleCaptionWork(kind: "summarize" | "reconcile" | "announce", sessi
       ? reconcileOrphanSessions()
       : sessionId ? kind === "announce"
         ? runCaptionAnnouncement(getAdmin(), sessionId, "transcript")
+        : kind === "cleanup" ? cleanupPlaybackFile(getAdmin(), sessionId, playbackPath)
         : runSummarize(getAdmin(), sessionId) : undefined).catch(failure);
     runtime.waitUntil(task);
     return;
@@ -368,7 +371,7 @@ function scheduleCaptionWork(kind: "summarize" | "reconcile" | "announce", sessi
   void fetch(`${url}/functions/v1/angel-caption?action=${kind}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-caption-token": token, "x-caption-background": "1" },
-    body: JSON.stringify({ session_id: sessionId }),
+    body: JSON.stringify({ session_id: sessionId, playback_path: playbackPath }),
   }).then((response) => { if (!response.ok) failure(); }).catch(failure);
 }
 
@@ -380,12 +383,53 @@ async function closeCaptionSession(admin: SupabaseClient, session: { id: string;
   if (!["pending", "joining", "live"].includes(session.status)) return false;
   // Counted compare-and-swap gives exactly one delivery/reconciler the summary.
   const { error, count } = await admin.from("caption_sessions")
-    .update({ status: finalStatus, ended_at: new Date().toISOString() }, { count: "exact" })
+    .update({ status: finalStatus, ended_at: new Date().toISOString(), playback_status: "idle", playback_until: null }, { count: "exact" })
     .eq("id", session.id).eq("status", session.status);
   if (error) throw new Error("caption_close_write_failed");
   if (count !== 1) return false;
+  scheduleCaptionWork("cleanup", session.id);
   if (finalStatus === "ended") scheduleCaptionWork("summarize", session.id);
   return true;
+}
+
+async function cleanupPlaybackFile(admin: SupabaseClient, sessionId: string, playbackPath?: string | null) {
+  let path = playbackPath;
+  if (!path) {
+    const { data: session } = await admin.from("caption_sessions")
+      .select("playback_file_path").eq("id", sessionId).maybeSingle();
+    path = session?.playback_file_path;
+  }
+  if (!path) return;
+  const { error } = await admin.storage.from("caption-media").remove([path]);
+  if (error) {
+    console.warn("[angel-caption] playback_cleanup_failed", { session_id: sessionId, error: error.message });
+    return;
+  }
+  await admin.from("caption_sessions").update({ playback_file_path: null })
+    .eq("id", sessionId).eq("playback_file_path", path);
+}
+
+async function isPlaybackActive(admin: SupabaseClient, session: {
+  id: string; playback_status: string | null; playback_until: string | null; playback_file_path?: string | null;
+}): Promise<boolean> {
+  if (session.playback_status !== "playing") return false;
+  if (playbackSuppressesTranscript(session.playback_status, session.playback_until)) return true;
+  const { count, error } = await admin.from("caption_sessions")
+    .update({ playback_status: "idle", playback_until: null }, { count: "exact" })
+    .eq("id", session.id).eq("playback_status", "playing")
+    .lte("playback_until", new Date().toISOString());
+  if (error) {
+    console.warn("[angel-caption] playback_expiry_failed", { session_id: session.id, code: error.code });
+    return true;
+  }
+  if (count === 1) scheduleCaptionWork("cleanup", session.id, session.playback_file_path);
+  if (count !== 1) {
+    const { data: current, error: readError } = await admin.from("caption_sessions")
+      .select("playback_status, playback_until").eq("id", session.id).maybeSingle();
+    if (readError) return true;
+    return playbackSuppressesTranscript(current?.playback_status ?? null, current?.playback_until ?? null);
+  }
+  return false;
 }
 
 interface CaptionAnnouncementSession {
@@ -730,7 +774,7 @@ async function findSessionByBot(admin: SupabaseClient, botId: string | null, met
   if (botId) {
     const { data } = await admin
       .from("caption_sessions")
-      .select("id, public_code, recall_bot_id, status, started_at")
+      .select("id, public_code, recall_bot_id, status, started_at, playback_status, playback_until, playback_file_path")
       .eq("recall_bot_id", botId)
       .maybeSingle();
     if (data) return data;
@@ -738,7 +782,7 @@ async function findSessionByBot(admin: SupabaseClient, botId: string | null, met
   if (metadataSessionId) {
     const { data } = await admin
       .from("caption_sessions")
-      .select("id, public_code, recall_bot_id, status, started_at")
+      .select("id, public_code, recall_bot_id, status, started_at, playback_status, playback_until, playback_file_path")
       .eq("id", metadataSessionId)
       .maybeSingle();
     if (data) return data;
@@ -765,6 +809,8 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
     scheduleCaptionWork("announce", session.id);
   }
 
+  if (await isPlaybackActive(admin, session)) return;
+
   const words = payload.data?.data?.words ?? [];
   const { text: rawText, startSec } = wordsToSentence(words);
   if (!rawText) return;
@@ -786,6 +832,10 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
     if (existing) { previousSource = textSource; continue; }
 
     const translation = await translateCaption(textSource, sourceLang, previousSource);
+    const { data: currentPlayback, error: playbackReadError } = await admin.from("caption_sessions")
+      .select("id, playback_status, playback_until, playback_file_path").eq("id", session.id).maybeSingle();
+    if (playbackReadError || !currentPlayback) return;
+    if (currentPlayback && await isPlaybackActive(admin, currentPlayback)) return;
     const { data: maxRow } = await admin
       .from("caption_lines")
       .select("seq")
@@ -833,6 +883,13 @@ async function handleTranscriptPartialData(admin: SupabaseClient, payload: Trans
       .eq("id", session.id).in("status", ["pending", "joining"]);
     scheduleCaptionWork("announce", session.id);
   }
+  if (await isPlaybackActive(admin, session)) {
+    await clearCaptionPartial(admin, session.id);
+    return;
+  }
+  const { data: currentPlayback, error: playbackReadError } = await admin.from("caption_sessions")
+    .select("id, playback_status, playback_until, playback_file_path").eq("id", session.id).maybeSingle();
+  if (playbackReadError || !currentPlayback || await isPlaybackActive(admin, currentPlayback)) return;
   const { error } = await admin.from("caption_partials").upsert({
     session_id: session.id,
     speaker_name: payload.data?.data?.participant?.name ?? null,
@@ -936,6 +993,125 @@ async function handleRecallWebhook(req: Request): Promise<Response> {
   return json({ ok: true });
 }
 
+// ---------- Action: music playback ----------
+
+async function handlePlay(req: Request): Promise<Response> {
+  if (!checkInternalToken(req)) return json({ error: "Unauthorized" }, 401);
+  let body: { session_id?: string; track_url?: string; track_path?: string; title?: string; duration_sec?: number };
+  try { body = await req.json(); } catch { return json({ error: "Body JSON không hợp lệ." }, 400); }
+  if (!body.session_id || !body.track_url || !body.track_path) return json({ error: "Thiếu thông tin bài nhạc." }, 400);
+  if (!isCaptionMediaSignedUrl(body.track_url, Deno.env.get("SUPABASE_URL") ?? "", body.track_path)) {
+    return json({ error: "Link nhạc phải thuộc kho caption-media." }, 400);
+  }
+  const admin = getAdmin();
+  const { data: session, error: lookupError } = await admin.from("caption_sessions")
+    .select("id, public_code, recall_bot_id, status, playback_status, playback_until, playback_file_path")
+    .eq("id", body.session_id).maybeSingle();
+  if (lookupError) return json({ error: "Không kiểm tra được phiên phụ đề." }, 503);
+  if (!session || !["joining", "live"].includes(session.status) || !session.recall_bot_id) {
+    return json({ error: "Chưa có bot Angel Translator trong buổi họp đang chạy." }, 409);
+  }
+  if (!body.track_path.startsWith(`${session.id}/`)) return json({ error: "Đường dẫn file không thuộc phiên này." }, 400);
+  if (session.playback_status === "playing" && !await isPlaybackActive(admin, session)) {
+    // Phiên trước đã quá hạn: quyền phát được mở lại ngay cả khi phòng đang im lặng.
+    session.playback_status = "idle";
+  }
+  const until = playbackDeadline(body.duration_sec);
+  const title = String(body.title ?? "Nhạc thiền").trim().slice(0, 120) || "Nhạc thiền";
+  const { count, error: claimError } = await admin.from("caption_sessions")
+    .update({ playback_status: "playing", playback_title: title, playback_until: until, playback_file_path: body.track_path }, { count: "exact" })
+    .eq("id", session.id).eq("playback_status", "idle").in("status", ["joining", "live"]);
+  if (claimError) return json({ error: "Chưa bật được chế độ phát nhạc." }, 503);
+  if (count !== 1) return json({ error: "Buổi họp đang phát một bài nhạc khác. Bé dùng /stop_play trước nhé." }, 409);
+
+  const playerUrl = captionPlayerUrl(PLAYER_PAGE_BASE, session.public_code, body.track_url, title);
+  let output: Response;
+  try {
+    output = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/output_media/`, {
+      method: "POST",
+      body: JSON.stringify({ camera: { kind: "webpage", config: { url: playerUrl } } }),
+    });
+  } catch (error) {
+    // Recall may have received the request before the connection failed. Keep
+    // captions paused until the operator stops playback or the deadline passes.
+    console.warn("[angel-caption] playback_start_unconfirmed", {
+      session_id: session.id, error: error instanceof Error ? error.message : String(error),
+    });
+    return json({ error: "Chưa xác nhận được trạng thái phát nhạc. Bé kiểm tra phòng họp; nếu cần, dùng /stop_play nhé." }, 502);
+  }
+  if (!output.ok) {
+    await admin.from("caption_sessions")
+      .update({ playback_status: "idle", playback_title: null, playback_until: null, playback_file_path: null })
+      .eq("id", session.id).eq("playback_file_path", body.track_path);
+    console.warn("[angel-caption] playback_start_failed", { session_id: session.id, status: output.status });
+    return json({ error: "Recall chưa phát được nhạc vào phòng. Bé thử lại sau nhé." }, 502);
+  }
+  await clearCaptionPartial(admin, session.id);
+  try {
+    const chat = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/send_chat_message/`, {
+      method: "POST",
+      body: JSON.stringify({ to: "everyone", message: `🎵 Angel Translator đang phát: ${title}. Phụ đề tạm dừng trong lúc phát nhạc. / Now playing: ${title} — captions are paused during playback.` }),
+    });
+    if (!chat.ok) console.warn("[angel-caption] playback_chat_failed", { session_id: session.id, status: chat.status });
+  } catch (error) {
+    console.warn("[angel-caption] playback_chat_failed", {
+      session_id: session.id, error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  console.log("[angel-caption] playback_started", { session_id: session.id, playback_until: until });
+  return json({ ok: true, title, playback_until: until });
+}
+
+async function handleStopPlay(req: Request): Promise<Response> {
+  if (!checkInternalToken(req)) return json({ error: "Unauthorized" }, 401);
+  let body: { session_id?: string };
+  try { body = await req.json(); } catch { return json({ error: "Body JSON không hợp lệ." }, 400); }
+  if (!body.session_id) return json({ error: "Thiếu session_id." }, 400);
+  const admin = getAdmin();
+  const { data: session } = await admin.from("caption_sessions")
+    .select("id, recall_bot_id, status, playback_status, playback_file_path")
+    .eq("id", body.session_id).maybeSingle();
+  if (!session || !["joining", "live"].includes(session.status) || !session.recall_bot_id) {
+    return json({ error: "Không thấy buổi họp đang chạy." }, 404);
+  }
+  if (session.playback_status !== "playing" && !session.playback_file_path) {
+    return json({ ok: true, already_stopped: true });
+  }
+  let stopped: Response;
+  try {
+    stopped = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/output_media/`, {
+      method: "DELETE", body: JSON.stringify({ camera: true }),
+    });
+  } catch (error) {
+    console.warn("[angel-caption] playback_stop_unconfirmed", {
+      session_id: session.id, error: error instanceof Error ? error.message : String(error),
+    });
+    return json({ error: "Chưa xác nhận được nhạc đã dừng. Bé thử /stop_play lại nhé." }, 502);
+  }
+  if (!stopped.ok) {
+    console.warn("[angel-caption] playback_stop_failed", { session_id: session.id, status: stopped.status });
+    return json({ error: "Recall chưa dừng được nhạc. Bé thử lại nhé." }, 502);
+  }
+  const { error } = await admin.from("caption_sessions")
+    .update({ playback_status: "idle", playback_title: null, playback_until: null })
+    .eq("id", session.id);
+  if (error) return json({ error: "Nhạc đã dừng nhưng chưa cập nhật được trạng thái phụ đề." }, 503);
+  scheduleCaptionWork("cleanup", session.id, session.playback_file_path);
+  try {
+    const chat = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/send_chat_message/`, {
+      method: "POST",
+      body: JSON.stringify({ to: "everyone", message: "⏹ Đã dừng phát — phụ đề tiếp tục. / Playback stopped — captions resumed." }),
+    });
+    if (!chat.ok) console.warn("[angel-caption] playback_stop_chat_failed", { session_id: session.id, status: chat.status });
+  } catch (error) {
+    console.warn("[angel-caption] playback_stop_chat_failed", {
+      session_id: session.id, error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  console.log("[angel-caption] playback_stopped", { session_id: session.id });
+  return json({ ok: true });
+}
+
 // ---------- Action: stop ----------
 
 async function handleStop(req: Request): Promise<Response> {
@@ -968,8 +1144,10 @@ async function handleStop(req: Request): Promise<Response> {
 
   await admin
     .from("caption_sessions")
-    .update({ status: "ended", ended_at: new Date().toISOString() })
+    .update({ status: "ended", ended_at: new Date().toISOString(), playback_status: "idle", playback_until: null })
     .eq("id", session.id);
+
+  scheduleCaptionWork("cleanup", session.id);
 
   await runSummarize(admin, session.id).catch((e) =>
     console.warn("[angel-caption] summarize after stop failed", e instanceof Error ? e.message : String(e))
@@ -1030,10 +1208,22 @@ Deno.serve(withUsage("angel-caption", "Angel Caption Bot", async (req) => {
       return await handleRecallWebhook(req);
     case "stop":
       return await handleStop(req);
+    case "play":
+      return await handlePlay(req);
+    case "stop_play":
+      return await handleStopPlay(req);
     case "summarize":
       return await handleSummarize(req);
     case "announce":
       return await handleAnnounce(req);
+    case "cleanup":
+      if (!checkInternalToken(req)) return json({ error: "Unauthorized" }, 401);
+      {
+        const body = await req.json().catch(() => ({}));
+        if (!body.session_id) return json({ error: "Thiếu session_id." }, 400);
+        await cleanupPlaybackFile(getAdmin(), body.session_id, body.playback_path);
+        return json({ ok: true });
+      }
     case "reconcile":
       if (!checkInternalToken(req)) return json({ error: "Unauthorized" }, 401);
       await reconcileOrphanSessions();

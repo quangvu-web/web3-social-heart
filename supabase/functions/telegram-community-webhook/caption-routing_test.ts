@@ -30,6 +30,7 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
   let operatorIds: unknown = [5373909526, 42];
   let rejectSettings = false;
   let ownSession: Record<string, unknown> | null = { id: "fixture-session", public_code: "test" };
+  let noActiveSession = false;
   let latestReads = 0;
   let aiCalls = 0;
   let rejectStart = false;
@@ -96,10 +97,10 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
       assert.equal(url.searchParams.get("limit"), "1");
       if (url.searchParams.has("created_by_telegram_id")) {
         assert.match(url.searchParams.get("created_by_telegram_id") ?? "", /^eq\.(42|5373909526|5938169315)$/);
-        return Response.json(ownSession);
+        return Response.json(noActiveSession ? null : ownSession);
       }
       latestReads++;
-      return Response.json({ id: "latest-session", public_code: "latest" });
+      return Response.json(noActiveSession ? null : { id: "latest-session", public_code: "latest" });
     }
     return new Response(null, { status: 204 });
   };
@@ -191,6 +192,31 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
     await send("/caption_resend cgx8324s4sxw", 5373909526);
     assert.deepEqual(replays, [{ session_id: "ended-session" }]);
     assert.match(replies.at(-1) ?? "", /đang gửi lại tóm tắt/);
+    const beforePlaybackDenied = stops.length;
+    await send("/play", 5938169315);
+    assert.match(replies.at(-1) ?? "", /chỉ dành cho người phụ trách/);
+    assert.equal(stops.length, beforePlaybackDenied);
+    await send("/play", 5373909526);
+    assert.match(replies.at(-1) ?? "", /gửi file MP3/);
+    await handlePrivateMessage({
+      message_id: 82, chat: { id: 5373909526, type: "private" },
+      from: { id: 5373909526, first_name: "Fixture" },
+      audio: { file_id: "audio-fixture" },
+    } as any);
+    assert.match(replies.at(-1) ?? "", /chú thích.*play/);
+    await handlePrivateMessage({
+      message_id: 83, chat: { id: 5373909526, type: "private" },
+      from: { id: 5373909526, first_name: "Fixture" }, caption: "Nhạc nền",
+      audio: { file_id: "audio-fixture" },
+    } as any);
+    assert.match(replies.at(-1) ?? "", /chú thích.*play/);
+    noActiveSession = true;
+    await send("/play", 5373909526);
+    assert.match(replies.at(-1) ?? "", /chưa thấy buổi họp phụ đề nào đang chạy/);
+    noActiveSession = false;
+    await send("/stop_play", 5373909526);
+    assert.deepEqual(stops.at(-1), { session_id: "latest-session" });
+    assert.match(replies.at(-1) ?? "", /đã dừng nhạc/);
   } finally {
     Deno.env.get = originalGet;
     globalThis.fetch = originalFetch;

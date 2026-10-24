@@ -99,6 +99,7 @@ import {
   type ScamModerationContext,
 } from "../_shared/telegram-scam-protection.ts";
 import { tryFetchTelegramMedia } from "../_shared/telegram-media.ts";
+import { fetchTelegramMedia, TelegramMediaError } from "../_shared/telegram-media.ts";
 import {
   completeVerifiedCallback,
   decideVerificationCallback,
@@ -1204,6 +1205,144 @@ export async function handlePrivateMessage(message: TelegramMessage) {
     }
     return res;
   };
+
+  // Phát nhạc chỉ trong DM và chỉ khi operator gọi rõ /play.
+  const playbackCommandText = (message.text ?? message.caption ?? "").trim();
+  const attachedMp3 = Boolean((message as any).audio ||
+    ((message as any).document && (/\.mp3$/i.test(String((message as any).document.file_name ?? "")) ||
+      (message as any).document.mime_type === "audio/mpeg")));
+  if (/^\/(?:play|stop_play)(?:@\S+)?(?:\s|$)/i.test(playbackCommandText) || attachedMp3) {
+    const isPlay = /^\/play(?:@\S+)?(?:\s|$)/i.test(playbackCommandText);
+    const isStop = /^\/stop_play(?:@\S+)?(?:\s|$)/i.test(playbackCommandText);
+    if (!isPlay && !isStop) {
+      await replyDm("🎵 Để phát MP3 vào phòng họp, bé gửi file kèm chú thích <code>/play</code> hoặc reply file bằng <code>/play</code> nhé.");
+      return;
+    }
+    if (!await isCaptionOperator(adminClient, tgUserId)) {
+      await replyDm("🌐 Tính năng này chỉ dành cho người phụ trách được cấp quyền. Bé nhắn người tổ chức buổi họp để được hỗ trợ nhé 💛");
+      return;
+    }
+    if (!tgUserId) return;
+    const internalToken = Deno.env.get("CAPTION_INTERNAL_TOKEN") ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    if (!internalToken || !supabaseUrl) {
+      await replyDm("Angel chưa sẵn sàng phát nhạc lúc này. Bé thử lại sau nhé 💛");
+      return;
+    }
+    let uploadedPath: string | null = null;
+    try {
+      const { data: own, error: ownError } = await adminClient.from("caption_sessions")
+        .select("id, public_code")
+        .eq("created_by_telegram_id", tgUserId)
+        .in("status", ["joining", "live"])
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (ownError) throw ownError;
+      let active = own;
+      if (!active) {
+        const { data: latest, error } = await adminClient.from("caption_sessions")
+          .select("id, public_code")
+          .in("status", ["joining", "live"])
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (error) throw error;
+        active = latest;
+      }
+      if (!active) {
+        await replyDm("🎵 Angel chưa thấy buổi họp phụ đề nào đang chạy. Bé dùng /caption trước nhé 💛");
+        return;
+      }
+      if (isStop) {
+        const res = await fetch(`${supabaseUrl}/functions/v1/angel-caption?action=stop_play`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-caption-token": internalToken },
+          body: JSON.stringify({ session_id: active.id }),
+        });
+        await replyDm(res.ok ? "⏹ Angel đã dừng nhạc; phụ đề đang tiếp tục nhé 💛" : "Angel chưa dừng được nhạc. Bé thử lại sau ít phút nhé.");
+        return;
+      }
+      const fileMessage = (message as any).audio || (message as any).document
+        ? message as any : (message.reply_to_message as any);
+      const file = fileMessage?.audio ?? fileMessage?.document;
+      const isMp3Document = fileMessage?.document &&
+        (/\.mp3$/i.test(String(file.file_name ?? "")) || file.mime_type === "audio/mpeg");
+      if (!file?.file_id || (!fileMessage?.audio && !isMp3Document)) {
+        await replyDm("🎵 Bé gửi file MP3 kèm chú thích <code>/play</code>, hoặc reply file MP3 bằng <code>/play</code> nhé.");
+        return;
+      }
+      if (Number(file.file_size ?? 0) > 20 * 1024 * 1024) {
+        await replyDm("File MP3 vượt quá giới hạn 20 MB của Telegram Bot. Bé chọn file nhỏ hơn nhé 💛");
+        return;
+      }
+      const media = await fetchTelegramMedia(file.file_id, {
+        tokenEnvNames: ["COMMUNITY_GUARD_BOT_TOKEN"], maxBytes: 20 * 1024 * 1024,
+        allowedMimePrefixes: ["audio/mpeg"],
+      });
+      const { data: existingBucket } = await adminClient.storage.getBucket("caption-media");
+      if (existingBucket?.public) throw new Error("caption_media_bucket_must_be_private");
+      if (!existingBucket) {
+        const { error: createError } = await adminClient.storage.createBucket("caption-media", {
+          public: false, fileSizeLimit: 20 * 1024 * 1024, allowedMimeTypes: ["audio/mpeg"],
+        });
+        if (createError) {
+          const { data: racedBucket } = await adminClient.storage.getBucket("caption-media");
+          if (!racedBucket || racedBucket.public) throw createError;
+        }
+      }
+      const path = `${active.id}/${crypto.randomUUID()}.mp3`;
+      const { error: uploadError } = await adminClient.storage.from("caption-media")
+        .upload(path, media.bytes, { contentType: "audio/mpeg", upsert: false });
+      if (uploadError) throw uploadError;
+      uploadedPath = path;
+      const { data: signed, error: signError } = await adminClient.storage.from("caption-media")
+        .createSignedUrl(path, 7200);
+      if (signError || !signed?.signedUrl) {
+        await adminClient.storage.from("caption-media").remove([path]);
+        uploadedPath = null;
+        throw signError ?? new Error("signed_url_missing");
+      }
+      const title = String(file.title ?? file.file_name ?? "Nhạc thiền").replace(/\.mp3$/i, "").slice(0, 120);
+      const res = await fetch(`${supabaseUrl}/functions/v1/angel-caption?action=play`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-caption-token": internalToken },
+        body: JSON.stringify({
+          session_id: active.id, track_url: signed.signedUrl, track_path: path,
+          title, duration_sec: file.duration ?? null,
+        }),
+      });
+      if (!res.ok) {
+        // A timeout after Recall accepted POST can leave playback running. Keep
+        // the signed file when the session claimed it, so audio does not vanish.
+        const { data: playback, error: playbackReadError } = await adminClient.from("caption_sessions")
+          .select("playback_status, playback_file_path").eq("id", active.id).maybeSingle();
+        if (!playbackReadError && (playback?.playback_status !== "playing" || playback.playback_file_path !== path)) {
+          await adminClient.storage.from("caption-media").remove([path]);
+        }
+        uploadedPath = null;
+        await replyDm(playbackReadError || (playback?.playback_status === "playing" && playback.playback_file_path === path)
+          ? "Angel chưa xác nhận được nhạc đã phát. Bé kiểm tra phòng họp; nếu cần, dùng /stop_play nhé 💛"
+          : "Angel chưa phát được MP3 vào phòng. Nếu đang phát bài khác, bé dùng /stop_play trước nhé 💛");
+        return;
+      }
+      uploadedPath = null; // Phiên sẽ dọn file khi dừng phát hoặc kết thúc.
+      await replyDm(`🎵 Angel đang phát <b>${escapeHtml(title)}</b> vào buổi họp. Bé dùng /stop_play để dừng nhé 💛`);
+    } catch (error) {
+      if (uploadedPath) {
+        const { data: playback, error: playbackReadError } = await adminClient.from("caption_sessions")
+          .select("playback_status, playback_file_path").eq("playback_file_path", uploadedPath).maybeSingle();
+        if (!playbackReadError && playback?.playback_status !== "playing") {
+          await adminClient.storage.from("caption-media").remove([uploadedPath]);
+        }
+      }
+      if (error instanceof TelegramMediaError && error.code === "too_large") {
+        await replyDm("File MP3 vượt quá giới hạn 20 MB của Telegram Bot. Bé chọn file nhỏ hơn nhé 💛");
+      } else if (error instanceof TelegramMediaError && error.code === "unsupported_mime") {
+        await replyDm("Angel chỉ nhận file MP3 để phát vào phòng họp nhé 💛");
+      } else {
+        console.warn("[dm] caption_playback_failed", { code: error instanceof TelegramMediaError ? error.code : "playback_failed" });
+        await replyDm("Angel chưa phát được nhạc lúc này. Bé thử lại sau ít phút nhé 💛");
+      }
+    }
+    return;
+  }
 
   if (/^\/caption/i.test(text)) {
     // ANGEL CAPTION BOT — /caption <link họp>: tạo phiên phụ đề dịch trực tiếp.

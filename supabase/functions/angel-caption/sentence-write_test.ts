@@ -14,6 +14,7 @@ function detectSourceLang(text) { return /[ăâđêôơư]/i.test(text) ? "vi" :
 async function computeDedupeKey(...args) { return globalThis.__captionKey(...args); }
 async function translateCaption(...args) { return translate(...args); }
 function scheduleCaptionWork() {}
+async function isPlaybackActive() { return false; }
 ${handlers}
 export { handleTranscriptData };
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;

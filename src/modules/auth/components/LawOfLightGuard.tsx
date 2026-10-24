@@ -20,7 +20,7 @@ export const LawOfLightGuard = ({ children }: LawOfLightGuardProps) => {
 
     const checkAccess = () => {
       // Public pages - always allow
-      const publicPaths = ['/law-of-light', '/docs', '/captions'];
+      const publicPaths = ['/law-of-light', '/docs', '/captions', '/angel-player'];
       const isPublicPath = publicPaths.some(path => location.pathname.startsWith(path));
       
       if (isPublicPath) {

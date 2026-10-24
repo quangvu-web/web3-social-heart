@@ -58,6 +58,7 @@ const TelegramBotGuide = lazy(() => import("./pages/TelegramBotGuide"));
 const LiveDiscoveryPage = lazy(() => import("./pages/LiveDiscoveryPage"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const CaptionsPage = lazy(() => import("./pages/CaptionsPage"));
+const AngelPlayerPage = lazy(() => import("./pages/AngelPlayerPage"));
 
 // Optimized QueryClient with caching
 const queryClient = new QueryClient({
@@ -201,6 +202,7 @@ function App() {
                      <Route path="/settings/telegram-2fa-guide" element={<Telegram2FAGuide />} />
                      <Route path="/telegram-bot-guide" element={<TelegramBotGuide />} />
                      <Route path="/captions/:code" element={<CaptionsPage />} />
+                     <Route path="/angel-player/:code" element={<AngelPlayerPage />} />
                       {/* Dynamic username route - must be AFTER static routes */}
                       <Route path="/:username" element={<Profile />} />
                       <Route path="*" element={<NotFound />} />

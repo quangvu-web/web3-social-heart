@@ -134,3 +134,8 @@ Deno.test("normal Vietnamese group rewrite still applies the final Telegram addr
     languagePolicyNote: policy.policyNote, fallbackLangBucket: policy.botVoiceBucket, chatType: "supergroup",
   }, async () => "Tôi sẽ giúp bạn thực hành lòng biết ơn."), "Angel sẽ giúp bé thực hành lòng biết ơn.");
 });
+
+Deno.test("Vietnamese translation framing keeps Angel addressing without changing the English translation", async () => {
+  const policy = resolveGroupReplyLanguage("Translate to English: Tôi biết ơn", "vi");
+  assertEquals(await community.enforceGroupReplyLanguageOutput("Original", policy, async () => JSON.stringify({ framing: "Chào bạn, dưới đây là bản dịch bạn yêu cầu.", translation: "I am grateful." })), "Chào bé, dưới đây là bản dịch bé yêu cầu.\n\nI am grateful.");
+});

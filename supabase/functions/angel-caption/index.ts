@@ -109,7 +109,7 @@ function buildRecallBotBody(meetingUrl: string, sessionId: string, webhookUrl: s
         diarization: { use_separate_streams_when_available: true },
       },
       realtime_endpoints: [
-        { type: "webhook", url: `${webhookUrl}?action=recall-webhook`, events: ["transcript.data"] },
+        { type: "webhook", url: `${webhookUrl}?action=recall-webhook`, events: ["transcript.data", "transcript.partial_data"] },
       ],
     },
     metadata: { caption_session_id: sessionId },
@@ -859,6 +859,8 @@ async function handleBotStatusChange(
   logResult("ignored");
 }
 
+const loggedPartialBotIds = new Set<string>();
+
 async function handleRecallWebhook(req: Request): Promise<Response> {
   const receivedAt = performance.now();
   const rawBody = await req.text(); // PHẢI đọc raw trước khi parse JSON
@@ -890,6 +892,12 @@ async function handleRecallWebhook(req: Request): Promise<Response> {
   try {
     if (event === "transcript.data") {
       await handleTranscriptData(admin, payload as TranscriptEvent, metadataSessionId);
+    } else if (event === "transcript.partial_data") {
+      const botId = String(payload?.data?.bot?.id ?? payload?.data?.bot_id ?? metadataSessionId ?? "unknown");
+      if (!loggedPartialBotIds.has(botId)) {
+        loggedPartialBotIds.add(botId);
+        console.log("[angel-caption] partial_payload_first", rawBody);
+      }
     } else if (isBotStatusEvent) {
       await handleBotStatusChange(admin, payload, metadataSessionId, event);
     }

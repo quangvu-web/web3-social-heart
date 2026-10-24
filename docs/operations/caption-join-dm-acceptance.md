@@ -28,8 +28,8 @@ Tất cả thời gian dưới đây là Malaysia UTC+8.
 
 | Mục | Trạng thái | Bằng chứng còn cần |
 |---|---|---|
-| (a) A từ đầu, B sau5phút, DM đúng link, A không có tin mới | Log gửi riêng B lúc20:26; bé xác nhận nhận DM; A không có tin mới | Còn ảnh chat riêng B để lưu bằng chứng private và link đúng |
-| (b) B rời/vào lại nhận đúng1 DM mới | Log sent20:28, webhook-id mới; bé xác nhận đúng1 DM mới | Còn ảnh DM B |
+| (a) A từ đầu, B sau5phút, DM đúng link, A không có tin mới | Log gửi riêng B lúc20:26; bé xác nhận nhận DM; A không có tin mới | Đã nhận ảnh B do bé đính kèm trong hội thoại: chat riêng Angel Translator, link phiên mới b5c6bzbr34j9 |
+| (b) B rời/vào lại nhận đúng1 DM mới | Log sent20:28, webhook-id mới; bé xác nhận đúng1 DM mới | Bé xác nhận từng lượt; ảnh B bổ sung chứng minh giao diện private |
 | (c) Bot không tự DM, không vòng lỗi | Đã tạo bot mới bằng bản DM lúc20:31: chỉ2 DM cho2 người thật100/200, không có self DM hay log lặp | Recall không phát event self trong mẫu thật; nhánh lọc tên self được kiểm thử riêng |
 | (d) Public welcome vẫn đúng1 lần | Đạt trong phiên hiện tại: A vẫn có1 tin20:11 sau cả hai lượt B join; log có1 chat_announce sent và2 claimed_by_other | Đã đối chiếu UI A và log |
 
@@ -42,4 +42,6 @@ Phiên test quan sát: https://web3-social-heart.lovable.app/captions/qat286tnm5
 - 20:31:26 và20:31:27: join_dm sent cho2 người đang có mặt, participant100 và200. Không ghi nhận DM đến chính bot, không vòng lỗi.
 - UI A có tab Angel Translator, nhãn “tin nhắn riêng tư”, đúng nội dung song ngữ và link b5c6bzbr34j9. Đây là kiểm chứng private delivery trên A, không thay cho ảnh B được yêu cầu.
 - UI Mọi người có1 welcome cho phiên mới lúc20:31. Tin cũ20:11 thuộc phiên cũ đã đóng, không phải gửi trùng cùng phiên.
-- Còn cần ảnh chat riêng B (phiên cũ hoặc mới, thấy rõ nhãn private và link) trước khi coi bộ bằng chứng nghiệm thu đầy đủ. Chưa merge main.
+- Đã nhận ảnh chat riêng B do bé đính kèm trong hội thoại: đồng hồ điện thoại20:34, tin20:31, tab Angel Translator tách khỏi Mọi người, input nhắn riêng cho Angel Translator, đúng toàn bộ nội dung song ngữ và link b5c6bzbr34j9 xuất hiện cả hai phần ngôn ngữ.
+- Ảnh là bằng chứng phía B cho phiên mới; hai lượt rejoin phiên cũ được đối chiếu log và xác nhận của bé. Không gán ảnh20:31 cho các sự kiện20:26/20:28.
+- Bộ bằng chứng hành vi(a)–(d) đã được đối chiếu bằng log, UI A, ảnh B và xác nhận hai lượt rejoin. Không còn chờ ảnh B.

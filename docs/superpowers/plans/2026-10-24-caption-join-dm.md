@@ -29,5 +29,5 @@ Phạm vi: angel-caption; giữ nguyên tin chào everyone, transcript final/par
 - Bé đã áp dụng migration; kiểm tra chỉ đọc xác nhận bảng, PRIMARY KEY webhook_id, RLS và quyền backend ghi.
 - Edge Function suite 73 đạt với no-check; riêng module DM và webhook24 đạt với type-check. Frontend bun test src55 đạt.
 - deno check toàn function có5 lỗi, đã đối chiếu origin/main cũng cùng5 lỗi; không phát sinh lỗi mới từ module DM.
-- Zoom: log sent20:26:11 và20:28:22 UTC+8, hai webhook-id khác nhau; bé xác nhận B nhận DM mỗi lượt và đúng1 DM mới khi rejoin. A vẫn chỉ có1 public welcome. Đã tạo phiên mới b5c6bzbr34j9 trên bản DM: chỉ gửi2 người thật, không tự DM/không vòng lỗi; public welcome1 lần. Còn thiếu ảnh chat B; chưa merge main.
+- Zoom: log sent20:26:11 và20:28:22 UTC+8, hai webhook-id khác nhau; bé xác nhận B nhận DM mỗi lượt và đúng1 DM mới khi rejoin. A vẫn chỉ có1 public welcome. Đã tạo phiên mới b5c6bzbr34j9 trên bản DM: chỉ gửi2 người thật, không tự DM/không vòng lỗi; public welcome1 lần. Đã nhận ảnh B do bé đính kèm: private tab, tin20:31, đúng link b5c6bzbr34j9. Đủ bằng chứng nghiệm thu để tích hợp main.
 - Nguồn đối chiếu: https://docs.recall.ai/docs/sending-chat-messages và https://docs.recall.ai/docs/real-time-event-payloads . Tài liệu không thay thế payload thật.

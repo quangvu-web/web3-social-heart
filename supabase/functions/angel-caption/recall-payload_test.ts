@@ -30,6 +30,8 @@ const { setAdmin, handleRecallWebhook } = await import(`data:application/javascr
 function fixture(status: string, startedAt: string | null = null, metadataOnly = false) {
   const updates: Record<string, unknown>[] = [];
   const inserts: Record<string, unknown>[] = [];
+  const partialWrites: Record<string, unknown>[] = [];
+  const partialDeletes: string[] = [];
   const lookups: Array<[string, unknown]> = [];
   setAdmin({ from(table: string) {
     let column = "";
@@ -39,13 +41,16 @@ function fixture(status: string, startedAt: string | null = null, metadataOnly =
       in() { return query; },
       order() { return query; }, limit() { return query; },
       update(value: Record<string, unknown>) { updates.push(value); return query; },
+      delete() { partialDeletes.push(table); return query; },
+      upsert(value: Record<string, unknown>) { partialWrites.push(value); return Promise.resolve({ error: null }); },
+      then(resolve: (value: unknown) => void) { resolve({ error: null }); },
       insert(value: Record<string, unknown>) { inserts.push(value); return Promise.resolve({ error: null }); },
       maybeSingle() { return Promise.resolve({ data: table === "caption_sessions" && (!metadataOnly || column === "id")
         ? { id: "session-1", public_code: "fixture", status, started_at: startedAt } : null }); },
     };
     return query;
   } });
-  return { updates, inserts, lookups };
+  return { updates, inserts, lookups, partialWrites, partialDeletes };
 }
 
 async function deliver(event: string, data: unknown, metadata?: unknown) {
@@ -104,4 +109,33 @@ Deno.test("Nested status code and bot ID take precedence; legacy bot/status stil
   await deliver("transcript.data", { bot_id: "bot-old", data: { words: [{ text: "Hello" }] } });
   assert.deepEqual(transcript.lookups[0], ["recall_bot_id", "bot-old"]);
   assert.equal(transcript.inserts.length, 1);
+});
+
+Deno.test("real Recall partial shape overwrites one temporary row and final clears it", async () => {
+  const f = fixture("live");
+  const bot = { id: "bot-current", metadata: { caption_session_id: "session-1" } };
+  await deliver("transcript.partial_data", { bot, data: {
+    words: [{ text: "Hello" }], participant: { name: "MC" },
+  } });
+  await deliver("transcript.partial_data", { bot, data: {
+    words: [{ text: "Hello" }, { text: "world" }], participant: { name: "MC" },
+  } });
+  assert.deepEqual(f.partialWrites.map((row) => [row.session_id, row.speaker_name, row.text_source]), [
+    ["session-1", "MC", "Hello"], ["session-1", "MC", "Hello world"],
+  ]);
+  assert.ok(f.partialWrites.every((row) => !Number.isNaN(Date.parse(String(row.updated_at)))));
+  await deliver("transcript.data", { bot, data: {
+    words: [{ text: "Hello" }, { text: "world." }], participant: { name: "MC" },
+  } });
+  assert.deepEqual(f.partialDeletes, ["caption_partials"]);
+  assert.equal(f.inserts.length, 1);
+});
+
+Deno.test("partial speech marks a joining session live even if status delivery was missed", async () => {
+  const f = fixture("joining");
+  await deliver("transcript.partial_data", { bot: { id: "bot-current" }, data: {
+    words: [{ text: "Hello" }], participant: { name: "MC" },
+  } });
+  assert.equal(f.updates[0].status, "live");
+  assert.equal(f.partialWrites[0].text_source, "Hello");
 });

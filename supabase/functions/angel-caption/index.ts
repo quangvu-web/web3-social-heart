@@ -754,6 +754,7 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
     console.warn("[angel-caption] transcript for unknown bot", { bot_id: botId });
     return;
   }
+  await clearCaptionPartial(admin, session.id);
 
   if (session.status === "pending" || session.status === "joining") {
     await admin
@@ -815,6 +816,32 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
   console.log("[angel-caption] transcript_segment_complete", { session_id: session.id, segment_key: segmentKey, completed_at: new Date().toISOString() });
 }
 
+async function clearCaptionPartial(admin: SupabaseClient, sessionId: string) {
+  const { error } = await admin.from("caption_partials").delete().eq("session_id", sessionId);
+  if (error) console.warn("[angel-caption] partial_clear_failed", { session_id: sessionId, error_code: error.code });
+}
+
+async function handleTranscriptPartialData(admin: SupabaseClient, payload: TranscriptEvent, metadataSessionId: string | null) {
+  const botId = payload.data?.bot?.id ?? payload.data?.bot_id ?? null;
+  const session = await findSessionByBot(admin, botId, metadataSessionId);
+  if (!session || session.status === "ended" || session.status === "failed") return;
+  const { text } = wordsToSentence(payload.data?.data?.words ?? []);
+  if (!text) return;
+  if (session.status === "pending" || session.status === "joining") {
+    await admin.from("caption_sessions")
+      .update({ status: "live", ...(!session.started_at ? { started_at: new Date().toISOString() } : {}) })
+      .eq("id", session.id).in("status", ["pending", "joining"]);
+    scheduleCaptionWork("announce", session.id);
+  }
+  const { error } = await admin.from("caption_partials").upsert({
+    session_id: session.id,
+    speaker_name: payload.data?.data?.participant?.name ?? null,
+    text_source: text,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "session_id" });
+  if (error) console.warn("[angel-caption] partial_upsert_failed", { session_id: session.id, error_code: error.code });
+}
+
 async function handleBotStatusChange(
   admin: SupabaseClient,
   payload: { data?: { bot?: { id?: string; metadata?: { caption_session_id?: string } }; bot_id?: string; data?: { code?: string }; status?: { code?: string } } },
@@ -859,8 +886,6 @@ async function handleBotStatusChange(
   logResult("ignored");
 }
 
-const loggedPartialBotIds = new Set<string>();
-
 async function handleRecallWebhook(req: Request): Promise<Response> {
   const receivedAt = performance.now();
   const rawBody = await req.text(); // PHẢI đọc raw trước khi parse JSON
@@ -893,11 +918,7 @@ async function handleRecallWebhook(req: Request): Promise<Response> {
     if (event === "transcript.data") {
       await handleTranscriptData(admin, payload as TranscriptEvent, metadataSessionId);
     } else if (event === "transcript.partial_data") {
-      const botId = String(payload?.data?.bot?.id ?? payload?.data?.bot_id ?? metadataSessionId ?? "unknown");
-      if (!loggedPartialBotIds.has(botId)) {
-        loggedPartialBotIds.add(botId);
-        console.log("[angel-caption] partial_payload_first", rawBody);
-      }
+      await handleTranscriptPartialData(admin, payload as TranscriptEvent, metadataSessionId);
     } else if (isBotStatusEvent) {
       await handleBotStatusChange(admin, payload, metadataSessionId, event);
     }

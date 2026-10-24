@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Minus, Plus, Loader2, ArrowDown } from "lucide-react";
 
 type SessionStatus = "pending" | "joining" | "live" | "ended" | "failed";
@@ -25,6 +26,16 @@ interface CaptionLine {
   text_vi: string | null;
   text_en: string | null;
 }
+
+interface CaptionPartial {
+  session_id: string;
+  speaker_name: string | null;
+  text_source: string;
+  updated_at: string;
+}
+
+// caption_partials is introduced by a migration; generated database types are protected.
+const partialsDb = supabase as unknown as SupabaseClient;
 
 type ViewMode = "vi" | "en" | "both";
 
@@ -61,6 +72,7 @@ export default function CaptionsPage() {
   const { code } = useParams<{ code: string }>();
   const [session, setSession] = useState<CaptionSession | null>(null);
   const [lines, setLines] = useState<CaptionLine[]>([]);
+  const [partial, setPartial] = useState<CaptionPartial | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [mode, setMode] = useState<ViewMode>("both");
   const [fontSize, setFontSize] = useState(28);
@@ -92,6 +104,7 @@ export default function CaptionsPage() {
     maxSeq.current = 0;
     setSession(null);
     setLines([]);
+    setPartial(null);
     setNotFound(false);
     stickToBottom.current = true;
     unreadBase.current = 0;
@@ -139,6 +152,12 @@ export default function CaptionsPage() {
       if (cancelled) return;
       mergeLines((existing as CaptionLine[]) ?? []);
 
+      const { data: initialPartial } = await partialsDb.from("caption_partials")
+        .select("session_id, speaker_name, text_source, updated_at")
+        .eq("session_id", sess.id).maybeSingle();
+      if (cancelled) return;
+      if (initialPartial) setPartial(initialPartial as CaptionPartial);
+
       refresh = async () => {
         if (cancelled) return;
         if (fetching) {
@@ -149,7 +168,7 @@ export default function CaptionsPage() {
         try {
           // Capture the cursor before concurrent Realtime inserts arrive.
           const cursor = maxSeq.current;
-          const [captions, status] = await Promise.all([
+          const [captions, status, currentPartial] = await Promise.all([
             supabase.from("caption_lines")
               .select("id, seq, speaker_name, source_lang, text_source, text_vi, text_en")
               .eq("session_id", sess.id).gt("seq", cursor)
@@ -157,10 +176,14 @@ export default function CaptionsPage() {
             supabase.from("caption_sessions")
               .select("id, public_code, status, started_at, ended_at, created_at")
               .eq("id", sess.id).maybeSingle(),
+            partialsDb.from("caption_partials")
+              .select("session_id, speaker_name, text_source, updated_at")
+              .eq("session_id", sess.id).maybeSingle(),
           ]);
           if (cancelled) return;
           if (!captions.error && captions.data) mergeLines(captions.data as CaptionLine[]);
           if (!status.error && status.data) setSession(status.data as CaptionSession);
+          if (!currentPartial.error) setPartial((currentPartial.data as CaptionPartial | null) ?? null);
           if (captions.data?.length === 1000) refreshRequested = true;
         } catch {
           // Preserve existing captions; the next polling/return event retries.
@@ -186,6 +209,18 @@ export default function CaptionsPage() {
             "postgres_changes",
             { event: "UPDATE", schema: "public", table: "caption_sessions", filter: `id=eq.${sess.id}` },
             (payload) => { if (!cancelled) setSession(payload.new as CaptionSession); },
+          )
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "caption_partials" },
+            (payload) => {
+              if (cancelled) return;
+              if (payload.eventType === "DELETE") {
+                if ((payload.old as { session_id?: string }).session_id === sess.id) setPartial(null);
+              } else if ((payload.new as CaptionPartial).session_id === sess.id) {
+                setPartial(payload.new as CaptionPartial);
+              }
+            },
           )
           .subscribe((status) => {
             if (cancelled) return;
@@ -242,7 +277,7 @@ export default function CaptionsPage() {
       const count = lines.length - unreadBase.current;
       if (count > 0) setJumpState({ visible: true, count });
     }
-  }, [lines]);
+  }, [lines, partial]);
 
   // Ngưỡng 160px ≈ chiều cao một dòng phụ đề trên mobile: dao động nhỏ
   // khi nội dung tăng không làm rớt cờ bám đáy.
@@ -313,6 +348,9 @@ export default function CaptionsPage() {
     );
   };
 
+  const showPartial = session.status === "live" && !!partial?.text_source &&
+    now - new Date(partial.updated_at).getTime() < 15000;
+
   return (
     <div className="h-screen overflow-hidden bg-[#0B1020] text-slate-100 flex flex-col">
       {/* Header: trạng thái + đồng hồ + điều khiển */}
@@ -361,12 +399,18 @@ export default function CaptionsPage() {
       {/* Danh sách phụ đề — native div scroll theo quy ước dự án */}
       <div className="relative flex-1 flex flex-col min-h-0">
         <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto">
-          {lines.length === 0 ? (
+          {lines.length === 0 && !showPartial ? (
             <div className="p-8 text-center text-slate-400">
               {session.status === "live" ? "Đang lắng nghe buổi họp…" : "Chưa có phụ đề nào."}
             </div>
           ) : (
             lines.map(renderLine)
+          )}
+          {showPartial && partial && (
+            <div className="px-4 py-3 italic text-slate-400" aria-label="Đang nói">
+              {partial.speaker_name && <div className="text-sm mb-1">{partial.speaker_name}</div>}
+              <div className="leading-snug" style={{ fontSize }}>{partial.text_source}…</div>
+            </div>
           )}
         </div>
         {jumpState.visible && (

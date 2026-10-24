@@ -51,6 +51,7 @@ function fixture(status = "joining", ageMinutes = 3) {
     const query = {
       select() { return query; },
       update(value: Row, options?: { count?: string }) { patch = value; countRequested = options?.count === "exact"; return query; },
+      delete() { return query; },
       eq(key: string, value: unknown) { filters.push((candidate) => candidate[key] === value); return query; },
       is(key: string, value: unknown) { filters.push((candidate) => candidate[key] === value); return query; },
       in(key: string, values: unknown[]) { filters.push((candidate) => values.includes(candidate[key])); return query; },

@@ -50,6 +50,8 @@ Deno.test("long final turn writes ordered sentences as each translation complete
     const query = {
       select() { return query; },
       update() { return query; },
+      delete() { return query; },
+      then(resolve: (value: unknown) => void) { resolve({ error: null }); },
       eq(key: string, value: unknown) { filters.push((row) => row[key] === value); return query; },
       in() { return query; },
       order() { descending = true; return query; },

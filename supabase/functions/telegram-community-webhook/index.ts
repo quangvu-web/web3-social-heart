@@ -5187,7 +5187,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
   );
   const cacheKey = decision.cacheable && !hasReplyContext
     ? await sha256Hex([
-      groupLanguage.policyNote ? "telegram-ai-v3" : "telegram-ai-v2",
+      groupLanguage.policyNote ? "telegram-ai-v4" : "telegram-ai-v2",
       userLangBucket,
       groupLanguage.botVoiceBucket ?? "auto",
       chatId,

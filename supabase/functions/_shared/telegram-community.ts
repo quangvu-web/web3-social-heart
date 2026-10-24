@@ -2515,22 +2515,6 @@ ${addressRule}`;
   const trustedGroupLanguagePolicy = ["group", "supergroup", "channel"].includes(
     (params.conversationContext?.chatType ?? "").toLowerCase(),
   ) ? params.languagePolicyNote?.trim() || null : null;
-  const finalizeGroupLanguage = async (reply: string): Promise<string> => {
-    if (!trustedGroupLanguagePolicy) return reply;
-    return await enforceGroupReplyLanguageOutput(reply, {
-      bucket: langBucket,
-      botVoiceBucket: params.fallbackLangBucket ?? params.forcedLangBucket,
-      policyNote: trustedGroupLanguagePolicy,
-    }, async (source, policyNote) => {
-      const result = await callAngelCore({
-        forceProvider: "lovable",
-        max_tokens: 1800,
-        json: policyNote.includes("TRANSLATION REQUEST"),
-        messages: withTelegramGroupContext(buildGroupReplyRewriteMessages(source, originalUserMessage, policyNote), params.telegramGroupContext),
-      });
-      return result.text;
-    });
-  };
   const botVoiceEnglish = params.fallbackLangBucket === "en" || params.forcedLangBucket === "en";
   let _creativeOverride = false;
   let _regenerateMode = false;
@@ -3454,8 +3438,6 @@ ${addressRule}`;
       else reply = `${reply}\n\n${_neutral}`;
     }
 
-    reply = await finalizeGroupLanguage(reply);
-
     // Telegram sender contract — preserve explicitly translated content verbatim.
     // Other replies retain the mandatory sender contract.
     if (langBucket === "vi" && !isMixedTranslationPolicy) {
@@ -3606,7 +3588,7 @@ ${addressRule}`;
         if (r1Text && r1Text.length >= 20) {
           retriedProvider = "funcore";
           _finalReason = "retry_funcore";
-          const out = await finalizeGroupLanguage(enforceVietnamesePronouns(r1Text, senderUsername));
+          const out = enforceVietnamesePronouns(r1Text, senderUsername);
           if (params.conversationContext) {
             runBackground(logAngelConversation(params.adminClient ?? null, params.conversationContext, {
               userMessage: cleanUserText,
@@ -3643,7 +3625,7 @@ ${addressRule}`;
           if (r2Text && r2Text.length >= 20) {
             retriedProvider = "lovable";
             _finalReason = "retry_lovable";
-            const out = await finalizeGroupLanguage(enforceVietnamesePronouns(r2Text, senderUsername));
+            const out = enforceVietnamesePronouns(r2Text, senderUsername);
             if (params.conversationContext) {
               runBackground(logAngelConversation(params.adminClient ?? null, params.conversationContext, {
                 userMessage: cleanUserText,
@@ -6019,9 +6001,51 @@ export async function transcribeTelegramAudio(params: {
   }
 }
 
-/** All Telegram AI routes pass this mandatory, context-only addressing boundary. */
+export async function finalizeTelegramReplyLanguage(
+  reply: string,
+  params: {
+    originalUserMessage: string;
+    forcedLangBucket?: AngelLanguageBucket;
+    languagePolicyNote?: string | null;
+    fallbackLangBucket?: AngelLanguageBucket;
+    chatType?: string | null;
+    username?: string | null;
+  },
+  rewrite: (reply: string, policyNote: string) => Promise<string>,
+): Promise<string> {
+  const lang = resolveAngelLanguageBucket(params.originalUserMessage, params.forcedLangBucket);
+  const addressed = lang === "vi" || isLikelyVietnamese(reply)
+    ? enforceVietnamesePronouns(reply, params.username) : reply;
+  const group = ["group", "supergroup", "channel"].includes((params.chatType ?? "").toLowerCase());
+  if (!group || !params.languagePolicyNote?.trim()) return addressed;
+  const voice = params.fallbackLangBucket ?? params.forcedLangBucket;
+  const finalReply = await enforceGroupReplyLanguageOutput(addressed, {
+    bucket: lang,
+    botVoiceBucket: voice,
+    policyNote: params.languagePolicyNote.trim(),
+  }, rewrite);
+  return voice === "vi" && !params.languagePolicyNote.includes("TRANSLATION REQUEST")
+    ? enforceVietnamesePronouns(finalReply, params.username) : finalReply;
+}
+
+/** Addressing precedes the final group language gate so translated content cannot be rewritten afterward. */
 export async function askAngel(params: Parameters<typeof askAngelReply>[0]): Promise<string> {
   const reply = await askAngelReply(params);
-  const lang = resolveAngelLanguageBucket(params.originalUserMessage?.trim() || params.question, params.forcedLangBucket);
-  return lang === "vi" || isLikelyVietnamese(reply) ? enforceVietnamesePronouns(reply, params.conversationContext?.username) : reply;
+  const originalRequest = params.originalUserMessage?.trim() || params.question;
+  return await finalizeTelegramReplyLanguage(reply, {
+    originalUserMessage: originalRequest,
+    forcedLangBucket: params.forcedLangBucket,
+    languagePolicyNote: params.languagePolicyNote,
+    fallbackLangBucket: params.fallbackLangBucket,
+    chatType: params.conversationContext?.chatType,
+    username: params.conversationContext?.username,
+  }, async (source, policyNote) => {
+    const result = await callAngelCore({
+      forceProvider: "lovable",
+      max_tokens: 1800,
+      json: policyNote.includes("TRANSLATION REQUEST"),
+      messages: withTelegramGroupContext(buildGroupReplyRewriteMessages(source, originalRequest, policyNote), params.telegramGroupContext),
+    });
+    return result.text;
+  });
 }

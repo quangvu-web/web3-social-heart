@@ -952,6 +952,23 @@ function groupReplyProseLanguage(text: string): AngelLanguageBucket {
   return detectLangBucket(prose);
 }
 
+export function buildGroupReplyRewriteMessages(
+  source: string,
+  originalRequest: string,
+  policyNote: string,
+): Array<{ role: "system" | "user"; content: string }> {
+  if (policyNote.includes("TRANSLATION REQUEST")) {
+    return [
+      { role: "system", content: `${policyNote}\nPerform the translation requested in the original user message. Return a JSON object with exactly two string fields: "framing" and "translation". Put EVERY introduction, explanation, label and closing sentence authored by the bot in "framing", entirely in the required group voice. In "translation", translate ONLY the source text supplied by the user into the requested target language. Never invent an additional introduction or commentary inside "translation". Preserve names, numbers and URLs in the source text. An empty framing is allowed.` },
+      { role: "user", content: originalRequest },
+    ];
+  }
+  return [
+    { role: "system", content: `${policyNote}\nRewrite the supplied assistant answer to comply with this policy. Preserve facts, names, numbers, URLs and meaning. Return only the final Telegram-safe reply.` },
+    { role: "user", content: `Original request:\n${originalRequest}\n\nAssistant answer:\n${source}` },
+  ];
+}
+
 /** Final gate for explicit group policies; auto and DM keep their original output. */
 export async function enforceGroupReplyLanguageOutput(
   reply: string,
@@ -2509,11 +2526,7 @@ ${addressRule}`;
         forceProvider: "lovable",
         max_tokens: 1800,
         json: policyNote.includes("TRANSLATION REQUEST"),
-        messages: [
-          ...(policyNote.includes("TRANSLATION REQUEST") ? [{ role: "system" as const, content: 'Return a JSON object with exactly two string fields: "framing" (all bot introduction/explanation/closing in the required group voice) and "translation" (only the requested translated content in its target language). An empty framing is allowed.' }] : []),
-          { role: "system", content: `${policyNote}\nRewrite the supplied assistant answer to comply with this policy. Preserve facts, names, numbers, URLs and meaning. For translations preserve the requested target language of the translated content and apply the group language only to bot-authored framing. Return only the final Telegram-safe reply.` },
-          { role: "user", content: `Original request:\n${originalUserMessage}\n\nAssistant answer:\n${source}` },
-        ],
+        messages: withTelegramGroupContext(buildGroupReplyRewriteMessages(source, originalUserMessage, policyNote), params.telegramGroupContext),
       });
       return result.text;
     });

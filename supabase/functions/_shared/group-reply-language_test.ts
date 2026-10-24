@@ -111,3 +111,9 @@ Deno.test("mixed translation gate rejects wrong framing or wrong translation lan
     assertEquals(await community.enforceGroupReplyLanguageOutput("Original translation", policy, async () => result), "🙏 Angel is a bit busy, please try again later 💛");
   }
 });
+
+Deno.test("translation rewrite request excludes provider-authored commentary from the translation source", () => {
+  const policy = resolveGroupReplyLanguage("Translate to Vietnamese: I am grateful", "en");
+  const messages = community.buildGroupReplyRewriteMessages("Đây là lời giải thích của bot, không phải nguồn dịch.", "Translate to Vietnamese: I am grateful", policy.policyNote!);
+  assertEquals(messages.filter(message => message.role === "user").map(message => message.content), ["Translate to Vietnamese: I am grateful"]);
+});

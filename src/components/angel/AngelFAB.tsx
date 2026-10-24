@@ -28,6 +28,7 @@ const HIDDEN_ROUTES = [
 
 const HIDDEN_PREFIXES = [
   '/live/', // hide on any live page (host/audience/studio)
+  '/angel-player/', // Recall captures this route as the bot's camera
 ];
 
 function shouldHide(pathname: string): boolean {

@@ -1,6 +1,19 @@
 type DeleteResponse = { ok: boolean; status?: number; data?: { ok?: unknown; error_code?: number; description?: string; error?: string } | null };
 type NoticeEvent = { action: string; reason: string };
 
+/** Fresh, group-scoped policy lookup; missing settings never opt a group in. */
+export async function sendGroupModerationFailureNotice(params: Parameters<typeof sendModerationFailureNotice>[0] & {
+  lookup: () => Promise<{ ok: boolean; settings?: { moderation_failure_notice_enabled?: boolean | null } | null }>;
+}): Promise<void> {
+  let policy;
+  try { policy = await params.lookup(); } catch { policy = { ok: false }; }
+  if (!policy.ok || policy.settings?.moderation_failure_notice_enabled !== true) {
+    await params.audit({ action: "moderation_notice_suppressed", reason: policy.ok ? "notice_disabled" : "notice_lookup_failed" });
+    return;
+  }
+  await sendModerationFailureNotice(params);
+}
+
 /** Only allowlisted categories leave this boundary; never log raw API descriptions. */
 export async function attemptModerationDelete(request: () => Promise<DeleteResponse>): Promise<{
   deleted: boolean; errorCode?: number; failure?: string;

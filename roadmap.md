@@ -1,10 +1,10 @@
 # Roadmap
 
 ## Moderation deletion failures and group notices
-- [ ] Diagnose affected groups, deletion categories and current bot permissions; report evidence before repairs.
+- [ ] Diagnosis reported for nine groups (364 not_deletable events, two not_found, 204 notices); current permissions and message age/type still need an authorized admin snapshot.
 - [ ] Repair only evidenced root causes; do not weaken moderation or change secrets without need.
-- [ ] Add default-off per-group moderation_failure_notice_enabled, suppression audit before claim and admin moderation switch.
-- [ ] Run focused frontend/Edge regressions; verify real test-group toggle, successful deletion and 30 minutes of activity (requires test group and authorized access).
+- [x] Added default-off per-group moderation_failure_notice_enabled, suppression audit before claim and admin moderation switch; deployed webhook b17cbe3a and admin 459c3c32. Existing policies/grants unchanged.
+- [ ] Frontend load regression 1/1 and Edge notice/integration 8/8 passed (integration --no-check); frontend build OK. Real admin save, test-group toggle, successful deletion and 30 minutes remain blocked on designated test group and authorized access; UI needs Publish.
 
 ## Caption Angel FAB drag and guest chat
 - [x] Add pointer-based dragging, remembered position, viewport clamping and tap/drag separation without moving the chat panel.

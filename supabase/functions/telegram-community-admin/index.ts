@@ -355,6 +355,11 @@ Deno.serve(async (req) => {
 
 
   if (action === "update_settings") {
+    if (Object.prototype.hasOwnProperty.call(payload, "moderation_failure_notice_enabled") &&
+      (typeof payload.moderation_failure_notice_enabled !== "boolean" ||
+        typeof payload.group_id !== "number" || !Number.isSafeInteger(payload.group_id) || payload.group_id >= 0)) {
+      return json({ success: false, error: "A boolean notice flag and a valid group_id are required" }, 400);
+    }
     const settings = await resolveSettings(adminClient, payload.group_id);
     if (!settings) return json({ success: false, error: "Group settings không tồn tại — Cha hãy chọn / thêm group trước" }, 400);
 
@@ -362,6 +367,7 @@ Deno.serve(async (req) => {
       "bot_username",
       "welcome_enabled",
       "anti_spam_enabled",
+      "moderation_failure_notice_enabled",
       "anti_link_enabled",
       "block_telegram_previews",
       "block_external_bots",

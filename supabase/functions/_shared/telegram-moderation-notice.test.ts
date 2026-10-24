@@ -1,5 +1,47 @@
 import assert from "npm:assert@2.1.0";
-import { attemptModerationDelete, sendModerationFailureNotice } from "./telegram-moderation-notice.ts";
+import { attemptModerationDelete, sendModerationFailureNotice, sendGroupModerationFailureNotice } from "./telegram-moderation-notice.ts";
+
+Deno.test("disabled and missing group policies audit without claiming or sending", async () => {
+  for (const settings of [null, {}, { moderation_failure_notice_enabled: false }]) {
+    const events: unknown[] = [];
+    let claims = 0; let sends = 0;
+    await sendGroupModerationFailureNotice({ groupId: -1001, messageId: 1,
+      lookup: async () => ({ ok: true, settings }),
+      claim: async () => { claims++; return "claimed"; },
+      send: async () => { sends++; return { ok: true }; },
+      audit: async e => { events.push(e); },
+    });
+    assert.strictEqual(claims, 0); assert.strictEqual(sends, 0);
+    assert.deepStrictEqual(events, [{ action: "moderation_notice_suppressed", reason: "notice_disabled" }]);
+  }
+});
+
+Deno.test("policy lookup failure is fail closed and audited", async () => {
+  const events: unknown[] = [];
+  await sendGroupModerationFailureNotice({ groupId: -1001, messageId: 1,
+    lookup: async () => { throw new Error("private details"); },
+    claim: async () => { throw new Error("must not claim"); },
+    send: async () => { throw new Error("must not send"); },
+    audit: async e => { events.push(e); },
+  });
+  assert.deepStrictEqual(events, [{ action: "moderation_notice_suppressed", reason: "notice_lookup_failed" }]);
+});
+
+Deno.test("fresh group policies preserve enabled claims and cooldown with independent groups", async () => {
+  const flags = new Map([[-1001, true], [-1002, false]]);
+  const claimed = new Set<number>(); const sends: number[] = []; const events: string[] = [];
+  const run = (groupId: number) => sendGroupModerationFailureNotice({ groupId, messageId: 1,
+    lookup: async () => ({ ok: true, settings: { moderation_failure_notice_enabled: flags.get(groupId) } }),
+    claim: async () => { if (claimed.has(groupId)) return "cooldown"; claimed.add(groupId); return "claimed"; },
+    send: async () => { sends.push(groupId); return { ok: true }; },
+    audit: async e => { events.push(e.reason); },
+  });
+  await run(-1001); await run(-1001); await run(-1002);
+  flags.set(-1001, false); flags.set(-1002, true);
+  await run(-1001); await run(-1002);
+  assert.deepStrictEqual(sends, [-1001, -1002]);
+  assert.deepStrictEqual(events, ["telegram_confirmed", "cooldown", "notice_disabled", "notice_disabled", "telegram_confirmed"]);
+});
 
 Deno.test("delete metadata distinguishes Telegram permission and deletion limits", async () => {
   for (const [description, kind] of [

@@ -108,6 +108,7 @@ type Settings = {
   bot_username: string | null;
   welcome_enabled: boolean;
   anti_spam_enabled: boolean;
+  moderation_failure_notice_enabled?: boolean | null;
   anti_link_enabled: boolean;
   block_telegram_previews: boolean;
   block_external_bots: boolean;
@@ -1586,6 +1587,15 @@ export default function TelegramGroupPanel() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch
+                    id="moderation-failure-notice"
+                    checked={settings.moderation_failure_notice_enabled === true}
+                    disabled={saving}
+                    onCheckedChange={(moderation_failure_notice_enabled) => updateSettings({ moderation_failure_notice_enabled })}
+                  />
+                  <Label htmlFor="moderation-failure-notice">Thông báo lỗi moderation trong nhóm</Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
                     checked={settings.scam_strict_mode === true}
                     onCheckedChange={(scam_strict_mode) => updateSettings({ scam_strict_mode })}
                   />
@@ -1673,6 +1683,7 @@ export default function TelegramGroupPanel() {
                     scam_protection_enabled: settings.scam_protection_enabled,
                     scam_strict_mode: settings.scam_strict_mode,
                     scam_warning_enabled: settings.scam_warning_enabled,
+                    moderation_failure_notice_enabled: settings.moderation_failure_notice_enabled === true,
                   })
                 }
                 disabled={saving}

@@ -17,6 +17,12 @@ Deno.test("applyViolation retains actual delete failure and suppresses a replay 
       let claimed = false;
       const client = {
         from: (table: string) => {
+          if (table === "telegram_community_settings") return {
+            select: () => ({ eq: (_key: string, groupId: number) => {
+              assert.strictEqual(groupId, -1001);
+              return { maybeSingle: async () => ({ data: { moderation_failure_notice_enabled: true }, error: null }) };
+            } }),
+          };
           if (table === "telegram_community_user_state") return {
             upsert: () => ({ select: () => ({ single: async () => ({ data: { warning_count: 0 }, error: null }) }) }),
           };

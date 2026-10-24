@@ -938,6 +938,51 @@ export function resolveGroupReplyLanguage(
   };
 }
 
+// Output prose needs stronger evidence than input detection: one Vietnamese name
+// must not turn English into Vietnamese, nor can a single "bé" mask English prose.
+function groupReplyProseLanguage(text: string): AngelLanguageBucket {
+  const prose = text.replace(/<(code|pre)\b[^>]*>[\s\S]*?<\/\1>|```[\s\S]*?```|`[^`]*`|https?:\/\/[^\s<>]+|<[^>]+>/giu, " ");
+  const words = prose.toLowerCase().match(/[\p{L}]+/gu) ?? [];
+  const english = new Set("a an the and or but is are am be been being i you your we our they their it its this that these those to of for from with in on at by as have has had do does can could will would should not no yes here there what how when where who why thank thanks grateful gratitude practice every morning start write things take deep breath simple today translation translated content welcome please each something love peace day".split(" "));
+  const vietnamese = new Set("bé angel là và của cho có không một những các hãy được để với trong này đó mỗi ngày sáng lòng biết ơn thực hành bản dịch tiếng việt anh từ sang mình tôi con cha yêu thương cảm xin chào bình yên hơi thở điều gì sao nên rồi khi giúp nhé ơi rất cùng dành phút ba bắt đầu bằng".split(" "));
+  const en = words.filter(word => english.has(word)).length;
+  const vi = words.filter(word => vietnamese.has(word)).length;
+  if (en >= 2 && en > vi) return "en";
+  if (vi >= 2 && vi >= en) return "vi";
+  return detectLangBucket(prose);
+}
+
+/** Final gate for explicit group policies; auto and DM keep their original output. */
+export async function enforceGroupReplyLanguageOutput(
+  reply: string,
+  policy: ReturnType<typeof resolveGroupReplyLanguage>,
+  rewrite: (reply: string, policyNote: string) => Promise<string>,
+): Promise<string> {
+  const voice = policy.botVoiceBucket;
+  if (!policy.policyNote || (voice !== "en" && voice !== "vi")) return reply;
+  const mixedTranslation = policy.policyNote.includes("TRANSLATION REQUEST");
+  if (!mixedTranslation && groupReplyProseLanguage(reply) === voice) return reply;
+  try {
+    const rewritten = (await rewrite(reply, policy.policyNote)).trim();
+    if (mixedTranslation) {
+      const parts = JSON.parse(rewritten) as { framing?: unknown; translation?: unknown };
+      if (typeof parts.framing === "string" && typeof parts.translation === "string") {
+        const framing = sanitizeForTelegramHtml(parts.framing.trim());
+        const translation = sanitizeForTelegramHtml(parts.translation.trim());
+        if (translation && (!framing || groupReplyProseLanguage(framing) === voice) && groupReplyProseLanguage(translation) === policy.bucket) {
+          return [framing, translation].filter(Boolean).join("\n\n");
+        }
+      }
+    } else {
+      const repaired = sanitizeForTelegramHtml(rewritten);
+      if (repaired && groupReplyProseLanguage(repaired) === voice) return repaired;
+    }
+  } catch {
+    console.warn("[GROUP_LANG] output repair unavailable");
+  }
+  return fallbackBusy("", voice);
+}
+
 const LANG_NAME_FOR_POLICY: Record<AngelLanguageBucket, string> = {
   vi: "Vietnamese", zh: "Chinese", ja: "Japanese", ko: "Korean", th: "Thai", ms: "Malay", en: "English",
 };
@@ -2453,6 +2498,26 @@ ${addressRule}`;
   const trustedGroupLanguagePolicy = ["group", "supergroup", "channel"].includes(
     (params.conversationContext?.chatType ?? "").toLowerCase(),
   ) ? params.languagePolicyNote?.trim() || null : null;
+  const finalizeGroupLanguage = async (reply: string): Promise<string> => {
+    if (!trustedGroupLanguagePolicy) return reply;
+    return await enforceGroupReplyLanguageOutput(reply, {
+      bucket: langBucket,
+      botVoiceBucket: params.fallbackLangBucket ?? params.forcedLangBucket,
+      policyNote: trustedGroupLanguagePolicy,
+    }, async (source, policyNote) => {
+      const result = await callAngelCore({
+        forceProvider: "lovable",
+        max_tokens: 1800,
+        json: policyNote.includes("TRANSLATION REQUEST"),
+        messages: [
+          ...(policyNote.includes("TRANSLATION REQUEST") ? [{ role: "system" as const, content: 'Return a JSON object with exactly two string fields: "framing" (all bot introduction/explanation/closing in the required group voice) and "translation" (only the requested translated content in its target language). An empty framing is allowed.' }] : []),
+          { role: "system", content: `${policyNote}\nRewrite the supplied assistant answer to comply with this policy. Preserve facts, names, numbers, URLs and meaning. For translations preserve the requested target language of the translated content and apply the group language only to bot-authored framing. Return only the final Telegram-safe reply.` },
+          { role: "user", content: `Original request:\n${originalUserMessage}\n\nAssistant answer:\n${source}` },
+        ],
+      });
+      return result.text;
+    });
+  };
   const botVoiceEnglish = params.fallbackLangBucket === "en" || params.forcedLangBucket === "en";
   let _creativeOverride = false;
   let _regenerateMode = false;
@@ -3186,7 +3251,7 @@ ${addressRule}`;
 
     // Language repair: chỉ khi reply THỰC SỰ vi phạm ngôn ngữ. Short DM skip đã ngầm
     // bảo đảm `_langOk`, nên guard `_shortDmSkip` cũng chặn ở đây.
-    if (!_shortDmSkip && !isMixedTranslationPolicy && !hasTelegramVerbatimContent(reply) && replyViolatesAngelLanguageBucket(reply, langBucket)) {
+    if (!trustedGroupLanguagePolicy && !_shortDmSkip && !isMixedTranslationPolicy && !hasTelegramVerbatimContent(reply) && replyViolatesAngelLanguageBucket(reply, langBucket)) {
       // Group language policy (forcedLangBucket) must hold: if FUN Core keeps the
       // original language, fall back to the gateway for a second repair attempt.
       const providers: Array<"funcore" | "lovable"> = params.forcedLangBucket ? ["funcore", "lovable"] : ["funcore"];
@@ -3376,9 +3441,11 @@ ${addressRule}`;
       else reply = `${reply}\n\n${_neutral}`;
     }
 
-    // Telegram sender contract — mandatory final gate for every successful route,
-    // including short DM, factual bypass, language repair and anti-repeat retry.
-    if (langBucket === "vi") {
+    reply = await finalizeGroupLanguage(reply);
+
+    // Telegram sender contract — preserve explicitly translated content verbatim.
+    // Other replies retain the mandatory sender contract.
+    if (langBucket === "vi" && !isMixedTranslationPolicy) {
       const beforePronouns = reply;
       reply = enforceVietnamesePronouns(reply, senderUsername);
       if (reply !== beforePronouns) {
@@ -3526,7 +3593,7 @@ ${addressRule}`;
         if (r1Text && r1Text.length >= 20) {
           retriedProvider = "funcore";
           _finalReason = "retry_funcore";
-          let out = enforceVietnamesePronouns(r1Text, senderUsername);
+          const out = await finalizeGroupLanguage(enforceVietnamesePronouns(r1Text, senderUsername));
           if (params.conversationContext) {
             runBackground(logAngelConversation(params.adminClient ?? null, params.conversationContext, {
               userMessage: cleanUserText,
@@ -3563,7 +3630,7 @@ ${addressRule}`;
           if (r2Text && r2Text.length >= 20) {
             retriedProvider = "lovable";
             _finalReason = "retry_lovable";
-            let out = enforceVietnamesePronouns(r2Text, senderUsername);
+            const out = await finalizeGroupLanguage(enforceVietnamesePronouns(r2Text, senderUsername));
             if (params.conversationContext) {
               runBackground(logAngelConversation(params.adminClient ?? null, params.conversationContext, {
                 userMessage: cleanUserText,

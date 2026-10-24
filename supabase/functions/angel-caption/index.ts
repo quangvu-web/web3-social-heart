@@ -3,7 +3,7 @@
 //
 // Một function duy nhất, định tuyến theo query ?action=:
 //   start          POST  (x-caption-token) — tạo phiên + gọi Recall tạo bot vào phòng
-//   recall-webhook POST  (chữ ký Svix)     — nhận transcript.data / bot.status_change
+//   recall-webhook POST  (chữ ký Svix)     — nhận transcript / participant join / bot status
 //   stop           POST  (x-caption-token) — kết thúc phiên, bot rời phòng, tóm tắt
 //   summarize      POST  (x-caption-token) — tóm tắt song ngữ + đăng nhóm cộng đồng
 //
@@ -17,6 +17,7 @@ import { callAiGateway, gatewayText } from "../_shared/ai-gateway-retry.ts";
 import { callCommunityTelegram } from "../_shared/telegram-community.ts";
 import { MODELS } from "../_shared/angel/models.ts";
 import { formatSummaryForTelegram } from "./summary-format.ts";
+import { handleCaptionParticipantJoin } from "./join-dm.ts";
 import { captionPlayerUrl, isCaptionMediaSignedUrl, playbackDeadline, playbackSuppressesTranscript } from "./playback-utils.ts";
 import {
   applyHearingCorrections,
@@ -943,10 +944,6 @@ async function handleBotStatusChange(
   logResult("ignored");
 }
 
-// Temporary observation phase: one complete authenticated join payload per worker.
-// No participant extraction or DM until a real delivery has been inspected.
-let joinPayloadObserved = false;
-
 async function handleRecallWebhook(req: Request): Promise<Response> {
   const receivedAt = performance.now();
   const rawBody = await req.text(); // PHẢI đọc raw trước khi parse JSON
@@ -977,10 +974,7 @@ async function handleRecallWebhook(req: Request): Promise<Response> {
 
   try {
     if (event === "participant_events.join") {
-      if (!joinPayloadObserved) {
-        joinPayloadObserved = true;
-        console.log("[angel-caption] join_payload_observed", rawBody);
-      }
+      await handleCaptionParticipantJoin(admin, payload, req.headers.get("webhook-id"), recallFetch);
     } else if (event === "transcript.data") {
       await handleTranscriptData(admin, payload as TranscriptEvent, metadataSessionId);
     } else if (event === "transcript.partial_data") {

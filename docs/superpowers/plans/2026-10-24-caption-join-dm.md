@@ -23,10 +23,11 @@ Phạm vi: angel-caption; giữ nguyên tin chào everyone, transcript final/par
 - Review diff, commit tiếng Việt, push nhánh; preview trước merge main. Bảo toàn MCP patch có sẵn.
 
 ## Trạng thái
-- Đã deploy giai đoạn quan sát angel-caption; bot test mới đã tạo, public code `qat286tnm55e`.
-- Chưa đọc được payload thật: trang log backend hết phiên và yêu cầu đăng nhập lại.
-- Đã chuẩn bị helper gửi DM và claim nguyên tử, chưa import/nối vào webhook, chưa deploy helper.
-- Migration `20261024123000_caption_join_dm_claims.sql` chưa được áp dụng; cần bé nhờ Lovable.
-- Edge Function: 64 kiểm thử đạt (no-check); riêng helper 7 kiểm thử có type-check đạt. Frontend: bun test src 55 đạt.
-- Chưa nghiệm thu (a), (b), (c), (d), chưa có ảnh chat B. Chưa merge main.
-- Nguồn đối chiếu: https://docs.recall.ai/docs/sending-chat-messages và https://docs.recall.ai/docs/real-time-event-payloads . Tài liệu không thay thế yêu cầu kiểm tra payload thật.
+- Đã deploy bản đăng ký join và ghi payload; bot test public code `qat286tnm55e`.
+- Đã đọc hai raw join payload trong log backend lúc 24/10/2026 20:11:30 và 20:13:32 UTC+8 trước khi viết bộ trích xuất.
+- Đã nối handler DM, loại log raw tạm, kiểm tra bot tự vào/phiên/bot identity, claim theo header Svix.
+- Migration chưa áp dụng: Table Editor schema public tìm caption_join_dm_claims trả No results found.
+- Edge Function suite 73 đạt với no-check; riêng module DM và webhook24 đạt với type-check. Frontend bun test src55 đạt.
+- deno check toàn function có5 lỗi, đã đối chiếu origin/main cũng cùng5 lỗi; không phát sinh lỗi mới từ module DM.
+- Chưa nghiệm thu Zoom(a)–(d), chưa có ảnh chat B, chưa merge main.
+- Nguồn đối chiếu: https://docs.recall.ai/docs/sending-chat-messages và https://docs.recall.ai/docs/real-time-event-payloads . Tài liệu không thay thế payload thật.

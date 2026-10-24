@@ -50,3 +50,52 @@ export async function sendCaptionJoinDm(
     log("recall_failed", true);
   }
 }
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+/** Paths verified in production join_payload_observed logs, 24 Oct 2026 20:11/20:13 UTC+8. */
+export async function handleCaptionParticipantJoin(
+  admin: SupabaseClient,
+  payload: unknown,
+  webhookId: string | null,
+  sendChat: SendChat,
+): Promise<void> {
+  const event = objectValue(payload);
+  const data = objectValue(event.data);
+  const join = objectValue(data.data);
+  const participant = objectValue(join.participant);
+  const bot = objectValue(data.bot);
+  const participantId = typeof participant.id === "number" && Number.isSafeInteger(participant.id) && participant.id > 0
+    ? String(participant.id)
+    : typeof participant.id === "string" && /^[1-9]\d*$/.test(participant.id) ? participant.id : null;
+  let sessionId: string | null = null;
+  const log = (result: string, warning = false) => (warning ? console.warn : console.log)("[angel-caption] join_dm", {
+    session_id: sessionId, participant_id: participantId, result,
+  });
+  if (event.event !== "participant_events.join" || join.action !== "join" || !participantId || typeof participant.name !== "string") {
+    log("invalid_join", true); return;
+  }
+  if (participant.name.trim() === "Angel Translator 🌐") { log("self_bot_skipped"); return; }
+  if (typeof bot.id !== "string" || !bot.id) { log("missing_bot_id", true); return; }
+
+  try {
+    const columns = "id, public_code, recall_bot_id, status, platform";
+    let { data: session, error } = await admin.from("caption_sessions")
+      .select(columns).eq("recall_bot_id", bot.id).maybeSingle();
+    if (error) { log("session_lookup_failed", true); return; }
+    const metadataId = objectValue(bot.metadata).caption_session_id;
+    if (!session && typeof metadataId === "string" && metadataId) {
+      const fallback = await admin.from("caption_sessions").select(columns).eq("id", metadataId).maybeSingle();
+      session = fallback.data; error = fallback.error;
+      if (error) { log("session_lookup_failed", true); return; }
+    }
+    sessionId = session?.id ?? null;
+    if (!session || session.recall_bot_id !== bot.id || session.platform !== "zoom" ||
+      !["pending", "joining", "live"].includes(session.status)) { log("inactive_or_mismatched_session"); return; }
+    await sendCaptionJoinDm(admin, session, participantId, webhookId, sendChat);
+  } catch {
+    log("session_lookup_failed", true);
+  }
+}

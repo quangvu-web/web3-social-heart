@@ -10,7 +10,9 @@ let admin;
 export function setAdmin(value) { admin = value; }
 function getAdmin() { return admin; }
 function json(value, status = 200) { return Response.json(value, { status }); }
-async function verifySvixSignature() { return true; }
+let signatureValid = true;
+export function setSignatureValid(value) { signatureValid = value; }
+async function verifySvixSignature() { return signatureValid; }
 function wordsToSentence(words) { return { text: words.map(w => w.text).join(' '), startSec: 1 }; }
 function splitCaptionSentences(words) { return globalThis.__captionSplit(words); }
 function applyHearingCorrections(text) { return text; }
@@ -18,6 +20,9 @@ function detectSourceLang() { return 'en'; }
 async function computeDedupeKey() { return 'fixture-dedupe'; }
 async function translateCaption() { return 'Xin chào'; }
 async function recallFetch() { throw new Error('No meeting chat allowed'); }
+async function handleCaptionParticipantJoin(admin, payload, webhookId, sendChat) {
+  globalThis.__captionJoinDelivery = { admin, payload, webhookId, sendChat };
+}
 async function runSummarize() { throw new Error('No summary expected'); }
 async function closeCaptionSession() { throw new Error('No closure expected'); }
 function scheduleCaptionWork() {}
@@ -25,7 +30,7 @@ async function isPlaybackActive(_admin, session) { return globalThis.__captionPl
 ${handlers}
 export { handleRecallWebhook };
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
-const { setAdmin, handleRecallWebhook } = await import(`data:application/javascript,${encodeURIComponent(isolated)}`);
+const { setAdmin, handleRecallWebhook, setSignatureValid } = await import(`data:application/javascript,${encodeURIComponent(isolated)}`);
 (globalThis as Record<string, unknown>).__captionSplit = splitCaptionSentences;
 
 function fixture(status: string, startedAt: string | null = null, metadataOnly = false) {
@@ -157,20 +162,27 @@ Deno.test("music playback suppresses both partial and final caption writes", asy
   }
 });
 
-Deno.test("authenticated participant join is observed once without assuming its shape or sending chat", async () => {
-  const logs: unknown[][] = [];
-  const original = console.log;
-  console.log = (...values) => { logs.push(values); };
+Deno.test("authenticated join routes intact payload and Svix webhook ID to isolated DM handler", async () => {
+  fixture("live");
+  const payload = { event: "participant_events.join", data: { data: { participant: { id: 200 } } } };
+  const response = await handleRecallWebhook(new Request("https://fixture.invalid/?action=recall-webhook", {
+    method: "POST", body: JSON.stringify(payload), headers: { "webhook-id": "svix-event-123" },
+  }));
+  assert.equal(response.status, 200);
+  const delivery = (globalThis as any).__captionJoinDelivery;
+  assert.deepEqual(delivery.payload, payload);
+  assert.equal(delivery.webhookId, "svix-event-123");
+});
+
+Deno.test("invalid Svix signature cannot reach the join DM handler", async () => {
+  const global = globalThis as any;
+  delete global.__captionJoinDelivery;
+  setSignatureValid(false);
   try {
-    const opaquePayload = { event: "participant_events.join", data: { observed_fixture_only: "not_a_schema" } };
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const response = await handleRecallWebhook(new Request("https://fixture.invalid/?action=recall-webhook", {
-        method: "POST", body: JSON.stringify(opaquePayload),
-      }));
-      assert.equal(response.status, 200);
-    }
-    const observed = logs.filter((row) => row[0] === "[angel-caption] join_payload_observed");
-    assert.equal(observed.length, 1);
-    assert.deepEqual(JSON.parse(String(observed[0][1])), opaquePayload);
-  } finally { console.log = original; }
+    const response = await handleRecallWebhook(new Request("https://fixture.invalid/?action=recall-webhook", {
+      method: "POST", body: JSON.stringify({ event: "participant_events.join" }),
+    }));
+    assert.equal(response.status, 401);
+    assert.equal(global.__captionJoinDelivery, undefined);
+  } finally { setSignatureValid(true); }
 });

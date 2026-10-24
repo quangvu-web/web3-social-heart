@@ -52,3 +52,62 @@ Deno.test("auto and absent settings preserve English messages and explicit trans
     assertEquals(resolveGroupReplyLanguage("Translate to Vietnamese: I am grateful", setting), { bucket: "vi", policyNote: null });
   }
 });
+
+import * as community from "./telegram-community.ts";
+Deno.test("group output gate repairs quoted wrong-language prose and English in vi groups", async () => {
+  for (const [reply, text, setting, expected] of [
+    ['Bé có thể nói "Con biết ơn" mỗi sáng.', "Thực hành biết ơn thế nào?", "en", "Start each morning with gratitude."],
+    ["Start each morning with gratitude.", "How can I practice gratitude?", "vi", "Bé hãy bắt đầu mỗi sáng bằng lòng biết ơn."],
+  ]) {
+    let calls = 0;
+    const policy = resolveGroupReplyLanguage(text, setting);
+    const actual = await community.enforceGroupReplyLanguageOutput(reply, policy, async (source, note) => {
+      calls++;
+      assertEquals(source, reply);
+      assertEquals(note, policy.policyNote);
+      return expected;
+    });
+    assertEquals(actual, expected);
+    assertEquals(calls, 1);
+  }
+});
+Deno.test("group output gate leaves auto and already-correct forced prose untouched", async () => {
+  for (const [reply, setting] of [["Bé có thể thực hành lòng biết ơn.", "auto"], ["Practice gratitude every morning.", "en"], ["Bé hãy bắt đầu bằng lòng biết ơn.", "vi"]]) {
+    assertEquals(await community.enforceGroupReplyLanguageOutput(reply, resolveGroupReplyLanguage("Hello", setting), async () => {
+      throw new Error("must not rewrite");
+    }), reply);
+  }
+});
+Deno.test("group output gate enforces mixed translation policy without collapsing target content", async () => {
+  for (const [question, setting, framing, translation] of [
+    ["Translate to Vietnamese: I am grateful", "en", "Here is the translation:", "Tôi biết ơn."],
+    ["Translate to English: Tôi biết ơn", "vi", "Bản dịch là:", "I am grateful."],
+  ]) {
+    const policy = resolveGroupReplyLanguage(question, setting);
+    assertEquals(await community.enforceGroupReplyLanguageOutput("Original translation", policy, async (_source, note) => {
+      assertEquals(note?.includes("TRANSLATION REQUEST"), true);
+      return JSON.stringify({ framing, translation });
+    }), `${framing}\n\n${translation}`);
+  }
+});
+Deno.test("group output gate fails in the group voice when rewrite errors or stays in the wrong language", async () => {
+  const policy = resolveGroupReplyLanguage("Xin chào", "en");
+  for (const rewrite of [async () => { throw new Error("unavailable"); }, async () => "Bé yêu ơi", async () => ""]) {
+    assertEquals(await community.enforceGroupReplyLanguageOutput("Xin chào bé", policy, rewrite), "🙏 Angel is a bit busy, please try again later 💛");
+  }
+});
+
+Deno.test("group output gate distinguishes proper names from mixed wrong-language prose", async () => {
+  const english = "Practice gratitude with Nguyễn every morning.";
+  assertEquals(await community.enforceGroupReplyLanguageOutput(english, resolveGroupReplyLanguage("Xin chào", "en"), async () => { throw new Error("no rewrite expected"); }), english);
+  const mixed = "Bé, practice gratitude every morning. Write three things you are thankful for and take a deep breath.";
+  let called = false;
+  assertEquals(await community.enforceGroupReplyLanguageOutput(mixed, resolveGroupReplyLanguage("Hello", "vi"), async () => { called = true; return "Bé hãy dành ba phút mỗi sáng để thực hành lòng biết ơn."; }), "Bé hãy dành ba phút mỗi sáng để thực hành lòng biết ơn.");
+  assertEquals(called, true);
+});
+Deno.test("mixed translation gate rejects wrong framing or wrong translation language", async () => {
+  const policy = resolveGroupReplyLanguage("Translate to Vietnamese: I am grateful", "en");
+  for (const result of ["Bản dịch là: Tôi biết ơn.", JSON.stringify({ framing: "Bản dịch là:", translation: "Tôi biết ơn." }), JSON.stringify({ framing: "Here is the translation:", translation: "I am grateful." })]) {
+    assertEquals(await community.enforceGroupReplyLanguageOutput("Original translation", policy, async () => result), "🙏 Angel is a bit busy, please try again later 💛");
+  }
+});

@@ -117,3 +117,20 @@ Deno.test("translation rewrite request excludes provider-authored commentary fro
   const messages = community.buildGroupReplyRewriteMessages("Đây là lời giải thích của bot, không phải nguồn dịch.", "Translate to Vietnamese: I am grateful", policy.policyNote!);
   assertEquals(messages.filter(message => message.role === "user").map(message => message.content), ["Translate to Vietnamese: I am grateful"]);
 });
+
+Deno.test("final Telegram language boundary preserves first-person translated content after addressing", async () => {
+  const policy = resolveGroupReplyLanguage("Translate to Vietnamese: I am grateful", "en");
+  const reply = await community.finalizeTelegramReplyLanguage("Tôi biết ơn một buổi sáng bình yên.", {
+    originalUserMessage: "Translate to Vietnamese: I am grateful", forcedLangBucket: policy.bucket,
+    languagePolicyNote: policy.policyNote, fallbackLangBucket: policy.botVoiceBucket, chatType: "supergroup",
+  }, async () => JSON.stringify({ framing: "Here is the translation:", translation: "Tôi biết ơn." }));
+  assertEquals(reply, "Here is the translation:\n\nTôi biết ơn.");
+});
+
+Deno.test("normal Vietnamese group rewrite still applies the final Telegram addressing contract", async () => {
+  const policy = resolveGroupReplyLanguage("How can I practice gratitude?", "vi");
+  assertEquals(await community.finalizeTelegramReplyLanguage("Practice gratitude every morning.", {
+    originalUserMessage: "How can I practice gratitude?", forcedLangBucket: policy.bucket,
+    languagePolicyNote: policy.policyNote, fallbackLangBucket: policy.botVoiceBucket, chatType: "supergroup",
+  }, async () => "Tôi sẽ giúp bạn thực hành lòng biết ơn."), "Angel sẽ giúp bé thực hành lòng biết ơn.");
+});

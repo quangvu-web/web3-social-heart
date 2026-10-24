@@ -355,6 +355,14 @@ Deno.serve(async (req) => {
 
 
   if (action === "update_settings") {
+    if (Object.prototype.hasOwnProperty.call(payload, "reply_language")) {
+      if (typeof payload.reply_language !== "string" || !["auto", "en", "vi"].includes(payload.reply_language)) {
+        return json({ success: false, error: "reply_language phải là một trong: auto, en, vi" }, 400);
+      }
+      if (typeof payload.group_id !== "number" || !Number.isSafeInteger(payload.group_id) || payload.group_id >= 0) {
+        return json({ success: false, error: "group_id phải là số nguyên âm hợp lệ của nhóm" }, 400);
+      }
+    }
     if (Object.prototype.hasOwnProperty.call(payload, "moderation_failure_notice_enabled") &&
       (typeof payload.moderation_failure_notice_enabled !== "boolean" ||
         typeof payload.group_id !== "number" || !Number.isSafeInteger(payload.group_id) || payload.group_id >= 0)) {
@@ -368,6 +376,7 @@ Deno.serve(async (req) => {
       "welcome_enabled",
       "anti_spam_enabled",
       "moderation_failure_notice_enabled",
+      "reply_language",
       "anti_link_enabled",
       "block_telegram_previews",
       "block_external_bots",

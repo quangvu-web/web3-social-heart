@@ -5189,6 +5189,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
     ? await sha256Hex([
       "telegram-ai-v2",
       userLangBucket,
+      groupLanguage.botVoiceBucket ?? "auto",
       chatId,
       decision.category,
       getAngelProvider(),

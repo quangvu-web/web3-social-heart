@@ -23,4 +23,10 @@ Phạm vi: angel-caption; giữ nguyên tin chào everyone, transcript final/par
 - Review diff, commit tiếng Việt, push nhánh; preview trước merge main. Bảo toàn MCP patch có sẵn.
 
 ## Trạng thái
-Chưa thu payload thật; chưa triển khai handler DM; chưa nghiệm thu Zoom.
+- Đã deploy giai đoạn quan sát angel-caption; bot test mới đã tạo, public code `qat286tnm55e`.
+- Chưa đọc được payload thật: trang log backend hết phiên và yêu cầu đăng nhập lại.
+- Đã chuẩn bị helper gửi DM và claim nguyên tử, chưa import/nối vào webhook, chưa deploy helper.
+- Migration `20261024123000_caption_join_dm_claims.sql` chưa được áp dụng; cần bé nhờ Lovable.
+- Edge Function: 64 kiểm thử đạt (no-check); riêng helper 7 kiểm thử có type-check đạt. Frontend: bun test src 55 đạt.
+- Chưa nghiệm thu (a), (b), (c), (d), chưa có ảnh chat B. Chưa merge main.
+- Nguồn đối chiếu: https://docs.recall.ai/docs/sending-chat-messages và https://docs.recall.ai/docs/real-time-event-payloads . Tài liệu không thay thế yêu cầu kiểm tra payload thật.

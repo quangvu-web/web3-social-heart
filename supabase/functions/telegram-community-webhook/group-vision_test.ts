@@ -37,8 +37,8 @@ const code = ts.transpileModule(
  async function getAiCachedResponse(p){cacheReads.push(p);return config.answerCache??null;}
  async function checkAiDecisionLimit(){return {allowed:config.rate!==false};}
  function detectEventFollowupIntent(){return null;}function eventFollowupSenderText(){return '';}
- function hasAnalyzableImage(m){return !!m.photo?.length;}
- function pickLargestPhotoFileId(m){return {fileId:m.photo.at(-1).file_id};}
+ function hasAnalyzableImage(m){return !!m.photo?.length||m.document?.mime_type?.startsWith('image/');}
+ function pickLargestPhotoFileId(m){return {fileId:m.photo?.at(-1).file_id??m.document?.file_id};}
  function detectImageIntent(t){return t.includes('Sửa ảnh')?{mode:'edit'}:null;}
  async function tryFetchTelegramMedia(id){mediaCalls.push(id);return {base64:'fixture',mime:'image/png'};}
  async function describeTelegramImage(m,caption){visionCalls.push({m,caption});return 'description'in config?config.description:'FUN Profile; Hẹn gặp lúc 19:00 MYT';}
@@ -184,4 +184,35 @@ Deno.test("null vision is truthful and never asks text AI to invent an image; lo
     settings,
   );
   assert.equal(f.visionCalls.length, 0);
+});
+
+Deno.test("raw image documents cannot bypass disabled/missing group settings or explicit-call cost gate", async () => {
+  const imageDocument = {
+    ...message,
+    photo: undefined,
+    document: { file_id: "document-image", mime_type: "image/png" },
+  };
+  for (
+    const config of [{ groupSettings: { group_vision_enabled: false } }, {
+      settingsError: true,
+    }, { groupSettings: null }]
+  ) {
+    f.configure(config);
+    await f.handleGroupAiMention(imageDocument, settings);
+    assert.equal(f.mediaCalls.length, 0);
+    assert.equal(f.questions[0].attachments, undefined);
+  }
+  f.configure({ memberStatus: "administrator" });
+  await f.handleGroupAiMention(
+    { ...imageDocument, caption: "giúp bé với" },
+    settings,
+  );
+  assert.equal(f.mediaCalls.length, 0);
+  f.configure();
+  await f.handleGroupAiMention(imageDocument, settings);
+  assert.equal(
+    f.mediaCalls.length,
+    1,
+    "explicit authorized document retains existing media route",
+  );
 });

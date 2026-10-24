@@ -5425,7 +5425,8 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
   const _groupImmediateContext = telegramReplyAssistantContext(message, bot?.id ?? null);
   const _groupAttachments: Array<{ kind: "image"; url?: string; base64?: string; mime_type?: string }> = [];
   const attachmentMessage = explicitGroupPhotoEdit ? groupPhotoSource! : message;
-  if (explicitGroupPhotoEdit || (!message.photo?.length && hasAnalyzableImage(message))) {
+  const groupMediaAllowed = explicitlyInvoked && groupSettings && groupSettings.group_vision_enabled !== false;
+  if (explicitGroupPhotoEdit || (groupMediaAllowed && !message.photo?.length && hasAnalyzableImage(message))) {
     const pick = pickLargestPhotoFileId(attachmentMessage);
     const fileId = pick?.fileId ?? null;
     if (fileId) {

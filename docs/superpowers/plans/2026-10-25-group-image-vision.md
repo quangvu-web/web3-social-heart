@@ -76,4 +76,8 @@
 - (e) Gửi lại cùng ảnh514088: log03:21:03 cache_hit/persistent; bot chép đúng ba dòng chữ, không gọi lại model vision.
 - (f) LoveHub Africa -1003646058428: UI vẫn Luôn tiếng Anh, vision bật; không ghi đổi settings nhóm này. Ảnh kèm caption tiếng Việt3162 có log03:25:38 model_success, chứng minh cache không lấy chéo nhóm. Bot trả lời toàn bộ bằng tiếng Anh, đúng FUN Profile/Community of Love and Connection/19:00 MYT (03:25).
 - Ảnh bằng chứng cục bộ (không commit lịch sử chat): /tmp/group-image-vision-evidence/reply-photo.jpg, africa-english.jpg, africa-settings.jpg.
-- Lượt hồi quy cuối: Edge39pass/0fail; frontend58pass/0fail; Vite build thành công. Không sửa migration sau khi bé xác nhận đã apply.
+- Lượt hồi quy cuối: Edge40pass/0fail; frontend58pass/0fail; Vite build thành công. Không sửa migration sau khi bé xác nhận đã apply.
+
+- Ruling cuối: raw image gửi dạng file cũng phải qua explicit-call và group settings gate. RED đã chứng minh bypass khi cờ tắt; thêm gate và test cho off/missing/auto trigger, giữ đường media cũ khi gọi trực tiếp và được phép. Luồng DM và OCR không thay đổi.
+
+- Review lại chốt raw-media: không có lỗi quan trọng; nhóm 6/6 test đạt độc lập. Bộ Edge cuối 40/40 pass.

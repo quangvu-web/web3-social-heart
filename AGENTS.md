@@ -35,6 +35,7 @@
 - Codex KHÔNG được tự chạy migration. Nếu cần đổi schema → để user nhờ Angel trong Lovable.
 
 ## 6. Edge Functions
+- Moderation failure notices use a fresh group-scoped policy gate before the durable claim; missing or unreadable settings suppress with audit so warning delivery cannot bypass group configuration.
 - Caption terminal webhooks persist status with a counted compare-and-swap before ACK; summaries run through waitUntil/authenticated one-hop fallback, and bounded on-touch reconciliation checks Recall to recover missed terminal events without schema changes.
 - Caption command authorization reads the current oldest community settings row on each check, without caching; creator-scoped stops take precedence over operator fallback to avoid stopping unrelated sessions.
 - Group reply language comes from that group's own `telegram_community_settings.reply_language` ('auto' | 'en') via `resolveGroupReplyLanguage`; never hardcode chat ids, so new international groups only need a data flag.

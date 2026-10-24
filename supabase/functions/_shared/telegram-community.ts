@@ -1,6 +1,6 @@
 import { withTelegramGroupContext, TELEGRAM_GROUP_RELATION_RULE, type TelegramGroupContext } from "./telegram-group-context.ts";
 import { enforceTelegramVietnamesePronouns, telegramAddressContract, hasTelegramVerbatimContent } from "./angel/pronouns.ts";
-import { attemptModerationDelete, sendModerationFailureNotice, MODERATION_FAILURE_NOTICE } from "./telegram-moderation-notice.ts";
+import { attemptModerationDelete, sendGroupModerationFailureNotice, MODERATION_FAILURE_NOTICE } from "./telegram-moderation-notice.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { callAngelCore, AngelCoreError, getAngelProvider } from "./angel-core.ts";
 import { getFlag } from "./angel/flags.ts";
@@ -1062,6 +1062,7 @@ export type CommunitySettings = {
   id: string;
   group_id: number;
   reply_language?: string | null;
+  moderation_failure_notice_enabled?: boolean | null;
   bot_username: string | null;
   welcome_enabled: boolean;
   anti_spam_enabled: boolean;
@@ -1460,8 +1461,9 @@ export async function deleteModerationMessage(chatId: number, messageId: number)
 }
 
 export async function notifyModerationDeleteFailure(adminClient: SupabaseClient, chatId: number, messageId: number) {
-  await sendModerationFailureNotice({
+  await sendGroupModerationFailureNotice({
     groupId: chatId, messageId,
+    lookup: () => loadGroupSettings(adminClient, chatId),
     claim: async () => {
       const result = await adminClient.rpc("tg_claim_moderation_failure_notice", { p_group_id: chatId, p_message_id: messageId });
       return !result.error && typeof result.data === "string" ? result.data : null;

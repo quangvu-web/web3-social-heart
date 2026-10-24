@@ -1,0 +1,3 @@
+ALTER TABLE public.telegram_community_settings ADD COLUMN IF NOT EXISTS moderation_failure_notice_enabled boolean DEFAULT false;
+UPDATE public.telegram_community_settings SET moderation_failure_notice_enabled = false WHERE moderation_failure_notice_enabled IS DISTINCT FROM false;
+ALTER TABLE public.telegram_community_settings ALTER COLUMN moderation_failure_notice_enabled SET DEFAULT false;

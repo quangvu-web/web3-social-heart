@@ -5706,6 +5706,7 @@ export type Database = {
           member_alerts_min_severity: string
           mini_app_builder_timeout_minutes: number
           mini_app_url: string
+          moderation_failure_notice_enabled: boolean | null
           mute_duration_minutes: number
           new_user_restriction_hours: number
           owner_anonymous_address_prompt: string | null
@@ -5795,6 +5796,7 @@ export type Database = {
           member_alerts_min_severity?: string
           mini_app_builder_timeout_minutes?: number
           mini_app_url?: string
+          moderation_failure_notice_enabled?: boolean | null
           mute_duration_minutes?: number
           new_user_restriction_hours?: number
           owner_anonymous_address_prompt?: string | null
@@ -5884,6 +5886,7 @@ export type Database = {
           member_alerts_min_severity?: string
           mini_app_builder_timeout_minutes?: number
           mini_app_url?: string
+          moderation_failure_notice_enabled?: boolean | null
           mute_duration_minutes?: number
           new_user_restriction_hours?: number
           owner_anonymous_address_prompt?: string | null

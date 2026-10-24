@@ -161,3 +161,29 @@ Deno.test("context keeps actual image, user request and no-false-blindness direc
     ),
   );
 });
+
+Deno.test("persistent cache supports group and supergroup scopes without sharing across chats", async () => {
+  for (const type of ["group", "supergroup"]) {
+    const first = await fixture();
+    const groupPhoto = { ...photo, chat: { id: -1001, type } };
+    const description = await first.describeTelegramImage(
+      groupPhoto,
+      "Ảnh có gì?",
+    );
+    const fresh = await fixture(first.shared);
+    assert.equal(
+      await fresh.describeTelegramImage(groupPhoto, "Caption mới"),
+      description,
+    );
+    assert.equal(
+      fresh.calls.length,
+      0,
+      "new worker must reuse group persistent cache",
+    );
+    await fresh.describeTelegramImage({
+      ...groupPhoto,
+      chat: { id: -1002, type },
+    }, "");
+    assert.equal(fresh.calls.filter((c: any) => c.kind === "model").length, 1);
+  }
+});

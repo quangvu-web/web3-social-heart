@@ -1,42 +1,54 @@
-# Sửa lỗi: đăng nhập Google có bật 2FA Telegram nhưng không hiện ô nhập OTP
+# Chẩn đoán và tắt cảnh báo lỗi moderation theo nhóm
 
-## Vấn đề
+## Bước 0 — kết quả trước khi sửa
 
-Khi bé bật xác thực 2 lớp qua Telegram rồi đăng nhập bằng Google, bot Telegram không gửi mã và màn hình nhập mã 6 số không hiện ra — người dùng vào thẳng trang chủ, tức là bước bảo vệ bị bỏ qua.
+Audit 7 ngày trên backend production, đọc lúc khoảng 17:45 Malaysia Time ngày 24/10/2026:
 
-## Nguyên nhân (đã kiểm chứng trong mã nguồn)
+| Nhóm | Cảnh báo đã gửi | Lỗi không thể xóa | Tin không tìm thấy |
+| --- | ---: | ---: | ---: |
+| -1001649798056 — Fun.Rich Camly Community | 109 | 117 | 1 |
+| -1003646058428 | 31 | 48 | 1 |
+| -1003844072019 | 20 | 95 | 0 |
+| -1004309068004 | 17 | 24 | 0 |
+| -1002504038861 | 10 | 38 | 0 |
+| -1003169690760 | 9 | 30 | 0 |
+| -1003730971165 | 4 | 6 | 0 |
+| -1003431575368 | 3 | 5 | 0 |
+| -1002974118000 | 1 | 1 | 0 |
 
-Dự án hiện có **hai bản trang Đăng nhập**:
+Số lỗi là sự kiện audit, có thể gồm xử lý lại cùng tin; không phải số tin riêng biệt.
 
-- `src/pages/Auth.tsx` — bản **có đầy đủ** logic 2FA Telegram cho Google (gọi `telegram-oauth-start`, hiện ô nhập OTP). Nhưng bản này **không được dùng**.
-- `src/modules/auth/pages/Auth.tsx` — bản **đang thực sự chạy** (được khai báo trong `src/App.tsx` cho đường dẫn `/auth`). Bản này **không có** bước kiểm tra 2FA: thấy có phiên đăng nhập là chuyển thẳng về trang chủ.
+**Nguyên nhân đã xác minh:** Telegram từ chối xóa với category `message_not_deletable` ở cả 9 nhóm; hai nhóm có thêm `message_not_found`. Không thấy category thiếu quyền/lỗi token trong tập lỗi đã phân loại.
 
-Vì vậy sau khi Google trả về, ứng dụng không bao giờ yêu cầu bot Telegram tạo mã → bot "im lặng".
+**Chưa xác minh:** quyền Xóa tin nhắn của bot hiện tại, tuổi và loại tin gây lỗi. Không thể kết luận thiếu quyền chỉ từ “message can't be deleted”. Chưa sửa rule, cấp quyền hay đổi secret.
 
-Phụ thêm: cờ đánh dấu `google_oauth_2fa_pending` được đặt lúc bấm nút Google nhưng bản trang đang chạy không bao giờ xoá nó, nên có nguy cơ bị chuyển hướng lặp về `/auth`.
+## Bước 1 — khắc phục gốc dựa trên bằng chứng
 
-## Cách sửa
+- Kiểm tra quyền bot đúng từng nhóm bằng chức năng kiểm tra quyền hiện có với phiên admin thật; đối chiếu tuổi/loại tin lỗi.
+- Nếu xác nhận thiếu quyền: chủ nhóm cấp quyền Xóa tin nhắn; không nới quyền dữ liệu ứng dụng.
+- Nếu xác nhận tin không thể xóa: chỉ sửa đường xử lý liên quan và thêm kiểm thử đúng tình huống; không làm yếu bộ lọc hoặc báo xóa thành công giả.
+- Hai nhóm có tin không tìm thấy cần đối chiếu ID/lần xử lý để phân biệt đã xóa và lỗi đầu vào.
+- Bước này chưa thể hoàn tất khi thiếu snapshot quyền và tin lỗi; không sửa suy đoán để che cảnh báo.
 
-1. Chuyển toàn bộ logic 2FA Telegram từ bản không dùng sang **bản trang Đăng nhập đang chạy** (`src/modules/auth/pages/Auth.tsx`):
-   - Nhận biết lần quay về từ Google (tham số `oauth_callback=google` hoặc cờ đang chờ 2FA).
-   - Gọi chức năng máy chủ `telegram-oauth-start` để bot gửi mã 6 số.
-   - Nếu tài khoản có bật 2FA: hiện màn hình nhập mã (thành phần `TelegramOtpChallenge`), tạm thoát phiên cục bộ cho tới khi nhập đúng mã.
-   - Nếu không bật 2FA: vào thẳng trang chủ như hiện tại.
-2. Luôn xoá cờ `google_oauth_2fa_pending` ở mọi nhánh (thành công, không bật 2FA, lỗi) để tránh chuyển hướng lặp.
-3. Khi gọi máy chủ thất bại (mất mạng, bot lỗi): hiện thông báo tiếng Việt rõ ràng và **không** cho vào thẳng trang chủ một cách âm thầm; cho phép thử lại.
-4. Gỡ bản trang trùng lặp `src/pages/Auth.tsx` khỏi vai trò "nguồn thứ hai" (không còn được import ở đâu) để sau này không lặp lại lỗi này.
+## Bước 2 — tắt cảnh báo trong nhóm, giữ nhật ký
+
+- Thêm `moderation_failure_notice_enabled BOOLEAN DEFAULT false` vào settings; đặt false cho tất cả hàng hiện có, giữ quyền truy cập hiện tại.
+- Kiểm tra settings đúng group trước claim/gửi. Tắt → không claim, không gửi, vẫn ghi `moderation_notice_suppressed`; lỗi đọc → không gửi và ghi rõ chưa xác minh được settings.
+- Thêm công tắc **Thông báo lỗi moderation trong nhóm** tại khu moderation của nhóm đang chọn; mặc định tắt, lưu và đọc lại để xác nhận.
+- Giữ nguyên logic xóa, category lỗi, audit gốc và throttle 5 phút khi bật lại.
+
+## Kiểm thử và vận hành
+
+- Kiểm thử tắt không claim/gửi nhưng vẫn audit; bật giữ dedupe/throttle; nhóm độc lập; lỗi đọc không gửi; lưu boolean đúng nhóm.
+- Chạy kiểm thử frontend và Edge Function riêng; kiểm tra lỗi biên dịch.
+- Nhóm test thật: bật → tạo lỗi an toàn → có cảnh báo; tắt → vẫn audit nhưng không cảnh báo; tin vi phạm xóa bình thường khi đủ quyền.
+- Quan sát 30 phút hoạt động thật sau sửa. Không thay thế bằng test giả lập; không gửi thử vào các nhóm cộng đồng đang hoạt động.
+- Cần chủ dự án chỉ định nhóm test và xác minh quyền qua tài khoản admin hiện có. Phiên đăng nhập quản trị tự động không khả dụng với backend external của dự án.
 
 ## Chi tiết kỹ thuật
 
-- Route `/auth` trong `src/App.tsx` trỏ tới `@/modules/auth/pages/Auth` — đây là tệp cần sửa.
-- Luồng máy chủ đã sẵn sàng, không cần đổi: `telegram-oauth-start` → `createTelegramChallenge()` (trong `supabase/functions/_shared/telegram.ts`) → gửi tin nhắn bot → `telegram-2fa-verify` trả về access/refresh token.
-- `telegram-oauth-start` cần JWT của người dùng (`requireTelegramUser`), nên phải gọi **sau khi** Google đã tạo phiên và **trước khi** thoát phiên cục bộ.
-- Sau khi nhập mã đúng, dùng `supabase.auth.setSession()` với token do `telegram-2fa-verify` trả về (giống luồng ví và email OTP hiện có).
-- Không đổi cấu hình Google OAuth, không đổi cơ sở dữ liệu, không đụng tới các secret.
-
-## Kiểm thử
-
-- Tài khoản **có** bật 2FA Telegram: đăng nhập Google → bot gửi mã → nhập mã → vào trang chủ với phiên hợp lệ.
-- Tài khoản **không** bật: đăng nhập Google → vào thẳng trang chủ, không có bước thừa.
-- Nhập sai mã: báo lỗi, còn bao nhiêu lần thử; hết hạn 5 phút: báo hết hạn.
-- Kiểm tra kiểu dữ liệu và chạy thử giao diện trước khi báo hoàn tất.
+- Cổng gửi chung: `_shared/telegram-community.ts` → `notifyModerationDeleteFailure`, phủ applyViolation, scam-protection và escalation.
+- Dùng resolver theo `group_id`, không dùng hàng oldest để quyết định cờ nhóm khác.
+- Admin: `TelegramGroupPanel.tsx` và allowlist `telegram-community-admin`; giữ admin gate và kiểm tra đầu vào boolean.
+- Migration mới chỉ thêm cột, không chạy lại migration dedupe cũ, không chỉnh generated types bằng tay.
+- Báo cáo chi tiết đã lưu tại `docs/operations/telegram-moderation-notices-2026-10-24.md`.

@@ -947,8 +947,38 @@ export type Database = {
           },
         ]
       }
+      caption_partials: {
+        Row: {
+          session_id: string
+          speaker_name: string | null
+          text_source: string
+          updated_at: string
+        }
+        Insert: {
+          session_id: string
+          speaker_name?: string | null
+          text_source: string
+          updated_at?: string
+        }
+        Update: {
+          session_id?: string
+          speaker_name?: string | null
+          text_source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caption_partials_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "caption_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       caption_sessions: {
         Row: {
+          chat_announced_at: string | null
           created_at: string
           created_by_chat_id: number | null
           created_by_telegram_id: number | null
@@ -957,12 +987,17 @@ export type Database = {
           meeting_key: string | null
           meeting_url: string
           platform: string | null
+          playback_file_path: string | null
+          playback_status: string
+          playback_title: string | null
+          playback_until: string | null
           public_code: string
           recall_bot_id: string | null
           started_at: string | null
           status: string
         }
         Insert: {
+          chat_announced_at?: string | null
           created_at?: string
           created_by_chat_id?: number | null
           created_by_telegram_id?: number | null
@@ -971,12 +1006,17 @@ export type Database = {
           meeting_key?: string | null
           meeting_url: string
           platform?: string | null
+          playback_file_path?: string | null
+          playback_status?: string
+          playback_title?: string | null
+          playback_until?: string | null
           public_code: string
           recall_bot_id?: string | null
           started_at?: string | null
           status?: string
         }
         Update: {
+          chat_announced_at?: string | null
           created_at?: string
           created_by_chat_id?: number | null
           created_by_telegram_id?: number | null
@@ -985,6 +1025,10 @@ export type Database = {
           meeting_key?: string | null
           meeting_url?: string
           platform?: string | null
+          playback_file_path?: string | null
+          playback_status?: string
+          playback_title?: string | null
+          playback_until?: string | null
           public_code?: string
           recall_bot_id?: string | null
           started_at?: string | null
@@ -5629,6 +5673,7 @@ export type Database = {
           block_telegram_previews: boolean
           bot_username: string | null
           caption_operator_ids: number[] | null
+          caption_summary_chat_id: number | null
           cjk_chatter_guard_enabled: boolean
           cjk_chatter_strike_threshold: number
           community_personality: string
@@ -5717,6 +5762,7 @@ export type Database = {
           block_telegram_previews?: boolean
           bot_username?: string | null
           caption_operator_ids?: number[] | null
+          caption_summary_chat_id?: number | null
           cjk_chatter_guard_enabled?: boolean
           cjk_chatter_strike_threshold?: number
           community_personality?: string
@@ -5805,6 +5851,7 @@ export type Database = {
           block_telegram_previews?: boolean
           bot_username?: string | null
           caption_operator_ids?: number[] | null
+          caption_summary_chat_id?: number | null
           cjk_chatter_guard_enabled?: boolean
           cjk_chatter_strike_threshold?: number
           community_personality?: string

@@ -897,13 +897,30 @@ export function resolveAngelLanguageBucket(text: string, forcedLangBucket?: Ange
  * Per-group reply language policy (telegram_community_settings.reply_language).
  * 'en' forces the bot's own voice to English regardless of the member's language;
  * an explicit translation request still yields the target language for the
- * translated content, with English framing. Anything else keeps 'auto'.
+ * translated content, with English framing. 'vi' applies the symmetric policy
+ * with Vietnamese framing. Anything else keeps 'auto'.
  */
 export function resolveGroupReplyLanguage(
   text: string,
   replyLanguage: string | null | undefined,
 ): { bucket: AngelLanguageBucket; botVoiceBucket?: AngelLanguageBucket; policyNote: string | null } {
-  if (String(replyLanguage ?? "auto").trim().toLowerCase() !== "en") {
+  const language = String(replyLanguage ?? "auto").trim().toLowerCase();
+  if (language === "vi") {
+    const target = detectTranslationTargetLanguage(text);
+    if (target && target !== "vi") {
+      return {
+        bucket: target,
+        botVoiceBucket: "vi",
+        policyNote: `GROUP LANGUAGE POLICY — VIETNAMESE GROUP: TRANSLATION REQUEST. Translate the requested source into ${LANG_NAME_FOR_POLICY[target]}. The translated content itself MUST be in ${LANG_NAME_FOR_POLICY[target]}; every sentence written by Angel to introduce, frame, explain, or close the translation MUST be in Vietnamese. This is the only allowed exception to the group's Vietnamese reply policy. Do not translate the requested content into Vietnamese.`,
+      };
+    }
+    return {
+      bucket: "vi",
+      botVoiceBucket: "vi",
+      policyNote: "GROUP LANGUAGE POLICY — VIETNAMESE GROUP: This is a normal reply, not a translation request. Every word of Angel's response MUST be in Vietnamese, regardless of the member's message language. This rule overrides user-language mirroring and any admin/persona/template instruction to use another language.",
+    };
+  }
+  if (language !== "en") {
     return { bucket: resolveAngelLanguageBucket(text), policyNote: null };
   }
   const target = detectTranslationTargetLanguage(text);

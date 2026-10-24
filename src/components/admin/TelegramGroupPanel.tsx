@@ -109,6 +109,7 @@ type Settings = {
   welcome_enabled: boolean;
   anti_spam_enabled: boolean;
   moderation_failure_notice_enabled?: boolean | null;
+  reply_language?: "auto" | "en" | "vi" | null;
   anti_link_enabled: boolean;
   block_telegram_previews: boolean;
   block_external_bots: boolean;
@@ -1593,6 +1594,23 @@ export default function TelegramGroupPanel() {
                     onCheckedChange={(moderation_failure_notice_enabled) => updateSettings({ moderation_failure_notice_enabled })}
                   />
                   <Label htmlFor="moderation-failure-notice">Thông báo lỗi moderation trong nhóm</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="group-reply-language">Ngôn ngữ trả lời của bot</Label>
+                  <Select
+                    value={settings.reply_language ?? "auto"}
+                    disabled={saving}
+                    onValueChange={(reply_language: "auto" | "en" | "vi") => updateSettings({ reply_language })}
+                  >
+                    <SelectTrigger id="group-reply-language">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Tự động (theo ngôn ngữ người viết)</SelectItem>
+                      <SelectItem value="en">Luôn tiếng Anh</SelectItem>
+                      <SelectItem value="vi">Luôn tiếng Việt</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch

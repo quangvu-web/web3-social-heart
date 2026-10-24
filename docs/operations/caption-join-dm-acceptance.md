@@ -30,7 +30,16 @@ Tất cả thời gian dưới đây là Malaysia UTC+8.
 |---|---|---|
 | (a) A từ đầu, B sau5phút, DM đúng link, A không có tin mới | Log gửi riêng B lúc20:26; bé xác nhận nhận DM; A không có tin mới | Còn ảnh chat riêng B để lưu bằng chứng private và link đúng |
 | (b) B rời/vào lại nhận đúng1 DM mới | Log sent20:28, webhook-id mới; bé xác nhận đúng1 DM mới | Còn ảnh DM B |
-| (c) Bot không tự DM, không vòng lỗi | Không thấy self DM hay log lặp;2 join_dm logs đều là B. Unit test self bot đạt | Bot đã vào trước lúc nối handler; chưa quan sát self-join thật trên bản DM, không gọi mục này đủ nghiệm thu |
+| (c) Bot không tự DM, không vòng lỗi | Đã tạo bot mới bằng bản DM lúc20:31: chỉ2 DM cho2 người thật100/200, không có self DM hay log lặp | Recall không phát event self trong mẫu thật; nhánh lọc tên self được kiểm thử riêng |
 | (d) Public welcome vẫn đúng1 lần | Đạt trong phiên hiện tại: A vẫn có1 tin20:11 sau cả hai lượt B join; log có1 chat_announce sent và2 claimed_by_other | Đã đối chiếu UI A và log |
 
 Phiên test quan sát: https://web3-social-heart.lovable.app/captions/qat286tnm55e . Bản quan sát không gửi DM nên không dùng các join cũ làm bằng chứng DM thành công.
+
+## Kiểm tra bot mới trên bản DM đã deploy
+
+- Sau hai lượt rejoin thành công, Angel dừng riêng phiên test cũ bằng /caption_stop và tạo phiên mới trong cùng phòng Zoom. Cuộc họp vẫn tiếp tục.
+- Phiên mới `b5c6bzbr34j9`, session1764242e-a872-454c-a2f2-db6d0b2ae956, đã xác minh status live.
+- 20:31:26 và20:31:27: join_dm sent cho2 người đang có mặt, participant100 và200. Không ghi nhận DM đến chính bot, không vòng lỗi.
+- UI A có tab Angel Translator, nhãn “tin nhắn riêng tư”, đúng nội dung song ngữ và link b5c6bzbr34j9. Đây là kiểm chứng private delivery trên A, không thay cho ảnh B được yêu cầu.
+- UI Mọi người có1 welcome cho phiên mới lúc20:31. Tin cũ20:11 thuộc phiên cũ đã đóng, không phải gửi trùng cùng phiên.
+- Còn cần ảnh chat riêng B (phiên cũ hoặc mới, thấy rõ nhãn private và link) trước khi coi bộ bằng chứng nghiệm thu đầy đủ. Chưa merge main.

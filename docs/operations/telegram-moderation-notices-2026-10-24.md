@@ -42,4 +42,10 @@ Thêm cờ theo từng nhóm, mặc định false cho mọi hàng cũ/mới. Đ�
 
 ## Nghiệm thu chưa thực hiện
 
+## Triển khai sau phê duyệt
+
+Cột đã thêm và mặc định false đã đọc lại từ production; migration đặt false cho mọi hàng hiện có, không đổi policies/grants. Cổng gửi đọc settings theo group trước claim, thiếu cờ/hàng hoặc lỗi đọc đều không gửi và vẫn audit. Công tắc đã thêm trong khu anti-spam, endpoint kiểm tra boolean/group_id và đọc lại hàng sau lưu. Webhook deployed source SHA b17cbe3ab7a037046019fcd16effec08ffac53015efa94dc9c67144e1a04afbb; admin SHA 459c3c3209e2230bb88340e01d6809c1e6dd40a4692fb323e65ecae6f500da06. Frontend chưa publish trong phiên này.
+
+Kiểm thử: Bun tải cài đặt nhóm 1/1; Deno helper 7/7 có type checking; applyViolation integration 1/1 với --no-check, toàn bộ fetch mock và không cho phép network. Build log OK. Các kết quả không thay thế nghiệm thu nhóm thật. 44 linter findings có sẵn, migration không thêm finding.
+
 Chưa có 30 phút hoạt động sau sửa, chưa bật/tắt trên nhóm test thật, chưa xóa tin thử hoặc xác minh quyền bot. Cần nhóm test do chủ dự án chỉ định và phiên admin/kiểm tra quyền thật; không tạo lỗi hoặc gửi cảnh báo vào nhóm cộng đồng để thử.

@@ -2450,6 +2450,9 @@ async function askAngelReply(params: {
 ${addressRule}`;
   const originalUserMessage = params.originalUserMessage?.trim() || q;
   const langBucket = resolveAngelLanguageBucket(originalUserMessage, params.forcedLangBucket);
+  const trustedGroupLanguagePolicy = ["group", "supergroup", "channel"].includes(
+    (params.conversationContext?.chatType ?? "").toLowerCase(),
+  ) ? params.languagePolicyNote?.trim() || null : null;
   const botVoiceEnglish = params.fallbackLangBucket === "en" || params.forcedLangBucket === "en";
   let _creativeOverride = false;
   let _regenerateMode = false;
@@ -2598,7 +2601,7 @@ ${addressRule}`;
       : `USER_LANGUAGE_DETECTED=${langBucket} (${LANG_NAME[langBucket]}). You MUST reply 100% in ${LANG_NAME[langBucket]} only. Do NOT reply in Vietnamese unless the detected language is "vi".`;
     const chatType = (params.conversationContext?.chatType ?? "").toLowerCase();
     const isGroupConversation = chatType === "group" || chatType === "supergroup" || chatType === "channel";
-    const groupLanguagePolicyPrompt = isGroupConversation ? params.languagePolicyNote?.trim() || null : null;
+    const groupLanguagePolicyPrompt = isGroupConversation ? trustedGroupLanguagePolicy : null;
     const forcedLanguageHint = params.forcedLangBucket
       ? [isMixedTranslationPolicy ? "" : angelLanguageDirective(params.forcedLangBucket), params.languagePolicyNote?.trim() || ""].filter(Boolean).join("\n\n")
       : "";
@@ -3049,6 +3052,7 @@ ${addressRule}`;
     if (messages.some((m) => m.role === "system")) messages.push({ role: "system", content: addressRule });
     const result = await callAngelCore({
       messages,
+      trustedGroupLanguagePolicy,
       ...(params.attachments && params.attachments.length > 0 ? { attachments: params.attachments } : {}),
       ...(_creativeOverride ? { forceProvider: "lovable" as const } : {}),
       ...(typeof _creativeTemp === "number" ? { temperature: _creativeTemp } : {}),
@@ -3098,6 +3102,7 @@ ${addressRule}`;
           // Ưu tiên Angel gốc (không tốn credit Lovable).
           retryResult = await callAngelCore({
             messages: retryMessages,
+            trustedGroupLanguagePolicy,
             forceProvider: "funcore" as const,
             strictMirror: true,
           });
@@ -3107,6 +3112,7 @@ ${addressRule}`;
           if (!(await getFlag("cost.lovable_retry_enabled", true))) throw fcErr;
           retryResult = await callAngelCore({
             messages: retryMessages,
+            trustedGroupLanguagePolicy,
             forceProvider: "lovable" as const,
             temperature: 0.7,
           });
@@ -3512,6 +3518,7 @@ ${addressRule}`;
         console.warn(`[askAngel] TIER1 retry-1 funcore clean strict-mirror qLen=${cleanUserText.length}`);
         const r1 = await callAngelCore({
           messages: withTelegramGroupContext([{ role: "user", content: cleanUserText }], params.telegramGroupContext),
+          trustedGroupLanguagePolicy,
           forceProvider: "funcore",
           strictMirror: true,
         });
@@ -3547,6 +3554,7 @@ ${addressRule}`;
           const r2 = await callAngelCore({
             messages: withTelegramGroupContext([
               { role: "system", content: `${addressRule}\nTrả lời ấm áp, ngắn gọn, 2-3 emoji.` },
+              ...(trustedGroupLanguagePolicy ? [{ role: "system" as const, content: trustedGroupLanguagePolicy }] : []),
               { role: "user", content: cleanUserText },
             ], params.telegramGroupContext),
             forceProvider: "lovable",

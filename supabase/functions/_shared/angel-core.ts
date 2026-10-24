@@ -90,6 +90,8 @@ export type CallAngelParams = {
    * Mặc định đọc từ flag `router.strict_mirror` (default true) khi undefined.
    */
   strictMirror?: boolean;
+  /** Verified per-group language policy; survives mirror filtering without rewriting the RAG question. */
+  trustedGroupLanguagePolicy?: string | null;
   /** Override timeout (ms) cho request FUN Core. Mặc định 25s cho chat, caller có thể set 45s cho meditation/YouTube. */
   timeoutMs?: number;
   /**
@@ -487,9 +489,12 @@ async function callFunCore(p: CallAngelParams): Promise<CallAngelResult> {
     }
   }
 
-  const finalMessages = strictMirror
+  const finalMessages: AngelMessage[] = strictMirror
     ? [{ role: "user" as const, content: lastUser }]
     : (forwardMessages.length > 0 ? forwardMessages : [{ role: "user" as const, content: lastUser }]);
+  if (p.trustedGroupLanguagePolicy?.trim()) {
+    finalMessages.unshift({ role: "system", content: p.trustedGroupLanguagePolicy.trim() });
+  }
 
   // Body ĐÚNG CHUẨN DOC: { messages, useKnowledge, stream }. KHÔNG gửi responseStyle,
   // temperature, hoặc bất kỳ field ngoài spec — có bằng chứng Angel gốc phân nhánh

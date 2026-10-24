@@ -987,7 +987,7 @@ export async function enforceGroupReplyLanguageOutput(
         const framing = sanitizeForTelegramHtml(parts.framing.trim());
         const translation = sanitizeForTelegramHtml(parts.translation.trim());
         if (translation && (!framing || groupReplyProseLanguage(framing) === voice) && groupReplyProseLanguage(translation) === policy.bucket) {
-          return [framing, translation].filter(Boolean).join("\n\n");
+          return [voice === "vi" ? enforceVietnamesePronouns(framing) : framing, translation].filter(Boolean).join("\n\n");
         }
       }
     } else {

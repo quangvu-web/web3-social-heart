@@ -174,7 +174,8 @@ export function TetOverlay() {
   const { tetModeEnabled } = useTetTheme();
   const isMobile = useIsMobile();
   
-  if (!tetModeEnabled) return null;
+  // Trang phát nhạc là hình camera của bot Recall: luôn giữ nền đen tối giản.
+  if (!tetModeEnabled || window.location.pathname.startsWith('/angel-player/')) return null;
 
   // Phương án B: opacity 0.25-0.35
   const cornerOpacity = isMobile ? 0.25 : 0.32;

@@ -212,14 +212,24 @@ export default function CaptionsPage() {
           )
           .on(
             "postgres_changes",
-            { event: "*", schema: "public", table: "caption_partials" },
+            { event: "INSERT", schema: "public", table: "caption_partials", filter: `session_id=eq.${sess.id}` },
             (payload) => {
-              if (cancelled) return;
-              if (payload.eventType === "DELETE") {
-                if ((payload.old as { session_id?: string }).session_id === sess.id) setPartial(null);
-              } else if ((payload.new as CaptionPartial).session_id === sess.id) {
-                setPartial(payload.new as CaptionPartial);
-              }
+              if (!cancelled) setPartial(payload.new as CaptionPartial);
+            },
+          )
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "caption_partials", filter: `session_id=eq.${sess.id}` },
+            (payload) => {
+              if (!cancelled) setPartial(payload.new as CaptionPartial);
+            },
+          )
+          .on(
+            "postgres_changes",
+            // DELETE events cannot be filtered by Postgres Changes; compare the primary key locally.
+            { event: "DELETE", schema: "public", table: "caption_partials" },
+            (payload) => {
+              if (!cancelled && (payload.old as { session_id?: string }).session_id === sess.id) setPartial(null);
             },
           )
           .subscribe((status) => {

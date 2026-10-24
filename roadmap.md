@@ -1,5 +1,11 @@
 # Roadmap
 
+## Moderation deletion failures and group notices
+- [ ] Diagnose affected groups, deletion categories and current bot permissions; report evidence before repairs.
+- [ ] Repair only evidenced root causes; do not weaken moderation or change secrets without need.
+- [ ] Add default-off per-group moderation_failure_notice_enabled, suppression audit before claim and admin moderation switch.
+- [ ] Run focused frontend/Edge regressions; verify real test-group toggle, successful deletion and 30 minutes of activity (requires test group and authorized access).
+
 ## Caption Angel FAB drag and guest chat
 - [x] Add pointer-based dragging, remembered position, viewport clamping and tap/drag separation without moving the chat panel.
 - [x] Allow signed-out caption viewers to use text-only public Angel chat with client-only guest history; preserve authenticated chat and image authorization. Deployed angel-chat source SHA-256 65641a6aa12e317a8726b7d30cdf3523d3cdb1b10dd449c0b746f6cc04e4eccf.

@@ -121,3 +121,88 @@ Deno.test("DM image grounding survives provider recovery and strict-mirror anti-
     globalThis.fetch = originalFetch;
   }
 });
+
+Deno.test("group image context retains replied speaker and English policy through strict mirror", async () => {
+  const { buildTelegramGroupContext } = await import(
+    "./telegram-group-context.ts"
+  );
+  const { resolveGroupReplyLanguage } = await import("./telegram-community.ts");
+  const originalGet = Deno.env.get;
+  const originalFetch = globalThis.fetch;
+  const inputs: Array<Array<{ role: string; content: string }>> = [];
+  const question = "Ảnh này có chữ gì?";
+  const context = buildImageAnalysisContext(
+    "FUN Profile. Hẹn gặp lúc 19:00 MYT.",
+    question,
+  );
+  const message = {
+    message_id: 101,
+    chat: { id: -1001, type: "supergroup" },
+    from: { id: 42, first_name: "Requester" },
+    text: question,
+    reply_to_message: {
+      message_id: 100,
+      chat: { id: -1001, type: "supergroup" },
+      from: { id: 55, first_name: "Other", is_bot: false },
+      photo: [{
+        file_id: "image",
+        file_unique_id: "image",
+        width: 100,
+        height: 100,
+      }],
+    },
+  };
+  Deno.env.get = (name) =>
+    ({
+      ANGEL_AI_CHAT_URL: "https://ai.fixture.invalid/angel-chat",
+      ANGEL_AI_API_KEY: "fixture",
+    } as Record<string, string>)[name];
+  globalThis.fetch = async (input, init) => {
+    assert.equal(new URL(String(input)).hostname, "ai.fixture.invalid");
+    const body = JSON.parse(String(init?.body ?? "{}"));
+    inputs.push(body.messages);
+    return Response.json({
+      text:
+        "The picture contains FUN Profile and a meeting invitation for 19:00 MYT.",
+    });
+  };
+  try {
+    const policy = resolveGroupReplyLanguage(question, "en");
+    const reply = await askAngel({
+      question: context,
+      originalUserMessage: question,
+      imageAnalysisContext: context,
+      systemPrompt: "",
+      forcedLangBucket: policy.bucket,
+      fallbackLangBucket: policy.botVoiceBucket,
+      languagePolicyNote: policy.policyNote,
+      telegramGroupContext: buildTelegramGroupContext(
+        message as never,
+        7,
+        "fixture_bot",
+      ),
+      conversationContext: {
+        chatId: -1001,
+        groupId: -1001,
+        chatType: "supergroup",
+        userId: 42,
+        triggerSource: "group_ai:mention",
+      },
+    });
+    assert.match(reply, /19:00 MYT/);
+    assert.equal(inputs.length, 1);
+    assert.ok(
+      inputs[0].some((m) =>
+        m.role === "system" && m.content === policy.policyNote
+      ),
+    );
+    const lastUser = inputs[0].find((m) => m.role === "user")!.content;
+    assert.ok(lastUser.includes("19:00 MYT"));
+    assert.ok(lastUser.includes("Other"));
+    assert.ok(lastUser.includes("IMAGE_ANALYSIS_CONTEXT"));
+    assert.ok(lastUser.includes("TUYỆT ĐỐI KHÔNG"));
+  } finally {
+    Deno.env.get = originalGet;
+    globalThis.fetch = originalFetch;
+  }
+});

@@ -4987,14 +4987,13 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
   }
 
   const text = directTelegramText(message);
-  if (!text) return;
-
   const bot = await getBotInfo();
   const botUsername = bot?.username ?? Deno.env.get("COMMUNITY_GUARD_BOT_USERNAME") ?? "";
   const mentionRegex = botUsername ? new RegExp(`@${escapeRegexSource(botUsername)}\\b`, "i") : null;
   const isMention = mentionRegex ? mentionRegex.test(text) : false;
   const isReplyToBot = Boolean(bot?.id && message.reply_to_message?.from?.id === bot.id);
-  const isAskCmd = /^\/ask(@|\s)/i.test(text);
+  const isAskCmd = /^\/ask(?:@\w+)?(?:\s|$)/i.test(text);
+  if (!text && !(message.photo?.length && isReplyToBot)) return;
   const isHelpIntent = !text.startsWith("/") && detectHelpIntent(text);
   const isPositiveIntent = !text.startsWith("/") && detectPositiveEngagement(text);
   const isOwner = memberStatus === "creator";
@@ -5085,7 +5084,6 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
   }
 
   const aiQuestion = buildGroupAiQuestion({ message, botUsername, botId: bot?.id, isReplyToBot, triggerSource, settings });
-  const prompt = aiQuestion.prompt;
   // Read only this chat's language preference. The global oldest settings row
   // may belong to a different group and must never drive this policy.
   let groupSettings: CommunitySettings | null = null;
@@ -5098,6 +5096,22 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
       chatId,
       error: err instanceof Error ? err.message : String(err),
     });
+  }
+  // Owner/admin trigger labels take precedence, so gate on the actual permitted
+  // explicit call rather than triggerSource. Unsolicited photos never spend vision.
+  const explicitlyInvoked = mentionTrigger || replyToBotTrigger || askTrigger;
+  const requestedGroupPhoto = explicitlyInvoked
+    ? (message.photo?.length ? message : message.reply_to_message?.photo?.length ? message.reply_to_message : null)
+    : null;
+  // Fail closed for image spending if this group's settings could not be read.
+  const groupPhotoSource = groupSettings && groupSettings.group_vision_enabled !== false
+    ? requestedGroupPhoto : null;
+  const prompt = aiQuestion.prompt || (groupPhotoSource ? "Mô tả nội dung ảnh được gửi." : "");
+  const explicitGroupPhotoEdit = !!groupPhotoSource && detectImageIntent(prompt, true)?.mode === "edit";
+  const visionSource = explicitGroupPhotoEdit ? null : groupPhotoSource;
+  if (requestedGroupPhoto && !groupPhotoSource) {
+    console.log("[group-vision] skipped", { chat_id: chatId, message_id: message.message_id,
+      reason: groupSettings ? "group_disabled" : "settings_unavailable" });
   }
   const replyLanguage = groupSettings?.reply_language ?? "auto";
   const groupLanguage = resolveGroupReplyLanguage(prompt, replyLanguage);
@@ -5163,7 +5177,9 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
     });
   }
   const hasReplyContext = Boolean(aiQuestion.replyContextPreview);
-  const promptHash = await sha256Hex(normalizeAiCachePrompt(hasReplyContext ? aiQuestion.question : prompt));
+  const photoIdentity = requestedGroupPhoto ? pickLargestPhotoFileId(requestedGroupPhoto) : null;
+  const promptHash = await sha256Hex(normalizeAiCachePrompt(hasReplyContext ? aiQuestion.question : prompt)
+    + (photoIdentity ? `\nPHOTO:${photoIdentity.uniq || photoIdentity.fileId}` : ""));
   const messageType = classifyMessageType(message);
 
   const skipRepeatedPromptGuard = decision.category === "owner" || decision.category === "admin" || decision.category === "coordinator";
@@ -5203,7 +5219,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
   const funCoreContextHash = await sha256Hex(
     (settings.fun_core_context_prompt?.trim() || FUN_PROFILE_PLATFORM_FACTS).trim(),
   );
-  const cacheKey = decision.cacheable && !hasReplyContext
+  const cacheKey = decision.cacheable && !hasReplyContext && !requestedGroupPhoto
     ? await sha256Hex([
       groupLanguage.policyNote ? "telegram-ai-v5" : "telegram-ai-v2",
       userLangBucket,
@@ -5301,7 +5317,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
   }
 
   const followupEnabled = settings.event_followup_enabled !== false;
-  const eventIntent = !followupEnabled || triggerSource === "positive_community" ? null : detectEventFollowupIntent(eventFollowupSenderText(message));
+  const eventIntent = groupPhotoSource || !followupEnabled || triggerSource === "positive_community" ? null : detectEventFollowupIntent(eventFollowupSenderText(message));
   if (followupEnabled && triggerSource !== "positive_community") console.log("[EVENT_FOLLOWUP_INTENT]", {
     chat_id: chatId, message_id: message.message_id ?? null, intent: eventIntent, has_reply: Boolean(message.reply_to_message),
   });
@@ -5403,14 +5419,14 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
     : triggerSource === "help_intent" ? "help_intent_ai" : "ai";
   console.log("[community] ai_answer_fire", { chatId, actorId, actorKind, isGroupSenderChat, mode, triggerSource, intent: decision.category, priority: decision.priority });
 
-  // ===== UNIFIED /angel-router FLOW (GROUP) =====
-  // Không phân loại ý định ở FUNPROFILE nữa — router bên Angel gốc tự chọn chat /
-  // image_generate / image_analyze. Nếu message có ảnh → forward attachment.
+  // Ordinary group photo chat uses a single cached description. Raw photos must
+  // not bypass the explicit-call/group gate; retain the existing edit/media routes.
   const startedAt = Date.now();
   const _groupImmediateContext = telegramReplyAssistantContext(message, bot?.id ?? null);
   const _groupAttachments: Array<{ kind: "image"; url?: string; base64?: string; mime_type?: string }> = [];
-  if (hasAnalyzableImage(message)) {
-    const pick = pickLargestPhotoFileId(message);
+  const attachmentMessage = explicitGroupPhotoEdit ? groupPhotoSource! : message;
+  if (explicitGroupPhotoEdit || (!message.photo?.length && hasAnalyzableImage(message))) {
+    const pick = pickLargestPhotoFileId(attachmentMessage);
     const fileId = pick?.fileId ?? null;
     if (fileId) {
       const media = await tryFetchTelegramMedia(fileId, "group-attachment", {
@@ -5441,8 +5457,25 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
     ? await getFlag("image.stream_telegram_preview", true)
     : false;
   try {
+    let imageAnalysisContext: string | undefined;
+    if (visionSource) {
+      // Telegram replies may omit chat metadata; scope cache to the current group.
+      const description = await describeTelegramImage({ ...visionSource, chat: message.chat }, prompt);
+      if (!description) {
+        const notice = groupLanguage.botVoiceBucket === "en"
+          ? "Angel could not read this image this time. Please try sending it again in a few minutes 💛"
+          : "Angel lần này chưa đọc được ảnh. Bé thử gửi lại ảnh rõ hơn sau ít phút nhé 💛";
+        await sendMessage(chatId, notice, { reply_to_message_id: message.message_id, skipAutoDelete: true });
+        await markAiMessageLock({ adminClient, groupId: chatId, messageId: message.message_id ?? null,
+          triggerSource, status: "responded", extra: { mode: "vision_unavailable" } });
+        return;
+      }
+      imageAnalysisContext = buildImageAnalysisContext(description, prompt);
+      aiQuestion.question = imageAnalysisContext;
+    }
     const reply = await withTyping(chatId, () => askAngel({
       question: aiQuestion.question,
+      imageAnalysisContext,
       telegramGroupContext: aiQuestion.groupContext,
       originalUserMessage: prompt,
       systemPrompt: settings.ai_system_prompt,

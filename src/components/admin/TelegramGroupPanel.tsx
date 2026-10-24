@@ -109,6 +109,7 @@ type Settings = {
   welcome_enabled: boolean;
   anti_spam_enabled: boolean;
   moderation_failure_notice_enabled?: boolean | null;
+  group_vision_enabled?: boolean | null;
   reply_language?: "auto" | "en" | "vi" | null;
   anti_link_enabled: boolean;
   block_telegram_previews: boolean;
@@ -1594,6 +1595,15 @@ export default function TelegramGroupPanel() {
                     onCheckedChange={(moderation_failure_notice_enabled) => updateSettings({ moderation_failure_notice_enabled })}
                   />
                   <Label htmlFor="moderation-failure-notice">Thông báo lỗi moderation trong nhóm</Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="group-vision-enabled"
+                    checked={settings.group_vision_enabled !== false}
+                    disabled={saving}
+                    onCheckedChange={(group_vision_enabled) => updateSettings({ group_vision_enabled })}
+                  />
+                  <Label htmlFor="group-vision-enabled">Bot đọc ảnh khi được nhắc trong nhóm</Label>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="group-reply-language">Ngôn ngữ trả lời của bot</Label>

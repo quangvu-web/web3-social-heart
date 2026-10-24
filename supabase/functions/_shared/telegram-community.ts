@@ -1142,6 +1142,7 @@ export type CommunitySettings = {
   group_id: number;
   reply_language?: string | null;
   moderation_failure_notice_enabled?: boolean | null;
+  group_vision_enabled?: boolean | null;
   bot_username: string | null;
   welcome_enabled: boolean;
   anti_spam_enabled: boolean;
@@ -5867,7 +5868,8 @@ export async function describeTelegramImage(
   }
 
   const task = (async (): Promise<{ text: string | null; reason: string; cache?: string }> => {
-    const persistent = message.chat?.type === "private" && scope !== 0 ? getClients().adminClient : null;
+    const persistent = ["private", "group", "supergroup"].includes(message.chat?.type ?? "") && scope !== 0
+      ? getClients().adminClient : null;
     if (persistent) {
       try {
         const { data, error } = await persistent.from("telegram_ai_response_cache")

@@ -26,8 +26,8 @@ Phạm vi: angel-caption; giữ nguyên tin chào everyone, transcript final/par
 - Đã deploy bản đăng ký join và ghi payload; bot test public code `qat286tnm55e`.
 - Đã đọc hai raw join payload trong log backend lúc 24/10/2026 20:11:30 và 20:13:32 UTC+8 trước khi viết bộ trích xuất.
 - Đã nối handler DM, loại log raw tạm, kiểm tra bot tự vào/phiên/bot identity, claim theo header Svix.
-- Migration chưa áp dụng: Table Editor schema public tìm caption_join_dm_claims trả No results found.
+- Bé đã áp dụng migration; kiểm tra chỉ đọc xác nhận bảng, PRIMARY KEY webhook_id, RLS và quyền backend ghi.
 - Edge Function suite 73 đạt với no-check; riêng module DM và webhook24 đạt với type-check. Frontend bun test src55 đạt.
 - deno check toàn function có5 lỗi, đã đối chiếu origin/main cũng cùng5 lỗi; không phát sinh lỗi mới từ module DM.
-- Chưa nghiệm thu Zoom(a)–(d), chưa có ảnh chat B, chưa merge main.
+- Zoom: log sent20:26:11 và20:28:22 UTC+8, hai webhook-id khác nhau; bé xác nhận B nhận DM mỗi lượt và đúng1 DM mới khi rejoin. A vẫn chỉ có1 public welcome. Còn thiếu ảnh chat B và kiểm tra self join thật trên bản DM; chưa merge main.
 - Nguồn đối chiếu: https://docs.recall.ai/docs/sending-chat-messages và https://docs.recall.ai/docs/real-time-event-payloads . Tài liệu không thay thế payload thật.

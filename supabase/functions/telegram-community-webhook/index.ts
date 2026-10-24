@@ -1309,18 +1309,26 @@ export async function handlePrivateMessage(message: TelegramMessage) {
         }),
       });
       if (!res.ok) {
-        await adminClient.storage.from("caption-media").remove([path]);
+        // A timeout after Recall accepted POST can leave playback running. Keep
+        // the signed file when the session claimed it, so audio does not vanish.
+        const { data: playback, error: playbackReadError } = await adminClient.from("caption_sessions")
+          .select("playback_status, playback_file_path").eq("id", active.id).maybeSingle();
+        if (!playbackReadError && (playback?.playback_status !== "playing" || playback.playback_file_path !== path)) {
+          await adminClient.storage.from("caption-media").remove([path]);
+        }
         uploadedPath = null;
-        await replyDm("Angel chưa phát được MP3 vào phòng. Nếu đang phát bài khác, bé dùng /stop_play trước nhé 💛");
+        await replyDm(playbackReadError || (playback?.playback_status === "playing" && playback.playback_file_path === path)
+          ? "Angel chưa xác nhận được nhạc đã phát. Bé kiểm tra phòng họp; nếu cần, dùng /stop_play nhé 💛"
+          : "Angel chưa phát được MP3 vào phòng. Nếu đang phát bài khác, bé dùng /stop_play trước nhé 💛");
         return;
       }
       uploadedPath = null; // Phiên sẽ dọn file khi dừng phát hoặc kết thúc.
       await replyDm(`🎵 Angel đang phát <b>${escapeHtml(title)}</b> vào buổi họp. Bé dùng /stop_play để dừng nhé 💛`);
     } catch (error) {
       if (uploadedPath) {
-        const { data: playback } = await adminClient.from("caption_sessions")
+        const { data: playback, error: playbackReadError } = await adminClient.from("caption_sessions")
           .select("playback_status, playback_file_path").eq("playback_file_path", uploadedPath).maybeSingle();
-        if (playback?.playback_status !== "playing") {
+        if (!playbackReadError && playback?.playback_status !== "playing") {
           await adminClient.storage.from("caption-media").remove([uploadedPath]);
         }
       }

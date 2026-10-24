@@ -1025,10 +1025,20 @@ async function handlePlay(req: Request): Promise<Response> {
   if (count !== 1) return json({ error: "Buổi họp đang phát một bài nhạc khác. Bé dùng /stop_play trước nhé." }, 409);
 
   const playerUrl = captionPlayerUrl(PLAYER_PAGE_BASE, session.public_code, body.track_url, title);
-  const output = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/output_media/`, {
-    method: "POST",
-    body: JSON.stringify({ camera: { kind: "webpage", config: { url: playerUrl } } }),
-  });
+  let output: Response;
+  try {
+    output = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/output_media/`, {
+      method: "POST",
+      body: JSON.stringify({ camera: { kind: "webpage", config: { url: playerUrl } } }),
+    });
+  } catch (error) {
+    // Recall may have received the request before the connection failed. Keep
+    // captions paused until the operator stops playback or the deadline passes.
+    console.warn("[angel-caption] playback_start_unconfirmed", {
+      session_id: session.id, error: error instanceof Error ? error.message : String(error),
+    });
+    return json({ error: "Chưa xác nhận được trạng thái phát nhạc. Bé kiểm tra phòng họp; nếu cần, dùng /stop_play nhé." }, 502);
+  }
   if (!output.ok) {
     await admin.from("caption_sessions")
       .update({ playback_status: "idle", playback_title: null, playback_until: null, playback_file_path: null })
@@ -1037,11 +1047,17 @@ async function handlePlay(req: Request): Promise<Response> {
     return json({ error: "Recall chưa phát được nhạc vào phòng. Bé thử lại sau nhé." }, 502);
   }
   await clearCaptionPartial(admin, session.id);
-  const chat = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/send_chat_message/`, {
-    method: "POST",
-    body: JSON.stringify({ to: "everyone", message: `🎵 Angel Translator đang phát: ${title}. Phụ đề tạm dừng trong lúc phát nhạc. / Now playing: ${title} — captions are paused during playback.` }),
-  });
-  if (!chat.ok) console.warn("[angel-caption] playback_chat_failed", { session_id: session.id, status: chat.status });
+  try {
+    const chat = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/send_chat_message/`, {
+      method: "POST",
+      body: JSON.stringify({ to: "everyone", message: `🎵 Angel Translator đang phát: ${title}. Phụ đề tạm dừng trong lúc phát nhạc. / Now playing: ${title} — captions are paused during playback.` }),
+    });
+    if (!chat.ok) console.warn("[angel-caption] playback_chat_failed", { session_id: session.id, status: chat.status });
+  } catch (error) {
+    console.warn("[angel-caption] playback_chat_failed", {
+      session_id: session.id, error: error instanceof Error ? error.message : String(error),
+    });
+  }
   console.log("[angel-caption] playback_started", { session_id: session.id, playback_until: until });
   return json({ ok: true, title, playback_until: until });
 }
@@ -1061,9 +1077,17 @@ async function handleStopPlay(req: Request): Promise<Response> {
   if (session.playback_status !== "playing" && !session.playback_file_path) {
     return json({ ok: true, already_stopped: true });
   }
-  const stopped = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/output_media/`, {
-    method: "DELETE", body: JSON.stringify({ camera: true }),
-  });
+  let stopped: Response;
+  try {
+    stopped = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/output_media/`, {
+      method: "DELETE", body: JSON.stringify({ camera: true }),
+    });
+  } catch (error) {
+    console.warn("[angel-caption] playback_stop_unconfirmed", {
+      session_id: session.id, error: error instanceof Error ? error.message : String(error),
+    });
+    return json({ error: "Chưa xác nhận được nhạc đã dừng. Bé thử /stop_play lại nhé." }, 502);
+  }
   if (!stopped.ok) {
     console.warn("[angel-caption] playback_stop_failed", { session_id: session.id, status: stopped.status });
     return json({ error: "Recall chưa dừng được nhạc. Bé thử lại nhé." }, 502);
@@ -1073,11 +1097,17 @@ async function handleStopPlay(req: Request): Promise<Response> {
     .eq("id", session.id);
   if (error) return json({ error: "Nhạc đã dừng nhưng chưa cập nhật được trạng thái phụ đề." }, 503);
   scheduleCaptionWork("cleanup", session.id, session.playback_file_path);
-  const chat = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/send_chat_message/`, {
-    method: "POST",
-    body: JSON.stringify({ to: "everyone", message: "⏹ Đã dừng phát — phụ đề tiếp tục. / Playback stopped — captions resumed." }),
-  });
-  if (!chat.ok) console.warn("[angel-caption] playback_stop_chat_failed", { session_id: session.id, status: chat.status });
+  try {
+    const chat = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/send_chat_message/`, {
+      method: "POST",
+      body: JSON.stringify({ to: "everyone", message: "⏹ Đã dừng phát — phụ đề tiếp tục. / Playback stopped — captions resumed." }),
+    });
+    if (!chat.ok) console.warn("[angel-caption] playback_stop_chat_failed", { session_id: session.id, status: chat.status });
+  } catch (error) {
+    console.warn("[angel-caption] playback_stop_chat_failed", {
+      session_id: session.id, error: error instanceof Error ? error.message : String(error),
+    });
+  }
   console.log("[angel-caption] playback_stopped", { session_id: session.id });
   return json({ ok: true });
 }

@@ -21,6 +21,7 @@ async function recallFetch() { throw new Error('No meeting chat allowed'); }
 async function runSummarize() { throw new Error('No summary expected'); }
 async function closeCaptionSession() { throw new Error('No closure expected'); }
 function scheduleCaptionWork() {}
+async function isPlaybackActive(_admin, session) { return globalThis.__captionPlayback?.(session) ?? false; }
 ${handlers}
 export { handleRecallWebhook };
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
@@ -91,7 +92,7 @@ Deno.test("Nested bot metadata takes precedence; both old metadata paths remain 
       ...(shape === "old-data" ? { metadata: { caption_session_id: "session-1" } } : {}),
       data: { words: [{ text: "Hello" }] },
     }, shape === "old-root" ? { caption_session_id: "session-1" } : undefined);
-    assert.deepEqual(f.lookups, [["id", "session-1"]]);
+    assert.deepEqual(f.lookups[0], ["id", "session-1"]);
     assert.equal(f.inserts.length, 1);
   }
 });
@@ -138,4 +139,20 @@ Deno.test("partial speech marks a joining session live even if status delivery w
   } });
   assert.equal(f.updates[0].status, "live");
   assert.equal(f.partialWrites[0].text_source, "Hello");
+});
+
+Deno.test("music playback suppresses both partial and final caption writes", async () => {
+  (globalThis as Record<string, unknown>).__captionPlayback = () => true;
+  try {
+    const f = fixture("live");
+    const data = { bot: { id: "bot-current" }, data: {
+      words: [{ text: "Music" }], participant: { name: "Speaker" },
+    } };
+    await deliver("transcript.partial_data", data);
+    await deliver("transcript.data", data);
+    assert.equal(f.partialWrites.length, 0);
+    assert.equal(f.inserts.length, 0);
+  } finally {
+    delete (globalThis as Record<string, unknown>).__captionPlayback;
+  }
 });

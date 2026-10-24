@@ -1,5 +1,6 @@
 ﻿import { buildTelegramGroupContext, type TelegramGroupContext } from "../_shared/telegram-group-context.ts";
 import { isCaptionOperator } from "./caption-operators.ts";
+import { detectImageIntent } from "../_shared/angel-image.ts";
 import { handleBotInvite } from "../_shared/telegram-unauthorized-invite.ts";
 import { resolveDeletePermission } from "../_shared/telegram-moderation-notice.ts";
 import {
@@ -10,6 +11,8 @@ import {
   deleteModerationMessage,
   notifyModerationDeleteFailure,
   askAngel,
+  describeTelegramImage,
+  buildImageAnalysisContext,
   callCommunityTelegram,
   communityCorsHeaders,
   deleteMessage,
@@ -1805,12 +1808,26 @@ export async function handlePrivateMessage(message: TelegramMessage) {
           `SOURCE TEXT:\n"""${translationSource}"""`,
         ].join("\n\n")
         : text;
-      // ===== UNIFIED /angel-router FLOW =====
-      // Không còn phân loại ý định ở FUNPROFILE — router bên Angel gốc tự quyết định
-      // chat / image_generate / image_analyze. Nếu message có ảnh → forward làm attachment.
+      // Photos for chat get an explicit grounded description before the text router.
+      const hasDmPhoto = Array.isArray(message.photo) && message.photo.length > 0;
+      const photoCommand = hasDmPhoto && (message.caption ?? "").trim().startsWith("/");
+      const explicitPhotoEdit = hasDmPhoto && detectImageIntent(text, true)?.mode === "edit";
       let effectiveQuestion = translationQuestion;
+      let analyzedDmPhoto = false;
+      if (hasDmPhoto && !photoCommand && !explicitPhotoEdit) {
+        const description = await describeTelegramImage(message, message.caption ?? "");
+        if (!description) {
+          await replyDm("Angel lần này chưa đọc được ảnh. Bé thử gửi lại ảnh rõ hơn sau ít phút nhé 💛", { skipAutoDelete: true });
+          return;
+        }
+        effectiveQuestion = buildImageAnalysisContext(description, message.caption ?? "");
+        analyzedDmPhoto = true;
+      }
       const _dmAttachments: Array<{ kind: "image"; url?: string; base64?: string; mime_type?: string }> = [];
-      if (hasAnalyzableImage(message)) {
+      // Keep raw media for explicit editing and non-photo media only. Ordinary
+      // photo chat uses the cached description, avoiding a second vision route.
+      if (hasAnalyzableImage(message) && !photoCommand &&
+        (!analyzedDmPhoto || explicitPhotoEdit)) {
         const pick = pickLargestPhotoFileId(message);
         const fileId = pick?.fileId ?? null;
         if (fileId) {
@@ -1831,7 +1848,8 @@ export async function handlePrivateMessage(message: TelegramMessage) {
       const _dmImmediateContext = telegramReplyAssistantContext(message);
       const reply = await withTyping(chatId, () => askAngel({
         question: effectiveQuestion,
-        originalUserMessage: text,
+        originalUserMessage: text || (analyzedDmPhoto ? "Mô tả ảnh được gửi và hỏi bé muốn làm gì với ảnh." : text),
+        imageAnalysisContext: analyzedDmPhoto ? effectiveQuestion : undefined,
         systemPrompt: effectiveSystemPrompt,
         userLabel: userName,
         personaMode: (settings as any)?.persona_mode,

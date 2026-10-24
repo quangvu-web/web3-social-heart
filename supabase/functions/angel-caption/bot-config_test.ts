@@ -36,8 +36,22 @@ Deno.test("create bot retries with proven baseline if Recall rejects either new 
     const result = await mod.createRecallBot("https://zoom.us/j/1", "session-1", "https://functions.example/caption");
     assert.equal(result.botId, "bot-baseline");
     assert.equal(mod.sent.length, 2);
+    for (const body of mod.sent) {
+      assert.deepEqual(body.recording_config.realtime_endpoints[0].events,
+        ["transcript.data", "transcript.partial_data", "participant_events.join"]);
+    }
     assert.deepEqual(mod.sent[1].recording_config.transcript.provider.assembly_ai_v3_streaming, {
       language_detection: true, keyterms_prompt: ["Urantia"],
     });
   }
+});
+
+Deno.test("new bots subscribe to participant join without dropping final or partial transcripts", async () => {
+  mod.sent.length = 0;
+  mod.configure([{ ok: true, status: 201, data: { id: "bot-join" } }]);
+  await mod.createRecallBot("https://zoom.us/j/1", "session-join", "https://functions.example/caption");
+  assert.deepEqual(mod.sent[0].recording_config.realtime_endpoints, [{
+    type: "webhook", url: "https://functions.example/caption?action=recall-webhook",
+    events: ["transcript.data", "transcript.partial_data", "participant_events.join"],
+  }]);
 });

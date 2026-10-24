@@ -3,7 +3,7 @@
 //
 // Một function duy nhất, định tuyến theo query ?action=:
 //   start          POST  (x-caption-token) — tạo phiên + gọi Recall tạo bot vào phòng
-//   recall-webhook POST  (chữ ký Svix)     — nhận transcript.data / bot.status_change
+//   recall-webhook POST  (chữ ký Svix)     — nhận transcript / participant join / bot status
 //   stop           POST  (x-caption-token) — kết thúc phiên, bot rời phòng, tóm tắt
 //   summarize      POST  (x-caption-token) — tóm tắt song ngữ + đăng nhóm cộng đồng
 //
@@ -17,6 +17,7 @@ import { callAiGateway, gatewayText } from "../_shared/ai-gateway-retry.ts";
 import { callCommunityTelegram } from "../_shared/telegram-community.ts";
 import { MODELS } from "../_shared/angel/models.ts";
 import { formatSummaryForTelegram } from "./summary-format.ts";
+import { handleCaptionParticipantJoin } from "./join-dm.ts";
 import { captionPlayerUrl, isCaptionMediaSignedUrl, playbackDeadline, playbackSuppressesTranscript } from "./playback-utils.ts";
 import {
   applyHearingCorrections,
@@ -111,7 +112,7 @@ function buildRecallBotBody(meetingUrl: string, sessionId: string, webhookUrl: s
         diarization: { use_separate_streams_when_available: true },
       },
       realtime_endpoints: [
-        { type: "webhook", url: `${webhookUrl}?action=recall-webhook`, events: ["transcript.data", "transcript.partial_data"] },
+        { type: "webhook", url: `${webhookUrl}?action=recall-webhook`, events: ["transcript.data", "transcript.partial_data", "participant_events.join"] },
       ],
     },
     metadata: { caption_session_id: sessionId },
@@ -972,7 +973,9 @@ async function handleRecallWebhook(req: Request): Promise<Response> {
     (typeof statusCode === "string" && event === `bot.${statusCode}`);
 
   try {
-    if (event === "transcript.data") {
+    if (event === "participant_events.join") {
+      await handleCaptionParticipantJoin(admin, payload, req.headers.get("webhook-id"), recallFetch);
+    } else if (event === "transcript.data") {
       await handleTranscriptData(admin, payload as TranscriptEvent, metadataSessionId);
     } else if (event === "transcript.partial_data") {
       await handleTranscriptPartialData(admin, payload as TranscriptEvent, metadataSessionId);

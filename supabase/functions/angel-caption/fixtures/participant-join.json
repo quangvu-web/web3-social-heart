@@ -1,0 +1,21 @@
+{
+  "event": "participant_events.join",
+  "data": {
+    "data": {
+      "action": "join",
+      "participant": {
+        "id": 200,
+        "name": "Test participant B",
+        "is_host": false,
+        "platform": "mobile_app",
+        "extra_data": { "zoom": { "conf_user_id": "redacted", "user_guid": "redacted", "guest": true, "os": 4, "audio": "app" } }
+      },
+      "timestamp": { "relative": 122.91226959228516, "absolute": "2026-10-24T12:13:31.640271Z" },
+      "data": null
+    },
+    "participant_events": { "id": "participant-events-artifact", "metadata": {} },
+    "realtime_endpoint": { "id": "realtime-endpoint", "metadata": {} },
+    "recording": { "id": "recording", "metadata": {} },
+    "bot": { "id": "bot-1", "metadata": { "caption_session_id": "session-1" } }
+  }
+}

@@ -41,3 +41,13 @@ Deno.test("create bot retries with proven baseline if Recall rejects either new 
     });
   }
 });
+
+Deno.test("new bots subscribe to participant join without dropping final or partial transcripts", async () => {
+  mod.sent.length = 0;
+  mod.configure([{ ok: true, status: 201, data: { id: "bot-join" } }]);
+  await mod.createRecallBot("https://zoom.us/j/1", "session-join", "https://functions.example/caption");
+  assert.deepEqual(mod.sent[0].recording_config.realtime_endpoints, [{
+    type: "webhook", url: "https://functions.example/caption?action=recall-webhook",
+    events: ["transcript.data", "transcript.partial_data", "participant_events.join"],
+  }]);
+});

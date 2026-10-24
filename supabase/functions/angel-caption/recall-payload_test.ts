@@ -156,3 +156,21 @@ Deno.test("music playback suppresses both partial and final caption writes", asy
     delete (globalThis as Record<string, unknown>).__captionPlayback;
   }
 });
+
+Deno.test("authenticated participant join is observed once without assuming its shape or sending chat", async () => {
+  const logs: unknown[][] = [];
+  const original = console.log;
+  console.log = (...values) => { logs.push(values); };
+  try {
+    const opaquePayload = { event: "participant_events.join", data: { observed_fixture_only: "not_a_schema" } };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await handleRecallWebhook(new Request("https://fixture.invalid/?action=recall-webhook", {
+        method: "POST", body: JSON.stringify(opaquePayload),
+      }));
+      assert.equal(response.status, 200);
+    }
+    const observed = logs.filter((row) => row[0] === "[angel-caption] join_payload_observed");
+    assert.equal(observed.length, 1);
+    assert.deepEqual(JSON.parse(String(observed[0][1])), opaquePayload);
+  } finally { console.log = original; }
+});

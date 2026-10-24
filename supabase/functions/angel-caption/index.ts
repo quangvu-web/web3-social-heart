@@ -111,7 +111,7 @@ function buildRecallBotBody(meetingUrl: string, sessionId: string, webhookUrl: s
         diarization: { use_separate_streams_when_available: true },
       },
       realtime_endpoints: [
-        { type: "webhook", url: `${webhookUrl}?action=recall-webhook`, events: ["transcript.data", "transcript.partial_data"] },
+        { type: "webhook", url: `${webhookUrl}?action=recall-webhook`, events: ["transcript.data", "transcript.partial_data", "participant_events.join"] },
       ],
     },
     metadata: { caption_session_id: sessionId },
@@ -943,6 +943,10 @@ async function handleBotStatusChange(
   logResult("ignored");
 }
 
+// Temporary observation phase: one complete authenticated join payload per worker.
+// No participant extraction or DM until a real delivery has been inspected.
+let joinPayloadObserved = false;
+
 async function handleRecallWebhook(req: Request): Promise<Response> {
   const receivedAt = performance.now();
   const rawBody = await req.text(); // PHẢI đọc raw trước khi parse JSON
@@ -972,7 +976,12 @@ async function handleRecallWebhook(req: Request): Promise<Response> {
     (typeof statusCode === "string" && event === `bot.${statusCode}`);
 
   try {
-    if (event === "transcript.data") {
+    if (event === "participant_events.join") {
+      if (!joinPayloadObserved) {
+        joinPayloadObserved = true;
+        console.log("[angel-caption] join_payload_observed", rawBody);
+      }
+    } else if (event === "transcript.data") {
       await handleTranscriptData(admin, payload as TranscriptEvent, metadataSessionId);
     } else if (event === "transcript.partial_data") {
       await handleTranscriptPartialData(admin, payload as TranscriptEvent, metadataSessionId);

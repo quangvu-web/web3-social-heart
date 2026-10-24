@@ -417,7 +417,7 @@ export default function CaptionsPage() {
             lines.map(renderLine)
           )}
           {showPartial && partial && (
-            <div className="px-4 py-3 italic text-slate-400" aria-label="Đang nói">
+            <div className="px-4 py-3 italic text-muted-foreground" aria-label="Đang nói">
               {partial.speaker_name && <div className="text-sm mb-1">{partial.speaker_name}</div>}
               <div className="leading-snug" style={{ fontSize }}>{partial.text_source}…</div>
             </div>

@@ -287,7 +287,7 @@ export default function CaptionsPage() {
       const count = lines.length - unreadBase.current;
       if (count > 0) setJumpState({ visible: true, count });
     }
-  }, [lines, partial]);
+  }, [lines]);
 
   // Ngưỡng 160px ≈ chiều cao một dòng phụ đề trên mobile: dao động nhỏ
   // khi nội dung tăng không làm rớt cờ bám đáy.
@@ -362,9 +362,9 @@ export default function CaptionsPage() {
     now - new Date(partial.updated_at).getTime() < 15000;
 
   return (
-    <div className="h-screen overflow-hidden bg-[#0B1020] text-slate-100 flex flex-col">
+    <div className="h-dvh overflow-hidden bg-[#0B1020] text-slate-100 flex flex-col">
       {/* Header: trạng thái + đồng hồ + điều khiển */}
-      <header className="sticky top-0 z-10 bg-[#0B1020]/95 backdrop-blur border-b border-slate-800 px-4 py-3">
+      <header className="shrink-0 sticky top-0 z-10 bg-[#0B1020]/95 backdrop-blur border-b border-slate-800 px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <span className={`text-base font-semibold ${session.status === "live" ? "text-red-400" : "text-slate-200"}`}>
@@ -408,19 +408,13 @@ export default function CaptionsPage() {
 
       {/* Danh sách phụ đề — native div scroll theo quy ước dự án */}
       <div className="relative flex-1 flex flex-col min-h-0">
-        <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto">
-          {lines.length === 0 && !showPartial ? (
+        <div ref={scrollRef} onScroll={onScroll} aria-label="Lịch sử phụ đề" className="flex-1 min-h-0 overflow-y-auto">
+          {lines.length === 0 ? (
             <div className="p-8 text-center text-slate-400">
               {session.status === "live" ? "Đang lắng nghe buổi họp…" : "Chưa có phụ đề nào."}
             </div>
           ) : (
             lines.map(renderLine)
-          )}
-          {showPartial && partial && (
-            <div className="px-4 py-3 italic text-muted-foreground" aria-label="Đang nói">
-              {partial.speaker_name && <div className="text-sm mb-1">{partial.speaker_name}</div>}
-              <div className="leading-snug" style={{ fontSize }}>{partial.text_source}…</div>
-            </div>
           )}
         </div>
         {jumpState.visible && (
@@ -433,6 +427,18 @@ export default function CaptionsPage() {
           </button>
         )}
       </div>
+      {/* Chừa đúng 6 dòng (leading-snug = 1.375) theo cỡ chữ hiện tại.
+          Chỉ lịch sử mới tác động bám đáy; partial/chờ luôn dùng cùng các node. */}
+      {session.status === "live" && (
+        <section
+          aria-label="Người đang nói"
+          className="h-[8.25em] shrink-0 overflow-y-auto overscroll-contain border-t border-border px-4 leading-snug italic text-muted-foreground"
+          style={{ fontSize }}
+        >
+          <div className="text-sm min-h-[1.25em] mb-1">{showPartial ? partial?.speaker_name ?? "" : ""}</div>
+          <div>{showPartial ? `${partial?.text_source}…` : "🎙️ Đang nghe…"}</div>
+        </section>
+      )}
     </div>
   );
 }

@@ -193,3 +193,117 @@ describe("translated caption size", () => {
     expect(captionSubFontSize(10)).toBe(16);
   });
 });
+
+// Render/effect harness preserves React hook state across partial/final updates.
+function layoutHarness() {
+  const states: any[] = [];
+  const refs: any[] = [];
+  const deps: any[][] = [];
+  const pending: Array<() => void> = [];
+  let stateIndex = 0, refIndex = 0, effectIndex = 0;
+  const history = { scrollTop: 420, scrollHeight: 2000, clientHeight: 600 };
+  const jsx = (type: any, props: any) => ({ type, props });
+  const react = {
+    useState(initial: any) {
+      const i = stateIndex++;
+      if (!(i in states)) states[i] = initial;
+      return [states[i], (v: any) => { states[i] = typeof v === "function" ? v(states[i]) : v; }];
+    },
+    useRef(value: any) { const i = refIndex++; return refs[i] ??= { current: value }; },
+    useCallback: (cb: any) => cb,
+    useEffect(cb: () => void, next: any[]) {
+      const i = effectIndex++;
+      if (i >= 2 && (!deps[i] || next.some((v, j) => v !== deps[i][j]))) pending.push(cb);
+      deps[i] = next;
+    },
+  };
+  const code = ts.transpileModule(readFileSync(new URL("./CaptionsPage.tsx", import.meta.url), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  const exports: any = {};
+  new Function("require", "exports", "requestAnimationFrame", code)((name: string) =>
+    name === "react" ? react : name === "react-router-dom" ? { useParams: () => ({ code: "test" }) } :
+    name.includes("supabase/client") ? { supabase: {} } : { jsx, jsxs: jsx }, exports, (cb: () => void) => cb());
+  function render() {
+    stateIndex = refIndex = effectIndex = 0;
+    const tree = exports.default();
+    refs[0].current = history;
+    for (const cb of pending.splice(0)) cb();
+    return tree;
+  }
+  render();
+  states[0] = { status: "live" };
+  const descendants = (node: any): any[] => !node || typeof node !== "object" ? [] :
+    [node, ...[node.props?.children].flat(Infinity).flatMap(descendants)];
+  const find = (tree: any, label: string) => descendants(tree).find(n => n.props?.["aria-label"] === label);
+  return { states, refs, history, render, descendants, find };
+}
+
+describe("stable live speaking layout", () => {
+  test("partial updates/expiry/delete never scroll history or reset unread controls", () => {
+    const h = layoutHarness();
+    h.render();
+    h.history.scrollTop = 420;
+    h.states[7] = { visible: true, count: 3 };
+    const unread = h.states[7];
+    for (const text of ["Hello", "Hello world", "Hello world again", ""]) {
+      h.states[2] = { text_source: text, updated_at: new Date().toISOString() };
+      h.render();
+      expect(h.history.scrollTop).toBe(420);
+      expect(h.states[7]).toBe(unread);
+    }
+    h.states[2] = { text_source: "A fresh sentence before silence", updated_at: new Date().toISOString() };
+    h.render();
+    h.states[6] += 16000;
+    const staleTree = h.render();
+    expect(h.descendants(h.find(staleTree, "Người đang nói")).some((n: any) => n.props?.children === "🎙️ Đang nghe…")).toBe(true);
+    expect(h.history.scrollTop).toBe(420);
+    expect(h.states[7]).toBe(unread);
+    h.states[2] = null; h.render();
+    expect(h.history.scrollTop).toBe(420);
+    expect(h.states[7]).toBe(unread);
+  });
+
+  test("live panel is outside history and keeps its six-line box with stable children", () => {
+    const h = layoutHarness();
+    const panelShapes = [];
+    for (const partial of [null, {text_source:"Hello",speaker_name:"MC",updated_at:new Date().toISOString()},
+      {text_source:"word ".repeat(1000),updated_at:new Date().toISOString()},
+      {text_source:"old sentence",updated_at:new Date(0).toISOString()}]) {
+      h.states[2] = partial;
+      const tree = h.render();
+      const panel = h.find(tree, "Người đang nói");
+      expect(panel).toBeDefined();
+      expect(panel.props.className).toContain("h-[8.25em]");
+      expect(panel.props.className).toContain("shrink-0");
+      expect(panel.props.className).toContain("overflow-y-auto");
+      expect(panel.props.className).toContain("overscroll-contain");
+      expect(panel.props.style.fontSize).toBe(28);
+      const history = h.find(tree, "Lịch sử phụ đề");
+      expect(h.descendants(history)).not.toContain(panel);
+      panelShapes.push(h.descendants(panel).map((n: any) => n.type));
+    }
+    expect(panelShapes[1]).toEqual(panelShapes[0]);
+    expect(panelShapes[2]).toEqual(panelShapes[0]);
+    expect(panelShapes[3]).toEqual(panelShapes[0]);
+    h.states[5] = 36;
+    expect(h.find(h.render(), "Người đang nói").props.style.fontSize).toBe(36);
+  });
+
+  test("only new final lines scroll while attached; detached readers keep position and jump still works", () => {
+    const h = layoutHarness(); h.render();
+    h.states[1] = [{id:"one",text_source:"Final one"}]; h.render();
+    expect(h.history.scrollTop).toBe(2000);
+    h.refs[1].current = false;
+    h.history.scrollTop = 300;
+    h.states[1] = [...h.states[1],{id:"two",text_source:"Final two"}];
+    const tree = h.render();
+    expect(h.history.scrollTop).toBe(300);
+    expect(h.states[7].visible).toBe(true);
+    const button = h.descendants(h.render()).find((n: any) => n.type === "button" && n.props.onClick && String(n.props.className).includes("absolute"));
+    button.props.onClick();
+    expect(h.history.scrollTop).toBe(2000);
+    expect(h.refs[1].current).toBe(true);
+    expect(h.states[7].visible).toBe(false);
+  });
+});

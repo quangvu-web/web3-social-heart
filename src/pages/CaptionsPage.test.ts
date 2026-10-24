@@ -14,6 +14,7 @@ function harness() {
   let subscriptions = 0;
   let removals = 0;
   let statusCallback = (_status: string) => {};
+  const changeCallbacks = new Map<string, (payload: unknown) => void>();
   const session = { id: "session", public_code: "test", status: "live" };
   const line = { id: "one", seq: 1, text_source: "first" };
   const fresh = { id: "two", seq: 2, text_source: "second" };
@@ -27,14 +28,17 @@ function harness() {
         maybeSingle() { return query; },
         then(resolve: (result: unknown) => void) {
           if (incremental) polls++;
-          resolve({ error: null, data: table === "caption_sessions" ? session : incremental ? [fresh, fresh] : [line] });
+          resolve({ error: null, data: table === "caption_sessions" ? session : table === "caption_partials" ? null : incremental ? [fresh, fresh] : [line] });
         },
       };
       return query;
     },
     channel() {
       const channel = {
-        on() { return channel; },
+        on(_kind: string, filter: { table: string; event: string }, callback: (payload: unknown) => void) {
+          changeCallbacks.set(`${filter.table}:${filter.event}`, callback);
+          return channel;
+        },
         subscribe(callback: (status: string) => void) { statusCallback = callback; subscriptions++; return channel; },
       };
       return channel;
@@ -73,10 +77,28 @@ function harness() {
   exports.default?.();
   const cleanup = effects[1]();
   const settle = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
-  return { intervals, timeouts, events, states, document, cleanup, settle, status: (s: string) => statusCallback(s), get cursor() { return cursor; }, get polls() { return polls; }, get subscriptions() { return subscriptions; }, get removals() { return removals; } };
+  return { intervals, timeouts, events, states, document, cleanup, settle,
+    status: (s: string) => statusCallback(s),
+    emit: (table: string, event: string, payload: unknown) => changeCallbacks.get(`${table}:${event}`)?.(payload),
+    get cursor() { return cursor; }, get polls() { return polls; }, get subscriptions() { return subscriptions; }, get removals() { return removals; } };
 }
 
 describe("caption recovery", () => {
+  test("partial updates replace the ghost row and final deletion removes it", async () => {
+    const h = harness();
+    await h.settle();
+    const first = { session_id: "session", speaker_name: "MC", text_source: "Hello", updated_at: new Date().toISOString() };
+    h.emit("caption_partials", "INSERT", { eventType: "INSERT", new: first });
+    expect(h.states[2]).toEqual(first);
+    const next = { ...first, text_source: "Hello world" };
+    h.emit("caption_partials", "UPDATE", { eventType: "UPDATE", new: next });
+    expect(h.states[2]).toEqual(next);
+    h.emit("caption_partials", "DELETE", { eventType: "DELETE", old: { session_id: "another" } });
+    expect(h.states[2]).toEqual(next);
+    h.emit("caption_partials", "DELETE", { eventType: "DELETE", old: { session_id: "session" } });
+    expect(h.states[2]).toBeNull();
+    h.cleanup();
+  });
   test("polls every 4000 ms independently of Realtime and deduplicates by ID", async () => {
     const h = harness();
     await h.settle();

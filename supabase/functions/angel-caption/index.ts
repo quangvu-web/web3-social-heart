@@ -25,6 +25,7 @@ import {
   extractMeetingKey,
   generatePublicCode,
   isValidMeetingUrl,
+  splitCaptionSentences,
   verifySvixSignature,
   wordsToSentence,
 } from "./caption-utils.ts";
@@ -101,26 +102,43 @@ function buildRecallBotBody(meetingUrl: string, sessionId: string, webhookUrl: s
           assembly_ai_v3_streaming: {
             language_detection: true,
             keyterms_prompt: KEYTERMS,
+            min_turn_silence: 200,
+            max_turn_silence: 1200,
           },
         },
         diarization: { use_separate_streams_when_available: true },
       },
       realtime_endpoints: [
-        { type: "webhook", url: `${webhookUrl}?action=recall-webhook`, events: ["transcript.data"] },
+        { type: "webhook", url: `${webhookUrl}?action=recall-webhook`, events: ["transcript.data", "transcript.partial_data"] },
       ],
     },
     metadata: { caption_session_id: sessionId },
   };
 }
 
-/** Tạo bot Recall; nếu Recall từ chối một trường trong assembly_ai_v3_streaming, bỏ trường đó và thử lại 1 lần. */
+/** Nếu Recall từ chối tham số turn mới, dùng lại cấu hình nhà cung cấp đã chạy ổn định. */
 async function createRecallBot(meetingUrl: string, sessionId: string, webhookUrl: string) {
   const body = buildRecallBotBody(meetingUrl, sessionId, webhookUrl);
   const first = await recallFetch("/api/v1/bot/", { method: "POST", body: JSON.stringify(body) });
-  if (first.ok) return { ok: true as const, botId: String(first.data?.id ?? ""), droppedField: null as string | null };
+  if (first.ok) {
+    console.log("[angel-caption] recall_bot_config", { config: "tuned", result: "accepted" });
+    return { ok: true as const, botId: String(first.data?.id ?? ""), droppedField: null as string | null };
+  }
 
-  const errText = JSON.stringify(first.data ?? "");
   const providerCfg = body.recording_config.transcript.provider.assembly_ai_v3_streaming;
+  let response = first;
+  if (first.status === 400 || first.status === 422) {
+    delete (providerCfg as Record<string, unknown>).min_turn_silence;
+    delete (providerCfg as Record<string, unknown>).max_turn_silence;
+    console.warn("[angel-caption] recall_bot_config", { config: "tuned", result: "rejected", status: first.status });
+    response = await recallFetch("/api/v1/bot/", { method: "POST", body: JSON.stringify(body) });
+    if (response.ok) {
+      console.log("[angel-caption] recall_bot_config", { config: "baseline", result: "accepted" });
+      return { ok: true as const, botId: String(response.data?.id ?? ""), droppedField: "turn_silence" };
+    }
+  }
+
+  const errText = JSON.stringify(response.data ?? "");
   let droppedField: string | null = null;
   for (const field of ["keyterms_prompt", "language_detection"] as const) {
     if (errText.includes(field)) {
@@ -130,11 +148,14 @@ async function createRecallBot(meetingUrl: string, sessionId: string, webhookUrl
     }
   }
   if (!droppedField) {
-    return { ok: false as const, status: first.status, error: errText.slice(0, 300), droppedField: null };
+    return { ok: false as const, status: response.status, error: errText.slice(0, 300), droppedField: null };
   }
-  console.warn("[angel-caption] Recall rejected field, retrying without it", { field: droppedField, status: first.status });
+  console.warn("[angel-caption] Recall rejected field, retrying without it", { field: droppedField, status: response.status });
   const second = await recallFetch("/api/v1/bot/", { method: "POST", body: JSON.stringify(body) });
-  if (second.ok) return { ok: true as const, botId: String(second.data?.id ?? ""), droppedField };
+  if (second.ok) {
+    console.log("[angel-caption] recall_bot_config", { config: `baseline_without_${droppedField}`, result: "accepted" });
+    return { ok: true as const, botId: String(second.data?.id ?? ""), droppedField };
+  }
   return { ok: false as const, status: second.status, error: JSON.stringify(second.data ?? "").slice(0, 300), droppedField };
 }
 
@@ -143,7 +164,7 @@ async function createRecallBot(meetingUrl: string, sessionId: string, webhookUrl
 const GLOSSARY_NOTE =
   "Giữ nguyên không dịch các tên riêng/thuật ngữ: Urantia, Melchizedek, Machiventa, Nebadon, Orvonton, Havona, Satania, Norlatiadek, Thought Adjuster (= Điều Chỉnh Tư Duy), Resurrection Hall (= Sảnh Phục Sinh), FUN Community, Fun.Rich, LoveHub, FUN-ID, CAMLY, Angel Translator. Dịch \"Thầy\" sang Anh là \"our Teacher\". Giữ nguyên số liệu, tên người.";
 
-async function translateCaption(text: string, from: "vi" | "en"): Promise<string | null> {
+async function translateCaption(text: string, from: "vi" | "en", previousSource: string | null = null): Promise<string | null> {
   const to = from === "vi" ? "English" : "Vietnamese";
   const result = await callAiGateway(
     {
@@ -152,10 +173,11 @@ async function translateCaption(text: string, from: "vi" | "en"): Promise<string
         {
           role: "system",
           content:
-            `You are a live-meeting subtitle translator. Translate the subtitle line into natural, conversational ${to}. ` +
+            `You are a live-meeting subtitle translator. Translate only the current sentence into natural, conversational ${to}. ` +
+            `The previous source sentence is context only; do not translate it or include it in the output. ` +
             `Output ONLY the translation, no quotes, no notes. ${GLOSSARY_NOTE}`,
         },
-        { role: "user", content: text },
+        { role: "user", content: `${previousSource ? `Previous source sentence (context only): ${previousSource}\n` : ""}Current sentence: ${text}` },
       ],
       temperature: 0.2,
     },
@@ -725,12 +747,14 @@ async function findSessionByBot(admin: SupabaseClient, botId: string | null, met
 }
 
 async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEvent, metadataSessionId: string | null) {
+  const receivedAt = new Date().toISOString();
   const botId = payload.data?.bot?.id ?? payload.data?.bot_id ?? null;
   const session = await findSessionByBot(admin, botId, metadataSessionId);
   if (!session) {
     console.warn("[angel-caption] transcript for unknown bot", { bot_id: botId });
     return;
   }
+  await clearCaptionPartial(admin, session.id);
 
   if (session.status === "pending" || session.status === "joining") {
     await admin
@@ -744,48 +768,78 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
   const words = payload.data?.data?.words ?? [];
   const { text: rawText, startSec } = wordsToSentence(words);
   if (!rawText) return;
-
-  const textSource = applyHearingCorrections(rawText);
+  const sentences = splitCaptionSentences(words);
+  const segmentKey = await computeDedupeKey(botId ?? "unknown", startSec, rawText);
+  console.log("[angel-caption] transcript_segment", { session_id: session.id, segment_key: segmentKey, received_at: receivedAt, sentence_count: sentences.length });
   const speaker = payload.data?.data?.participant?.name ?? null;
-  const sourceLang = detectSourceLang(textSource);
-  const dedupeKey = await computeDedupeKey(botId ?? "unknown", startSec, textSource);
+  let previousSource: string | null = null;
+  for (const [index, sentence] of sentences.entries()) {
+    const textSource = applyHearingCorrections(sentence.text);
+    const sourceLang = detectSourceLang(textSource);
+    const dedupeKey = await computeDedupeKey(botId ?? "unknown", startSec, `${segmentKey}|${index}`);
+    const { data: existing } = await admin
+      .from("caption_lines")
+      .select("id")
+      .eq("session_id", session.id)
+      .eq("dedupe_key", dedupeKey)
+      .maybeSingle();
+    if (existing) { previousSource = textSource; continue; }
 
-  // Chống trùng: webhook Recall có thể gửi lại cùng một đoạn.
-  const { data: existing } = await admin
-    .from("caption_lines")
-    .select("id")
-    .eq("session_id", session.id)
-    .eq("dedupe_key", dedupeKey)
-    .maybeSingle();
-  if (existing) return;
-
-  const translation = await translateCaption(textSource, sourceLang);
-
-  const { data: maxRow } = await admin
-    .from("caption_lines")
-    .select("seq")
-    .eq("session_id", session.id)
-    .order("seq", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const nextSeq = (maxRow?.seq ?? 0) + 1;
-
-  const { error: insertErr } = await admin.from("caption_lines").insert({
-    session_id: session.id,
-    seq: nextSeq,
-    speaker_name: speaker,
-    source_lang: sourceLang,
-    text_source: textSource,
-    text_vi: sourceLang === "vi" ? textSource : translation,
-    text_en: sourceLang === "en" ? textSource : translation,
-    ts_offset_sec: startSec,
-    dedupe_key: dedupeKey,
-  });
-  if (insertErr) {
-    // Trùng dedupe do race → coi như đã xử lý.
-    if (insertErr.code === "23505") return;
-    console.error("[angel-caption] caption line insert failed", { error_code: insertErr.code ?? "unknown" });
+    const translation = await translateCaption(textSource, sourceLang, previousSource);
+    const { data: maxRow } = await admin
+      .from("caption_lines")
+      .select("seq")
+      .eq("session_id", session.id)
+      .order("seq", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextSeq = (maxRow?.seq ?? 0) + 1;
+    const { error: insertErr } = await admin.from("caption_lines").insert({
+      session_id: session.id,
+      seq: nextSeq,
+      speaker_name: speaker,
+      source_lang: sourceLang,
+      text_source: textSource,
+      text_vi: sourceLang === "vi" ? textSource : translation,
+      text_en: sourceLang === "en" ? textSource : translation,
+      ts_offset_sec: sentence.startSec,
+      dedupe_key: dedupeKey,
+    });
+    if (insertErr && insertErr.code !== "23505") {
+      console.error("[angel-caption] caption line insert failed", { error_code: insertErr.code ?? "unknown", segment_key: segmentKey, sentence_index: index });
+      return;
+    } else if (!insertErr) {
+      console.log("[angel-caption] caption_sentence_insert", { session_id: session.id, segment_key: segmentKey, sentence_index: index, seq: nextSeq, inserted_at: new Date().toISOString(), received_at: receivedAt });
+    }
+    previousSource = textSource;
   }
+  console.log("[angel-caption] transcript_segment_complete", { session_id: session.id, segment_key: segmentKey, completed_at: new Date().toISOString() });
+}
+
+async function clearCaptionPartial(admin: SupabaseClient, sessionId: string) {
+  const { error } = await admin.from("caption_partials").delete().eq("session_id", sessionId);
+  if (error) console.warn("[angel-caption] partial_clear_failed", { session_id: sessionId, error_code: error.code });
+}
+
+async function handleTranscriptPartialData(admin: SupabaseClient, payload: TranscriptEvent, metadataSessionId: string | null) {
+  const botId = payload.data?.bot?.id ?? payload.data?.bot_id ?? null;
+  const session = await findSessionByBot(admin, botId, metadataSessionId);
+  if (!session || session.status === "ended" || session.status === "failed") return;
+  const { text } = wordsToSentence(payload.data?.data?.words ?? []);
+  if (!text) return;
+  if (session.status === "pending" || session.status === "joining") {
+    await admin.from("caption_sessions")
+      .update({ status: "live", ...(!session.started_at ? { started_at: new Date().toISOString() } : {}) })
+      .eq("id", session.id).in("status", ["pending", "joining"]);
+    scheduleCaptionWork("announce", session.id);
+  }
+  const { error } = await admin.from("caption_partials").upsert({
+    session_id: session.id,
+    speaker_name: payload.data?.data?.participant?.name ?? null,
+    text_source: text,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "session_id" });
+  if (error) console.warn("[angel-caption] partial_upsert_failed", { session_id: session.id, error_code: error.code });
 }
 
 async function handleBotStatusChange(
@@ -863,6 +917,8 @@ async function handleRecallWebhook(req: Request): Promise<Response> {
   try {
     if (event === "transcript.data") {
       await handleTranscriptData(admin, payload as TranscriptEvent, metadataSessionId);
+    } else if (event === "transcript.partial_data") {
+      await handleTranscriptPartialData(admin, payload as TranscriptEvent, metadataSessionId);
     } else if (isBotStatusEvent) {
       await handleBotStatusChange(admin, payload, metadataSessionId, event);
     }

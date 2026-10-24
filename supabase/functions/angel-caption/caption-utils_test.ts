@@ -10,6 +10,7 @@ import {
   extractMeetingKey,
   generatePublicCode,
   isValidMeetingUrl,
+  splitCaptionSentences,
   verifySvixSignature,
   wordsToSentence,
 } from "./caption-utils.ts";
@@ -82,6 +83,29 @@ Deno.test("wordsToSentence: ghép words, dọn space trước dấu câu, lấy 
   const empty = wordsToSentence([]);
   assertEq(empty.text, "", "empty words");
   assertEq(empty.startSec, null, "empty start");
+});
+
+Deno.test("splitCaptionSentences: cắt dấu kết câu nhưng giữ số có dấu chấm", () => {
+  const words = ["Giá", "là", "5", ".", "000", "đồng", ".", "Tiếp", "tục", "nhé", "!", "Tỷ", "lệ", "100:5.6", "ổn", "?"].map((text, i) => ({
+    text, start_timestamp: { relative: i / 2 },
+  }));
+  assertEq(JSON.stringify(splitCaptionSentences(words)), JSON.stringify([
+    { text: "Giá là 5.000 đồng.", startSec: 0 },
+    { text: "Tiếp tục nhé!", startSec: 3.5 },
+    { text: "Tỷ lệ 100:5.6 ổn?", startSec: 5.5 },
+  ]), "punctuation and offsets");
+});
+
+Deno.test("splitCaptionSentences: câu dài cắt tại dấu phẩy gần giới hạn, không bỏ từ", () => {
+  const words = Array.from({ length: 55 }, (_, i) => ({
+    text: i === 39 ? "word39," : `word${i}`,
+    start_timestamp: { relative: i },
+  }));
+  const chunks = splitCaptionSentences(words);
+  assertEq(chunks.length, 2, "split long turn");
+  assertEq(chunks[0].text.split(" ").length, 40, "cut at nearby comma");
+  assertEq(chunks[1].startSec, 40, "second sentence keeps timestamp");
+  assertEq(chunks.map((chunk) => chunk.text).join(" ").replace(",", ""), words.map((word) => word.text).join(" ").replace(",", ""), "no dropped words");
 });
 
 Deno.test("detectSourceLang: tiếng Việt có dấu, stopword, và tiếng Anh", () => {

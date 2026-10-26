@@ -20,4 +20,13 @@ Ngày26/10/2026, Malaysia Time (UTC+8). Branch `feature/caption-summary-multipar
 
 ## Nghiệm thu thực tế
 
-Chưa đánh dấu đạt từ mock. Sẽ deploy riêng angel-caption và chạy operator /caption_resend jc8aa6fq3z89 + phiên ngắn4at49yfkkbxw; đối chiếu bản nhóm và DM thật, số phần/thứ tự/nội dung/định dạng/trạng thái. Không giả lập lỗi bằng thay group config/token production; (d) dùng boundary test với Telegram giả gọi luồng delivery production thật.
+Đã triển khai code `5b992b2` lên riêng angel-caption version33, ACTIVE, không migration. Nghiệm thu ngày26/10/2026 (MYT):
+
+- 22:27:35: lượt jc đầu failed sau8 call map do Gateway429; không reduce/gửi bản thiếu. Không coi lượt này đạt.
+- 22:29:04: short4at49yfkkbxw,2 dòng/430 ký tự,1 call,body919 ký tự, completed. DM266700 và nhóm514478 đều nhận đúng MỘT tin, đủ bốn mục/song ngữ/bullet; header bold thật, heading ngắn vẫn do model như cũ. Footer📣 chỉ ở DM. Đã mở nhóm thực tế, không chỉ dựa vào footer.
+- Lượt jc thử lại lúc22:29:45:8 chunk/9 call,body3.838 ký tự,completed. nhóm514479–514480 và DM266703–266704 đã nhận ĐÚNG HAI tin theo thứ tự. Cả hai nơi có nhãn phần1/2,2/2; mục1–2 ở phần1, mục3–4 ở phần2. Đã đọc cả nhóm và DM; nội dung khớp chính xác sau bỏ timestamp UI và footer DM. Nhóm dài3.158/860 ký tự hiển thị; DM3.158/904 ký tự tính cả footer. Tất cả dưới3.800. Bold thật3/6 thẻ theo phần, emoji/bullet còn đủ.
+- Body3.838 ký tự, tăng30,8% so với bản cũ2.934 ký tự, đầy đặn hơn: nêu rõ thêm trust/greed/hypocrisy và stewardship; LoveHub/Thought Adjuster; thiền và khẳng định; MC đọc lời chúc và tương tác; trẻ em nghe Let love shine/cộng đồng nhảy; Q&A Simon Peter/Jesus có câu trả lời dài và đầy đủ hơn. Vẫn song ngữ từng nhóm, không đổi sang English-only. Không tự chèn nội dung nghiệm thu vào output.
+- Cảnh báo📣/⚠️: nhóm không có; DM phần1 không có, phần2 có đúng một📣 ở cuối. Unit tests đối chiếu nối lại nguyên chuỗi trước/sau tách, kiểm chứng không mất mục/bullet/câu/entity. Các mục thật nằm nguyên trong đúng phần.
+- (d) Giả lập bằng production delivery + Telegram boundary giả: lỗi HTTP403 ở phần cuối nhóm và throw ở phần đầu nhóm đều vẫn gửi đủ các phần nhóm còn lại/DM, chỉ một⚠️ ở DM cuối. Không giả lập lỗi bằng thay token/quyền/config nhóm production.
+
+Giới hạn chất lượng AI vẫn còn: có lặp vài ý giữa main_points và nhóm hoạt động; nội dung giá trị có thể tự thêm dấu gạch ngang bên trong bullet. Formatter giữ nguyên theo yêu cầu, không sửa prompt short hoặc tự viết lại nội dung để che các điểm này.

@@ -222,6 +222,7 @@ async function summarizeSession(lines: Array<{ speaker_name: string | null; text
     "Trong mỗi mục, viết tiếng Việt trước rồi English; mục Điểm chính có 3–7 ý, mục Việc cần làm chỉ nêu việc có thật trong buổi họp. " +
     "Mỗi ý một dòng bắt đầu bằng '- '. Trong Q&A, bao đậm các nhãn **- Câu hỏi:**, **- Trả lời:**, **- Q:**, **- A:**. " +
     `Ngoài các cặp ** theo mẫu trên, không dùng ký tự * ở bất cứ đâu khác; không dùng markdown code block. Viết ngắn gọn. ${GLOSSARY_NOTE}`;
+  const mapFields = ["main_points", "qa", "speakers", "source_titles", "session_stages"];
   let aiCallCount = 0;
   let completed = false;
   const requestSummary = async (system: string, content: string, label: string): Promise<string | null> => {
@@ -230,7 +231,16 @@ async function summarizeSession(lines: Array<{ speaker_name: string | null; text
       model: MODELS.style_pass.id,
       messages: [{ role: "system", content: system }, { role: "user", content }],
       temperature: 0.3,
-      ...(label === "caption-summarize-map" ? { response_format: { type: "json_object" } } : {}),
+      ...(label === "caption-summarize-map" ? { response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "caption_chunk_notes", strict: true,
+          schema: {
+            type: "object", additionalProperties: false, required: mapFields,
+            properties: Object.fromEntries(mapFields.map((field) => [field, { type: "array", items: { type: "string" } }])),
+          },
+        },
+      } } : {}),
     }, { label, timeoutMs: 60_000, maxAttempts: 2 });
     if (!result.ok || (longSession && result.data?.choices?.[0]?.finish_reason === "length")) {
       console.warn("[angel-caption] summarize failed", { phase: label, status: result.status, truncated: result.data?.choices?.[0]?.finish_reason === "length" });
@@ -247,7 +257,7 @@ async function summarizeSession(lines: Array<{ speaker_name: string | null; text
       const mapPrompt =
         "Tóm tắt trung thực một chunk của phiên FUN. Chỉ trả JSON hợp lệ (không code fence) với đúng các trường mảng chuỗi: " +
         '{"main_points":[],"qa":[],"speakers":[],"source_titles":[],"session_stages":[]}. ' +
-        "main_points: ý chính gọn. qa: câu hỏi/trả lời có tên người hỏi/người đáp nếu biết. speakers: tên người nói chính. " +
+        "Không dùng chuỗi rỗng; trường không có nội dung dùng mảng []. main_points: ý chính gọn. qa: câu hỏi/trả lời có tên người hỏi/người đáp nếu biết. speakers: tên người nói chính. " +
         "source_titles: giữ chính xác tên bài, sách và số Paper xuất hiện, không bỏ số. " +
         "session_stages là danh mục CÁC CHẶNG/HOẠT ĐỘNG THỰC TẾ của phiên, theo thứ tự: ai làm gì, tên người thuyết trình, thiền, hát/nghe nhạc, loại nhạc được nói đến, nhảy cùng nhau, MC đọc tin nhắn chúc mừng và trò chuyện khán giả nếu có. " +
         "Mỗi hoạt động thực tế một mục riêng; giữ cả hoạt động ngắn chỉ một câu. MC ĐỌC tin nhắn và GIAO LƯU là hoạt động riêng, không được thay bằng nội dung tin nhắn/phần thưởng. Trẻ em NGHE NHẠC và NHẢY là hoạt động, phải nêu đối tượng và loại nhạc khi có. " +
@@ -266,11 +276,16 @@ async function summarizeSession(lines: Array<{ speaker_name: string | null; text
           notes[index] = await requestSummary(mapPrompt, `CHẶNG ${index + 1}/${chunks.length} (thứ tự thời gian)\nTRANSCRIPT:\n${chunks[index]}`, "caption-summarize-map");
           if (!notes[index]) { mapFailed = true; continue; }
           let invalidKind = "invalid_json";
+          let fieldShapes: Record<string, unknown> | undefined;
           try {
             const jsonNote = notes[index]!.trim().replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
             const parsed = JSON.parse(jsonNote);
             invalidKind = "invalid_schema";
-            const fields = ["main_points", "qa", "speakers", "source_titles", "session_stages"];
+            const fields = mapFields;
+            fieldShapes = Object.fromEntries(fields.map((field) => [field, {
+              type: Array.isArray(parsed?.[field]) ? "array" : typeof parsed?.[field],
+              item_types: Array.isArray(parsed?.[field]) ? [...new Set(parsed[field].map((value: unknown) => value === null ? "null" : typeof value))] : [],
+            }]));
             if (!parsed || !fields.every((field) => Array.isArray(parsed[field]) && parsed[field].every((value: unknown) => typeof value === "string" && value.trim().length > 0))) {
               throw new Error("invalid summary map schema");
             }
@@ -279,7 +294,7 @@ async function summarizeSession(lines: Array<{ speaker_name: string | null; text
             titleLists[index] = parsed.source_titles;
           } catch {
             mapFailed = true;
-            console.warn("[angel-caption] summarize map invalid notes", { session_id: sessionId ?? null, chunk_index: index, reason: invalidKind, note_chars: notes[index]!.length, json_fenced: notes[index]!.trim().startsWith("```") });
+            console.warn("[angel-caption] summarize map invalid notes", { session_id: sessionId ?? null, chunk_index: index, reason: invalidKind, field_shapes: fieldShapes, note_chars: notes[index]!.length, json_fenced: notes[index]!.trim().startsWith("```") });
           }
         }
       }));

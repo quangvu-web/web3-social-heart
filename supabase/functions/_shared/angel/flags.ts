@@ -9,6 +9,7 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 export type FlagKey =
+  | "ai.provider"
   | "postprocess.style_pass"
   | "postprocess.narrative_fixup"
   | "postprocess.hard_revert"
@@ -51,6 +52,7 @@ interface CacheEntry {
   value: boolean;
   meta: Record<string, unknown> | null;
   fetchedAt: number;
+  present: boolean;
 }
 
 const CACHE_TTL_MS = 60_000;
@@ -72,36 +74,38 @@ function svcClient(): SupabaseClient | null {
  * Đọc feature flag. Trả về `defaultValue` khi bảng lỗi hoặc không có row.
  * Cache 60s per key.
  */
+export type AiProviderFlag = "lovable" | "gemini";
+export function getFlag(key: "ai.provider", defaultValue: AiProviderFlag, opts?: { throwOnError?: boolean }): Promise<AiProviderFlag>;
+export function getFlag(key: FlagKey, defaultValue: boolean): Promise<boolean>;
 export async function getFlag(
-  key: FlagKey,
-  defaultValue: boolean,
-): Promise<boolean> {
+  key: FlagKey, defaultValue: boolean | AiProviderFlag, opts: { throwOnError?: boolean } = {},
+): Promise<boolean | AiProviderFlag> {
+  const valueOf = (entry: CacheEntry): boolean | AiProviderFlag => {
+    if (typeof defaultValue === "boolean") return entry.value;
+    if (!entry.present) return defaultValue;
+    if (!entry.value) return "lovable";
+    return entry.meta?.value === "gemini" ? "gemini" : "lovable";
+  };
   const cached = cache.get(key);
   const now = Date.now();
-  if (cached && now - cached.fetchedAt < CACHE_TTL_MS) return cached.value;
-
+  if (cached && now - cached.fetchedAt < CACHE_TTL_MS) return valueOf(cached);
   const supa = svcClient();
-  if (!supa) return defaultValue;
-
+  if (!supa) {
+    if (opts.throwOnError) throw new Error("flag_client_unavailable");
+    return defaultValue;
+  }
   try {
-    const { data, error } = await supa
-      .from("angel_feature_flags")
-      .select("enabled, meta")
-      .eq("key", key)
-      .maybeSingle();
-    if (error) {
-      console.warn(`[angel/flags] getFlag(${key}) error`, error.message);
-      return defaultValue;
-    }
-    const value = data?.enabled ?? defaultValue;
-    cache.set(key, {
-      value,
-      meta: (data?.meta as Record<string, unknown> | null) ?? null,
-      fetchedAt: now,
-    });
-    return value;
-  } catch (e) {
-    console.warn(`[angel/flags] getFlag(${key}) exception`, e);
+    const { data, error } = await supa.from("angel_feature_flags").select("enabled, meta").eq("key", key).maybeSingle();
+    if (error) throw new Error("flag_read_failed");
+    const entry: CacheEntry = {
+      value: data?.enabled ?? (typeof defaultValue === "boolean" ? defaultValue : false),
+      meta: (data?.meta as Record<string, unknown> | null) ?? null, fetchedAt: now, present: !!data,
+    };
+    cache.set(key, entry);
+    return valueOf(entry);
+  } catch {
+    console.warn(`[angel/flags] getFlag(${key}) read failed`);
+    if (opts.throwOnError) throw new Error("flag_read_failed");
     return defaultValue;
   }
 }

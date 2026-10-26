@@ -22,7 +22,7 @@ const line = (text: string, speaker: string | null = "MC", en: string | null = n
   speaker_name: speaker, text_source: text, text_vi: null, text_en: en,
 });
 const success = (text: string) => ({ ok: true, status: 200, data: { choices: [{ message: { content: text }, finish_reason: "stop" }] } });
-const mapNote = (text: string) => JSON.stringify({ main_points: [text], qa: [], speakers: ["MC"], source_titles: ["Paper 165"], session_stages: [text] });
+const mapNote = (text: string) => JSON.stringify({ main_points: [text], qa: [], speakers: ["MC"], source_titles: ["Paper 165"], session_stages: [text], meditation: [], presentations: [], music_dance: [], mc_audience: [], other_activities: [] });
 const finalText = "🎯 **1) Chủ đề chính / Main topic**\n- Chủ đề / Topic\n💡 **2) Điểm chính / Key points**\n- Nội dung / Content\n❓ **3) Câu hỏi & trả lời nổi bật / Notable Q&A**\n**- Câu hỏi:** Nội dung?\n**- Trả lời:** Nội dung.\n✅ **4) Việc cần làm sau họp / Action items**\n- Không có / None";
 
 Deno.test("summary <=24000 characters preserves a single call and Telegram bilingual formatting", async () => {
@@ -125,7 +125,7 @@ Deno.test("map concurrency is bounded at three and reversed completions still re
 Deno.test("failed, blank or truncated map never produces or sends a prefix-only final summary", async () => {
   for (const failure of [
     { ok: false, status: 503, data: null }, success(""), success("not JSON"), success(JSON.stringify({main_points:["partial schema"]})),
-    success(JSON.stringify({main_points:[],qa:[],speakers:[],source_titles:[],session_stages:[]})),
+    success(JSON.stringify({main_points:[],qa:[],speakers:[],source_titles:[],session_stages:[],meditation:[],presentations:[],music_dance:[],mc_audience:[],other_activities:[]})),
     { ok: true, status: 200, data: { choices: [{ message: { content: "Bị cắt" }, finish_reason: "length" }] } },
   ]) {
     const labels: string[] = [];
@@ -187,7 +187,7 @@ Deno.test("map requests an explicit notes schema and accepts fenced valid JSON w
   const format = (bodies[0] as Request & {response_format:any}).response_format;
   assert.equal(format.type, "json_schema");
   assert.equal(format.json_schema.strict, true);
-  assert.deepEqual(format.json_schema.schema.required, ["main_points", "qa", "speakers", "source_titles", "session_stages"]);
+  assert.deepEqual(format.json_schema.schema.required, ["main_points", "qa", "speakers", "source_titles", "session_stages", "meditation", "presentations", "music_dance", "mc_audience", "other_activities"]);
   assert.equal(format.json_schema.schema.additionalProperties, false);
   for (const field of format.json_schema.schema.required) {
     assert.deepEqual(format.json_schema.schema.properties[field], {type:"array",items:{type:"string"}});

@@ -22,6 +22,7 @@ const line = (text: string, speaker: string | null = "MC", en: string | null = n
   speaker_name: speaker, text_source: text, text_vi: null, text_en: en,
 });
 const success = (text: string) => ({ ok: true, status: 200, data: { choices: [{ message: { content: text }, finish_reason: "stop" }] } });
+const mapNote = (text: string) => JSON.stringify({ main_points: [text], qa: [], speakers: ["MC"], source_titles: ["Paper 165"], session_stages: [text] });
 const finalText = "🎯 **1) Chủ đề chính / Main topic**\n- Chủ đề / Topic\n💡 **2) Điểm chính / Key points**\n- Nội dung / Content\n❓ **3) Câu hỏi & trả lời nổi bật / Notable Q&A**\n**- Câu hỏi:** Nội dung?\n**- Trả lời:** Nội dung.\n✅ **4) Việc cần làm sau họp / Action items**\n- Không có / None";
 
 Deno.test("summary <=24000 characters preserves a single call and Telegram bilingual formatting", async () => {
@@ -53,7 +54,7 @@ Deno.test("long summary sends every whole line to bounded chunks and reduces all
   console.log = (label: string, detail: Record<string, unknown>) => { if (label === "[angel-caption] summary_pipeline") logs.push(detail); };
   mod.configure((body: Request, opts: { label: string }) => {
     requests.push({ body, label: opts.label });
-    return Promise.resolve(success(opts.label === "caption-summarize-map" ? `Ghi chú chặng ${requests.length}` : finalText));
+    return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote(`Ghi chú chặng ${requests.length}`) : finalText));
   });
   try {
     assert.deepEqual(await mod.summarizeSession(input, "long-session"), { vi: finalText, en: finalText });
@@ -83,7 +84,7 @@ Deno.test("24001-character singleton takes map/reduce without splitting or disca
   const text = "x".repeat(23_996);
   mod.configure((body: Request, opts: { label: string }) => {
     requests.push({ body, label: opts.label });
-    return Promise.resolve(success(opts.label === "caption-summarize-map" ? "Ghi chú đủ dòng" : finalText));
+    return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote("Ghi chú đủ dòng") : finalText));
   });
   await mod.summarizeSession([line(text)], "oversized-singleton");
   assert.deepEqual(requests.map(request => request.label), ["caption-summarize-map", "caption-summarize-reduce"]);
@@ -106,20 +107,25 @@ Deno.test("map concurrency is bounded at three and reversed completions still re
   const settle = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
   await settle();
   assert.equal(pending.size, 3);
-  pending.get(3)?.(success("THIRD")); await settle();
+  pending.get(3)?.(success(mapNote("THIRD"))); await settle();
   assert.ok(pending.has(4));
-  pending.get(4)?.(success("FOURTH"));
-  pending.get(2)?.(success("SECOND"));
-  pending.get(1)?.(success("FIRST"));
+  pending.get(4)?.(success(mapNote("FOURTH")));
+  pending.get(2)?.(success(mapNote("SECOND")));
+  pending.get(1)?.(success(mapNote("FIRST")));
   await work;
   assert.equal(peak, 3);
   const merged = requests.at(-1)!.body.messages[1].content;
-  assert.equal(merged, "CHẶNG 1/4:\nFIRST\n\nCHẶNG 2/4:\nSECOND\n\nCHẶNG 3/4:\nTHIRD\n\nCHẶNG 4/4:\nFOURTH");
+  assert.ok(merged.indexOf("FIRST") < merged.indexOf("SECOND"));
+  assert.ok(merged.indexOf("SECOND") < merged.indexOf("THIRD"));
+  assert.ok(merged.indexOf("THIRD") < merged.indexOf("FOURTH"));
+  assert.match(merged, /TÊN BÀI\/PAPER ĐÃ XÁC ĐỊNH: Paper 165/);
+  assert.ok(merged.endsWith("- Chặng 1: FIRST\n- Chặng 2: SECOND\n- Chặng 3: THIRD\n- Chặng 4: FOURTH"));
 });
 
 Deno.test("failed, blank or truncated map never produces or sends a prefix-only final summary", async () => {
   for (const failure of [
-    { ok: false, status: 503, data: null }, success(""),
+    { ok: false, status: 503, data: null }, success(""), success("not JSON"), success(JSON.stringify({main_points:["partial schema"]})),
+    success(JSON.stringify({main_points:[],qa:[],speakers:[],source_titles:[],session_stages:[]})),
     { ok: true, status: 200, data: { choices: [{ message: { content: "Bị cắt" }, finish_reason: "length" }] } },
   ]) {
     const labels: string[] = [];
@@ -135,7 +141,7 @@ Deno.test("reduce failure returns no summary instead of publishing intermediate 
   const labels: string[] = [];
   mod.configure((_body: Request, opts: { label: string }) => {
     labels.push(opts.label);
-    return Promise.resolve(opts.label === "caption-summarize-map" ? success("Ghi chú chặng") : { ok: false, status: 503, data: null });
+    return Promise.resolve(opts.label === "caption-summarize-map" ? success(mapNote("Ghi chú chặng")) : { ok: false, status: 503, data: null });
   });
   assert.equal(await mod.summarizeSession([line("x".repeat(24_000))], "reduce-failure"), null);
   assert.deepEqual(labels, ["caption-summarize-map", "caption-summarize-reduce"]);
@@ -150,7 +156,7 @@ Deno.test({
     const requests: Array<{ body: Request; label: string }> = [];
     mod.configure((body: Request, opts: { label: string }) => {
       requests.push({ body, label: opts.label });
-      return Promise.resolve(success(opts.label === "caption-summarize-map" ? `Note ${requests.length}` : finalText));
+      return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote(`Note ${requests.length}`) : finalText));
     });
     await mod.summarizeSession(rows, "jc8aa6fq3z89");
     assert.equal(rows.length, 600);

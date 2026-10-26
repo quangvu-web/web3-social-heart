@@ -219,7 +219,7 @@ Deno.test("oversized long-session reduce output is rejected without truncating s
   const labels: string[] = [];
   mod.configure((_body: Request, opts: {label:string}) => {
     labels.push(opts.label);
-    return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote("MC đọc tin nhắn") : mergeNote({main_points:["x".repeat(3_501),"Content"]})));
+    return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote("MC đọc tin nhắn") : mergeNote({main_points:["x".repeat(7_001),"Content"]})));
   });
   assert.equal(await mod.summarizeSession([line("x".repeat(24_000))], "telegram-budget"), null);
   assert.deepEqual(labels, ["caption-summarize-map", "caption-summarize-reduce"]);
@@ -270,4 +270,13 @@ Deno.test("a raw Vietnamese Bài number remains valid when rendered as English P
   assert.ok(result?.vi.includes("Bài 165"));
   assert.ok(result?.vi.includes("Reading Paper 165"));
   assert.equal(result?.vi.includes("Paper 140"),false);
+});
+
+Deno.test("expanded bilingual reduction accepts a fuller body above the old single-message budget", async () => {
+  mod.configure((_body:Request,opts:{label:string})=>Promise.resolve(success(opts.label === "caption-summarize-map"
+    ? mapNote("Chặng đầy đủ") : mergeNote({main_points:["Nội dung đầy đặn. ".repeat(120),"Fuller English points. ".repeat(90)]}))));
+  const result=await mod.summarizeSession([line("x".repeat(24000))],"expanded-budget");
+  assert.ok(result && result.vi.length>3500 && result.vi.length<=7000);
+  assert.match(result.vi,/Nội dung đầy đặn/);
+  assert.match(result.vi,/Fuller English points/);
 });

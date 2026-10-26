@@ -4,7 +4,7 @@ Deno.env.set("SUPABASE_SERVICE_ROLE_KEY","test-service");
 Deno.env.set("LOVABLE_API_KEY","test-lovable");
 Deno.env.set("GEMINI_API_KEY","test-gemini");
 const {callAiGateway}=await import("./ai-gateway-retry.ts");
-const {invalidateFlagCache}=await import("./angel/flags.ts");
+const {invalidateFlagCache,getFlag,getFlagMeta}=await import("./angel/flags.ts");
 let flag:unknown=null,dbError=false,directStatus=200,gatewayStatus=200,directMode="status";
 const usageEvents:any[]=[];
 let onUsageEvent=()=>{};
@@ -101,5 +101,11 @@ Deno.test("background AI updates provider metadata on the same usage event after
  const updated=new Promise<void>((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error("background metadata missing")),200);onUsageUpdate=()=>{clearTimeout(timer);resolve();};});
  release();await background;await updated;
  assert.equal(usageEvents.length,1);assert.equal(usageUpdates.at(-1).meta.provider,"gemini");assert.deepEqual(usageUpdates.at(-1).meta.ai_attempts,{gemini:1});
+});
+Deno.test("disabled provider stays lovable and existing boolean/meta flags retain their contract",async()=>{
+ reset({enabled:false,meta:{value:"gemini",marker:"retained"}});await callAiGateway(body,opts);assert.match(sent[0].url,/ai.gateway/);
+ assert.equal(await getFlag("cost.postprocess_enabled",true),false);
+ assert.deepEqual(await getFlagMeta("cost.postprocess_enabled"),{value:"gemini",marker:"retained"});
+ reset();assert.equal(await getFlag("cost.postprocess_enabled",true),true);
 });
 Deno.test("restore test boundary",()=>{globalThis.fetch=originalFetch;console.warn=originalWarn;console.log=originalLog;console.info=originalInfo;});

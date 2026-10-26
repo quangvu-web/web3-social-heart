@@ -28,6 +28,12 @@ export default {
         body: ['Lora', 'Georgia', 'serif'],
       },
       colors: {
+        caption: {
+          foreground: "hsl(var(--caption-foreground))",
+          muted: "hsl(var(--caption-muted))",
+          border: "hsl(var(--caption-border))",
+          speaker: "hsl(var(--caption-speaker))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

@@ -46,6 +46,7 @@ function harness() {
     async removeChannel() { removals++; },
   };
   const react = {
+    memo: (component: unknown) => component,
     useState(initial: unknown) {
       const i = stateIndex++;
       states[i] = initial;
@@ -160,7 +161,7 @@ function loadCaptionHelpers() {
   }).outputText;
   const exports: Record<string, unknown> = {};
   const require = (name: string) => {
-    if (name === "react") return { useState: () => [], useRef: () => ({}), useEffect: () => {}, useCallback: (c: unknown) => c };
+    if (name === "react") return { memo: (component: unknown) => component, useState: () => [], useRef: () => ({}), useEffect: () => {}, useCallback: (c: unknown) => c };
     if (name === "react-router-dom") return { useParams: () => ({}) };
     if (name.includes("supabase/client")) return { supabase: {} };
     return { jsx: () => null, jsxs: () => null, Fragment: null, Minus: 0, Plus: 0, Loader2: 0, ArrowDown: 0 };
@@ -204,6 +205,7 @@ function layoutHarness() {
   const history = { scrollTop: 420, scrollHeight: 2000, clientHeight: 600 };
   const jsx = (type: any, props: any) => ({ type, props });
   const react = {
+    memo: (component: unknown) => component,
     useState(initial: any) {
       const i = stateIndex++;
       if (!(i in states)) states[i] = initial;
@@ -240,7 +242,7 @@ function layoutHarness() {
 }
 
 describe("stable live speaking layout", () => {
-  test("partial updates/expiry/delete never scroll history or reset unread controls", () => {
+  test("partial updates/translation wait/delete never scroll history or reset unread controls", () => {
     const h = layoutHarness();
     h.render();
     h.history.scrollTop = 420;
@@ -256,7 +258,7 @@ describe("stable live speaking layout", () => {
     h.render();
     h.states[6] += 16000;
     const staleTree = h.render();
-    expect(h.descendants(h.find(staleTree, "Người đang nói")).some((n: any) => n.props?.children === "🎙️ Đang nghe…")).toBe(true);
+    expect(h.descendants(h.find(staleTree, "Người đang nói")).some((n: any) => n.props?.children === "A fresh sentence before silence…")).toBe(true);
     expect(h.history.scrollTop).toBe(420);
     expect(h.states[7]).toBe(unread);
     h.states[2] = null; h.render();
@@ -306,4 +308,50 @@ describe("stable live speaking layout", () => {
     expect(h.refs[1].current).toBe(true);
     expect(h.states[7].visible).toBe(false);
   });
+});
+
+// Real React reconciliation: reading speaker_name marks execution of the row body.
+// A partial/clock update must not traverse history, and an append must only render its new row.
+import * as React from "react";
+import { act, create } from "react-test-renderer";
+import * as jsxRuntime from "react/jsx-runtime";
+
+test("649/1001 rows skip partial ticks and only new rows render on append", () => {
+  const code = ts.transpileModule(readFileSync(new URL("./CaptionsPage.tsx", import.meta.url), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  const exports: any = {};
+  new Function("require", "exports", code)((name: string) => name === "react" ? React :
+    name === "react/jsx-runtime" ? jsxRuntime : name.includes("supabase/client") ? { supabase: {} } : {}, exports);
+  for (const count of [649, 1001]) {
+    let renders = 0, traversals = 0;
+    const makeLine = (id: number) => ({ id: String(id), seq: id, source_lang: "vi", text_source: `Dòng ${id}`,
+      text_vi: `Dòng ${id}`, text_en: `Line ${id}`, get speaker_name() { renders++; return null; } });
+    const lines = Array.from({ length: count }, (_, i) => makeLine(i + 1));
+    const observed = new Proxy(lines, { get(target, key, receiver) {
+      if (key === "map") traversals++;
+      return Reflect.get(target, key, receiver);
+    } });
+    let update: (value: number) => void = () => {};
+    function Parent({ history = observed, mode = "both", fontSize = 28 }: any) {
+      const [partial, setPartial] = React.useState(0);
+      update = setPartial;
+      return React.createElement("div", null, React.createElement(exports.CaptionHistory, {
+        lines: history, mode, fontSize, status: "live",
+      }), React.createElement("aside", null, String(partial)));
+    }
+    let root: any;
+    act(() => { root = create(React.createElement(Parent)); });
+    expect(renders).toBe(count);
+    for (let i = 1; i <= 30; i++) act(() => update(i));
+    expect(renders).toBe(count);
+    expect(traversals).toBe(1);
+    const appended = [...lines, makeLine(count + 1)];
+    act(() => root.update(React.createElement(Parent, { history: appended })));
+    expect(renders).toBe(count + 1);
+    act(() => root.update(React.createElement(Parent, { history: appended, mode: "en", fontSize: 36 })));
+    expect(renders).toBe(2 * (count + 1));
+    expect(root.toJSON().children[0].children[0].props.style.fontSize).toBe(36);
+    act(() => root.unmount());
+  }
 });

@@ -1,6 +1,6 @@
 // Trang phụ đề trực tiếp Angel Translator — công khai theo mã phiên, không cần đăng nhập.
 // Nhận dòng mới qua Supabase Realtime (INSERT trên caption_lines, lọc theo session_id).
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -67,6 +67,39 @@ export function captionSubFontSize(fontSize: number): number {
   return Math.max(16, Math.round(fontSize * 0.88));
 }
 
+
+export const CaptionRow = memo(function CaptionRow({ line, mode, fontSize }: { line: CaptionLine; mode: ViewMode; fontSize: number }) {
+  const vi = line.text_vi ?? (line.source_lang === "vi" ? line.text_source : null);
+  const en = line.text_en ?? (line.source_lang === "en" ? line.text_source : null);
+  const main = mode === "vi" ? vi : mode === "en" ? en : (vi ?? en);
+  const sub = mode === "both" ? (main === vi ? en : vi) : null;
+  return (
+    <div className="px-4 py-3 border-b border-caption-border/60">
+      {line.speaker_name && (
+        <div className="text-sm font-semibold text-caption-speaker mb-1">{line.speaker_name}</div>
+      )}
+      <div className="font-medium leading-snug text-caption-foreground" style={{ fontSize }}>
+        {main ?? line.text_source}
+      </div>
+      {sub && (
+        <div className="mt-1 text-caption-muted leading-snug" style={{ fontSize: captionSubFontSize(fontSize) }}>
+          {sub}
+        </div>
+      )}
+    </div>
+  );
+});
+
+// Partial state and the ticking clock live outside this memo boundary.
+export const CaptionHistory = memo(function CaptionHistory({ lines, mode, fontSize, status }: {
+  lines: CaptionLine[]; mode: ViewMode; fontSize: number; status: SessionStatus;
+}) {
+  return lines.length === 0 ? (
+    <div className="p-8 text-center text-caption-muted">
+      {status === "live" ? "Đang lắng nghe buổi họp…" : "Chưa có phụ đề nào."}
+    </div>
+  ) : lines.map((line) => <CaptionRow key={line.id} line={line} mode={mode} fontSize={fontSize} />);
+});
 
 export default function CaptionsPage() {
   const { code } = useParams<{ code: string }>();
@@ -335,31 +368,8 @@ export default function CaptionsPage() {
     );
   }
 
-  const renderLine = (line: CaptionLine) => {
-    const vi = line.text_vi ?? (line.source_lang === "vi" ? line.text_source : null);
-    const en = line.text_en ?? (line.source_lang === "en" ? line.text_source : null);
-    const main = mode === "vi" ? vi : mode === "en" ? en : (vi ?? en);
-    const sub = mode === "both" ? (main === vi ? en : vi) : null;
-    return (
-      <div key={line.id} className="px-4 py-3 border-b border-slate-800/60">
-        {line.speaker_name && (
-          <div className="text-sm font-semibold text-[#06B6D4] mb-1">{line.speaker_name}</div>
-        )}
-        <div className="font-medium leading-snug text-slate-50" style={{ fontSize }}>
-          {main ?? line.text_source}
-        </div>
-        {sub && (
-          <div className="mt-1 text-slate-400 leading-snug" style={{ fontSize: captionSubFontSize(fontSize) }}>
-            {sub}
-
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const showPartial = session.status === "live" && !!partial?.text_source &&
-    now - new Date(partial.updated_at).getTime() < 15000;
+  // Keep the current words visible until the backend commits a final line and clears them.
+  const showPartial = session.status === "live" && !!partial?.text_source;
 
   return (
     <div className="h-dvh overflow-hidden bg-[#0B1020] text-slate-100 flex flex-col">
@@ -409,13 +419,7 @@ export default function CaptionsPage() {
       {/* Danh sách phụ đề — native div scroll theo quy ước dự án */}
       <div className="relative flex-1 flex flex-col min-h-0">
         <div ref={scrollRef} onScroll={onScroll} aria-label="Lịch sử phụ đề" className="flex-1 min-h-0 overflow-y-auto">
-          {lines.length === 0 ? (
-            <div className="p-8 text-center text-slate-400">
-              {session.status === "live" ? "Đang lắng nghe buổi họp…" : "Chưa có phụ đề nào."}
-            </div>
-          ) : (
-            lines.map(renderLine)
-          )}
+          <CaptionHistory lines={lines} mode={mode} fontSize={fontSize} status={session.status} />
         </div>
         {jumpState.visible && (
           <button

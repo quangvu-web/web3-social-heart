@@ -1,0 +1,90 @@
+{
+  "measured_at_myt": "2026-10-26 14:41:36 UTC+8",
+  "phase": "before-deployment",
+  "status": "live",
+  "count": 771,
+  "last_insert_myt": "2026-10-26 14:41:19 UTC+8",
+  "source_minutes": 109.39396158854167,
+  "first100_gap_median_sec": 3.785,
+  "last100_gap_median_sec": 8.196,
+  "duplicate_seq": 0,
+  "buckets": [
+    {
+      "minute": 0,
+      "count": 80,
+      "latency_median_sec": 11.846342041015589,
+      "latency_max_sec": 60.31632495117185,
+      "gap_median_sec": 3.776
+    },
+    {
+      "minute": 10,
+      "count": 77,
+      "latency_median_sec": 8.027613281249955,
+      "latency_max_sec": 33.67158886718755,
+      "gap_median_sec": 4.757
+    },
+    {
+      "minute": 20,
+      "count": 90,
+      "latency_median_sec": 6.368551757812497,
+      "latency_max_sec": 35.35855664062501,
+      "gap_median_sec": 4.52
+    },
+    {
+      "minute": 30,
+      "count": 88,
+      "latency_median_sec": 5.107096679687402,
+      "latency_max_sec": 28.282425781249913,
+      "gap_median_sec": 5.725
+    },
+    {
+      "minute": 40,
+      "count": 77,
+      "latency_median_sec": 5.482476562499869,
+      "latency_max_sec": 55.381710937499975,
+      "gap_median_sec": 3.89
+    },
+    {
+      "minute": 50,
+      "count": 75,
+      "latency_median_sec": 27.038197265625058,
+      "latency_max_sec": 47.661093749999964,
+      "gap_median_sec": 3.518
+    },
+    {
+      "minute": 60,
+      "count": 66,
+      "latency_median_sec": 15.298041015624904,
+      "latency_max_sec": 58.244851562500116,
+      "gap_median_sec": 6.727499999999999
+    },
+    {
+      "minute": 70,
+      "count": 67,
+      "latency_median_sec": 22.02405468750021,
+      "latency_max_sec": 47.372343750000255,
+      "gap_median_sec": 7.777
+    },
+    {
+      "minute": 80,
+      "count": 48,
+      "latency_median_sec": 14.869125000000167,
+      "latency_max_sec": 46.435273437499745,
+      "gap_median_sec": 9.313500000000001
+    },
+    {
+      "minute": 90,
+      "count": 59,
+      "latency_median_sec": 12.957976562500335,
+      "latency_max_sec": 36.77294531250027,
+      "gap_median_sec": 8.262
+    },
+    {
+      "minute": 100,
+      "count": 44,
+      "latency_median_sec": 12.097675781249563,
+      "latency_max_sec": 54.038843749999614,
+      "gap_median_sec": 7.6979999999999995
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "public_code": "jc8aa6fq3z89",
+  "status": "ended",
+  "duration_minutes": 93.01086666666667,
+  "line_count": 600,
+  "transcript_chars": 61867,
+  "old_complete_lines": 233,
+  "old_last_source_minute": 28.00206298828125,
+  "new_chunks": [
+    {
+      "first": 1,
+      "last": 68,
+      "chars": 7951
+    },
+    {
+      "first": 69,
+      "last": 142,
+      "chars": 7983
+    },
+    {
+      "first": 143,
+      "last": 233,
+      "chars": 7758
+    },
+    {
+      "first": 234,
+      "last": 291,
+      "chars": 7550
+    },
+    {
+      "first": 292,
+      "last": 389,
+      "chars": 7992
+    },
+    {
+      "first": 390,
+      "last": 482,
+      "chars": 7926
+    },
+    {
+      "first": 483,
+      "last": 557,
+      "chars": 7948
+    },
+    {
+      "first": 558,
+      "last": 600,
+      "chars": 6752
+    }
+  ],
+  "logical_ai_calls": 9,
+  "thu_huyen_first_line": 295,
+  "last_source_minute": 92.69860026041667
+}

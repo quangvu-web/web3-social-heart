@@ -25,6 +25,13 @@ const success = (text: string) => ({ ok: true, status: 200, data: { choices: [{ 
 const mapNote = (text: string) => JSON.stringify({ main_points: [text], qa: [], speakers: ["MC"], source_titles: ["Paper 165"], session_stages: [text], meditation: [], presentations: [], music_dance: [], mc_audience: [], other_activities: [] });
 const finalText = "🎯 **1) Chủ đề chính / Main topic**\n- Chủ đề / Topic\n💡 **2) Điểm chính / Key points**\n- Nội dung / Content\n❓ **3) Câu hỏi & trả lời nổi bật / Notable Q&A**\n**- Câu hỏi:** Nội dung?\n**- Trả lời:** Nội dung.\n✅ **4) Việc cần làm sau họp / Action items**\n- Không có / None";
 
+const mergeNote = (overrides: Record<string, string[]> = {}) => JSON.stringify({
+  topic: ["Chủ đề", "Topic"], main_points: ["Nội dung", "Content"],
+  meditation: ["", ""], presentations: ["", ""], music_dance: ["", ""], mc_audience: ["", ""], other_activities: ["", ""],
+  qa: ["Nội dung?", "Nội dung.", "Content?", "Content."], actions: ["Không có", "None"], ...overrides,
+});
+const longText = "🎯 **1) Chủ đề chính / Main topic**\n- Chủ đề\n- Topic\n\n💡 **2) Điểm chính / Key points**\n- Nội dung\n- Content\n\n❓ **3) Câu hỏi & trả lời nổi bật / Notable Q&A**\n- **Câu hỏi:** Nội dung?\n- **Trả lời:** Nội dung.\n- **Q:** Content?\n- **A:** Content.\n\n✅ **4) Việc cần làm sau họp / Action items**\n- Không có\n- None";
+
 Deno.test("summary <=24000 characters preserves a single call and Telegram bilingual formatting", async () => {
   for (const length of [23_999, 24_000]) {
     const requests: Request[] = [];
@@ -54,10 +61,13 @@ Deno.test("long summary sends every whole line to bounded chunks and reduces all
   console.log = (label: string, detail: Record<string, unknown>) => { if (label === "[angel-caption] summary_pipeline") logs.push(detail); };
   mod.configure((body: Request, opts: { label: string }) => {
     requests.push({ body, label: opts.label });
-    return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote(`Ghi chú chặng ${requests.length}`) : finalText));
+    return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote(`Ghi chú chặng ${requests.length}`) : mergeNote()));
   });
   try {
-    assert.deepEqual(await mod.summarizeSession(input, "long-session"), { vi: finalText, en: finalText });
+    const result = await mod.summarizeSession(input, "long-session");
+    assert.ok(result?.vi.includes("- Bài đọc: Paper 165."));
+    assert.equal(result.vi.replace("- Bài đọc: Paper 165.\n", "").replace("- Reading: Paper 165.\n", ""), longText);
+    assert.equal(result.en, result.vi);
   } finally { console.log = originalLog; }
   const maps = requests.filter(request => request.label === "caption-summarize-map");
   assert.ok(maps.length > 1, "long transcript must use map calls, not prefix truncation");
@@ -84,7 +94,7 @@ Deno.test("24001-character singleton takes map/reduce without splitting or disca
   const text = "x".repeat(23_996);
   mod.configure((body: Request, opts: { label: string }) => {
     requests.push({ body, label: opts.label });
-    return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote("Ghi chú đủ dòng") : finalText));
+    return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote("Ghi chú đủ dòng") : mergeNote()));
   });
   await mod.summarizeSession([line(text)], "oversized-singleton");
   assert.deepEqual(requests.map(request => request.label), ["caption-summarize-map", "caption-summarize-reduce"]);
@@ -97,7 +107,7 @@ Deno.test("map concurrency is bounded at three and reversed completions still re
   let active = 0, peak = 0;
   mod.configure((body: Request, opts: { label: string }) => {
     requests.push({ body, label: opts.label });
-    if (opts.label === "caption-summarize-reduce") return Promise.resolve(success(finalText));
+    if (opts.label === "caption-summarize-reduce") return Promise.resolve(success(mergeNote()));
     const index = Number(body.messages[1].content.match(/^CHẶNG (\d+)/)?.[1]);
     active++; peak = Math.max(peak, active);
     return new Promise(resolve => pending.set(index, (value: unknown) => { active--; resolve(value); }));
@@ -118,7 +128,7 @@ Deno.test("map concurrency is bounded at three and reversed completions still re
   assert.ok(merged.indexOf("FIRST") < merged.indexOf("SECOND"));
   assert.ok(merged.indexOf("SECOND") < merged.indexOf("THIRD"));
   assert.ok(merged.indexOf("THIRD") < merged.indexOf("FOURTH"));
-  assert.match(merged, /TÊN BÀI\/PAPER ĐÃ XÁC ĐỊNH: Paper 165/);
+  assert.doesNotMatch(merged, /Paper 165/, "unquoted map titles must not be trusted when absent from the source");
   assert.ok(merged.endsWith("- Chặng 1: FIRST\n- Chặng 2: SECOND\n- Chặng 3: THIRD\n- Chặng 4: FOURTH"));
 });
 
@@ -156,7 +166,7 @@ Deno.test({
     const requests: Array<{ body: Request; label: string }> = [];
     mod.configure((body: Request, opts: { label: string }) => {
       requests.push({ body, label: opts.label });
-      return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote(`Note ${requests.length}`) : finalText));
+      return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote(`Note ${requests.length}`) : mergeNote()));
     });
     await mod.summarizeSession(rows, "jc8aa6fq3z89");
     assert.equal(rows.length, 600);
@@ -181,9 +191,9 @@ Deno.test("map requests an explicit notes schema and accepts fenced valid JSON w
   const bodies: Request[] = [];
   mod.configure((body: Request, opts: {label:string}) => {
     bodies.push(body);
-    return Promise.resolve(success(opts.label === "caption-summarize-map" ? "```json\n" + mapNote("MC đọc tin nhắn") + "\n```" : finalText));
+    return Promise.resolve(success(opts.label === "caption-summarize-map" ? "```json\n" + mapNote("MC đọc tin nhắn") + "\n```" : mergeNote()));
   });
-  assert.deepEqual(await mod.summarizeSession([line("x".repeat(24_000))], "fenced-map"), {vi:finalText,en:finalText});
+  assert.deepEqual(await mod.summarizeSession([line("x".repeat(24_000))], "fenced-map"), {vi:longText,en:longText});
   const format = (bodies[0] as Request & {response_format:any}).response_format;
   assert.equal(format.type, "json_schema");
   assert.equal(format.json_schema.strict, true);
@@ -192,7 +202,9 @@ Deno.test("map requests an explicit notes schema and accepts fenced valid JSON w
   for (const field of format.json_schema.schema.required) {
     assert.deepEqual(format.json_schema.schema.properties[field], {type:"array",items:{type:"string"}});
   }
-  assert.equal((bodies[1] as Request & {response_format?:unknown}).response_format, undefined);
+  const reducedFormat = (bodies[1] as Request & {response_format:any}).response_format;
+  assert.equal(reducedFormat.type, "json_schema");
+  assert.ok(reducedFormat.json_schema.schema.required.includes("mc_audience"));
   assert.match(bodies[1].messages[1].content, /MC đọc tin nhắn/);
 });
 
@@ -200,8 +212,55 @@ Deno.test("oversized long-session reduce output is rejected without truncating s
   const labels: string[] = [];
   mod.configure((_body: Request, opts: {label:string}) => {
     labels.push(opts.label);
-    return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote("MC đọc tin nhắn") : "x".repeat(3_501)));
+    return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote("MC đọc tin nhắn") : mergeNote({main_points:["x".repeat(3_501),"Content"]})));
   });
   assert.equal(await mod.summarizeSession([line("x".repeat(24_000))], "telegram-budget"), null);
   assert.deepEqual(labels, ["caption-summarize-map", "caption-summarize-reduce"]);
+});
+
+Deno.test("required MC activity cannot disappear from rendered bilingual points", async () => {
+  const input = [line("Paper 165 " + "x".repeat(24_000))];
+  const mapped = JSON.parse(mapNote("Nội dung"));
+  mapped.source_titles = ["Paper 140"];
+  mapped.mc_audience = ["MC đọc lời chúc mừng và giao lưu khán giả"];
+  let reduction: Record<string,string[]> = {mc_audience:["",""]};
+  mod.configure((_body:Request,opts:{label:string}) => Promise.resolve(success(opts.label === "caption-summarize-map" ? JSON.stringify(mapped) : mergeNote(reduction))));
+  assert.equal(await mod.summarizeSession(input, "required-MC"), null, "missing required activity must fail rather than silently omit it");
+  reduction = {mc_audience:["MC đọc lời chúc mừng và giao lưu khán giả", "The MC read congratulations and interacted with the audience"]};
+  const result = await mod.summarizeSession(input, "required-MC");
+  assert.ok(result?.vi.includes("- MC đọc lời chúc mừng và giao lưu khán giả"));
+  assert.ok(result?.vi.includes("- The MC read congratulations and interacted with the audience"));
+  assert.ok(result?.vi.includes("Paper 165"));
+  assert.equal(result?.vi.includes("Paper 140"),false);
+  const telegram = formatSummaryForTelegram(result.vi);
+  assert.match(telegram, /• MC đọc lời chúc/);
+  assert.match(telegram, /<b>1\) Chủ đề chính/);
+});
+
+Deno.test("reduce cannot introduce a Paper number absent from transcript evidence", async () => {
+  mod.configure((_body:Request,opts:{label:string}) => Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote("Bài đọc") : mergeNote({main_points:["Jesus giảng Paper 140", "Jesus taught Paper 140"]}))));
+  assert.equal(await mod.summarizeSession([line("Paper 165 " + "x".repeat(24_000))], "grounded-paper"), null);
+});
+
+Deno.test("AI translation cannot verify a title or Paper number that conflicts with raw speech", async () => {
+  const mapped = JSON.parse(mapNote("Nội dung"));
+  mapped.source_titles = ["FakeBook", "Paper 140"];
+  const input = [line("Paper 165 " + "x".repeat(24_000), "MC", "FakeBook Paper 140")];
+  let reduction = mergeNote({main_points:["Paper 140", "Paper 140"]});
+  mod.configure((_body:Request,opts:{label:string}) => Promise.resolve(success(opts.label === "caption-summarize-map" ? JSON.stringify(mapped) : reduction)));
+  assert.equal(await mod.summarizeSession(input,"raw-provenance"),null);
+  reduction = mergeNote();
+  const result = await mod.summarizeSession(input,"raw-provenance");
+  assert.ok(result?.vi.includes("Paper 165"));
+  assert.equal(result?.vi.includes("Paper 140"),false);
+  assert.equal(result?.vi.includes("FakeBook"),false);
+});
+
+Deno.test("a raw Vietnamese Bài number remains valid when rendered as English Paper", async () => {
+  const mapped = JSON.parse(mapNote("Bài đọc")); mapped.source_titles = ["Bài 165"];
+  mod.configure((_body:Request,opts:{label:string}) => Promise.resolve(success(opts.label === "caption-summarize-map" ? JSON.stringify(mapped) : mergeNote({main_points:["Nội dung", "Reading Paper 165"]}))));
+  const result = await mod.summarizeSession([line("Bài 165 " + "x".repeat(24_000),"MC","Paper 140")],"vietnamese-paper");
+  assert.ok(result?.vi.includes("Bài 165"));
+  assert.ok(result?.vi.includes("Reading Paper 165"));
+  assert.equal(result?.vi.includes("Paper 140"),false);
 });

@@ -71,6 +71,7 @@ Deno.test("long summary sends every whole line to bounded chunks and reduces all
   for (let i = 1; i <= maps.length; i++) assert.ok(reduce.body.messages[1].content.includes(`Ghi chú chặng ${i}`));
   assert.match(reduce.body.messages[0].content, /không.*(?:bỏ|lược).*ngắn/i);
   assert.match(reduce.body.messages[0].content, /MC/);
+  assert.doesNotMatch(reduce.body.messages[0].content, /3[–-]7/, "long summaries must not retain a point-count cap that crowds out brief stages");
   assert.equal(logs.length, 1);
   assert.equal(logs[0].session_id, "long-session");
   assert.equal(logs[0].ai_call_count, maps.length + 1);

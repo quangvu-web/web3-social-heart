@@ -195,3 +195,13 @@ Deno.test("map requests an explicit notes schema and accepts fenced valid JSON w
   assert.equal((bodies[1] as Request & {response_format?:unknown}).response_format, undefined);
   assert.match(bodies[1].messages[1].content, /MC đọc tin nhắn/);
 });
+
+Deno.test("oversized long-session reduce output is rejected without truncating stages or adding AI calls", async () => {
+  const labels: string[] = [];
+  mod.configure((_body: Request, opts: {label:string}) => {
+    labels.push(opts.label);
+    return Promise.resolve(success(opts.label === "caption-summarize-map" ? mapNote("MC đọc tin nhắn") : "x".repeat(3_501)));
+  });
+  assert.equal(await mod.summarizeSession([line("x".repeat(24_000))], "telegram-budget"), null);
+  assert.deepEqual(labels, ["caption-summarize-map", "caption-summarize-reduce"]);
+});

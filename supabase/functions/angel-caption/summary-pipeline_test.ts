@@ -25,11 +25,15 @@ const success = (text: string) => ({ ok: true, status: 200, data: { choices: [{ 
 const mapNote = (text: string) => JSON.stringify({ main_points: [text], qa: [], speakers: ["MC"], source_titles: ["Paper 165"], session_stages: [text], meditation: [], presentations: [], music_dance: [], mc_audience: [], other_activities: [] });
 const finalText = "🎯 **1) Chủ đề chính / Main topic**\n- Chủ đề / Topic\n💡 **2) Điểm chính / Key points**\n- Nội dung / Content\n❓ **3) Câu hỏi & trả lời nổi bật / Notable Q&A**\n**- Câu hỏi:** Nội dung?\n**- Trả lời:** Nội dung.\n✅ **4) Việc cần làm sau họp / Action items**\n- Không có / None";
 
-const mergeNote = (overrides: Record<string, string[]> = {}) => JSON.stringify({
-  topic: ["Chủ đề", "Topic"], main_points: ["Nội dung", "Content"],
-  meditation: ["", ""], presentations: ["", ""], music_dance: ["", ""], mc_audience: ["", ""], other_activities: ["", ""],
-  qa: ["Nội dung?", "Nội dung.", "Content?", "Content."], actions: ["Không có", "None"], ...overrides,
-});
+const mergeNote = (overrides: Record<string, string[]> = {}) => {
+  const values = {
+    topic: ["Chủ đề", "Topic"], main_points: ["Nội dung", "Content"],
+    meditation: ["", ""], presentations: ["", ""], music_dance: ["", ""], mc_audience: ["", ""], other_activities: ["", ""],
+    qa: ["Nội dung?", "Nội dung.", "Content?", "Content."], actions: ["Không có", "None"], ...overrides,
+  };
+  return JSON.stringify(Object.fromEntries(Object.entries(values).map(([field, pair]) => [field, field === "qa"
+    ? {question_vi:pair[0],answer_vi:pair[1],question_en:pair[2],answer_en:pair[3]} : {vi:pair[0],en:pair[1]}])));
+};
 const longText = "🎯 **1) Chủ đề chính / Main topic**\n- Chủ đề\n- Topic\n\n💡 **2) Điểm chính / Key points**\n- Nội dung\n- Content\n\n❓ **3) Câu hỏi & trả lời nổi bật / Notable Q&A**\n- **Câu hỏi:** Nội dung?\n- **Trả lời:** Nội dung.\n- **Q:** Content?\n- **A:** Content.\n\n✅ **4) Việc cần làm sau họp / Action items**\n- Không có\n- None";
 
 Deno.test("summary <=24000 characters preserves a single call and Telegram bilingual formatting", async () => {
@@ -205,6 +209,9 @@ Deno.test("map requests an explicit notes schema and accepts fenced valid JSON w
   const reducedFormat = (bodies[1] as Request & {response_format:any}).response_format;
   assert.equal(reducedFormat.type, "json_schema");
   assert.ok(reducedFormat.json_schema.schema.required.includes("mc_audience"));
+  assert.equal(reducedFormat.json_schema.schema.properties.mc_audience.type, "object");
+  assert.deepEqual(reducedFormat.json_schema.schema.properties.mc_audience.required, ["vi", "en"]);
+  assert.match(reducedFormat.json_schema.schema.properties.mc_audience.properties.en.description, /English/);
   assert.match(bodies[1].messages[1].content, /MC đọc tin nhắn/);
 });
 

@@ -11,6 +11,12 @@
     --background: 210 40% 98%;
     --foreground: 222 47% 11%;
 
+    /* Caption history retains its existing dark-surface palette. */
+    --caption-foreground: 210 40% 98%;
+    --caption-muted: 215 20.2% 65.1%;
+    --caption-border: 217.2 32.6% 17.5%;
+    --caption-speaker: 188.7 94.5% 42.7%;
+
     /* Card - Soft Pearl White */
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;

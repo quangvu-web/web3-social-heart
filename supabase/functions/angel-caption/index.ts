@@ -793,13 +793,13 @@ async function findSessionByBot(admin: SupabaseClient, botId: string | null, met
 
 async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEvent, metadataSessionId: string | null) {
   const receivedAt = new Date().toISOString();
+  const receivedAtMs = performance.now();
   const botId = payload.data?.bot?.id ?? payload.data?.bot_id ?? null;
   const session = await findSessionByBot(admin, botId, metadataSessionId);
   if (!session) {
     console.warn("[angel-caption] transcript for unknown bot", { bot_id: botId });
     return;
   }
-  await clearCaptionPartial(admin, session.id);
 
   if (session.status === "pending" || session.status === "joining") {
     await admin
@@ -819,57 +819,97 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
   const segmentKey = await computeDedupeKey(botId ?? "unknown", startSec, rawText);
   console.log("[angel-caption] transcript_segment", { session_id: session.id, segment_key: segmentKey, received_at: receivedAt, sentence_count: sentences.length });
   const speaker = payload.data?.data?.participant?.name ?? null;
-  let previousSource: string | null = null;
-  for (const [index, sentence] of sentences.entries()) {
-    const textSource = applyHearingCorrections(sentence.text);
-    const sourceLang = detectSourceLang(textSource);
-    const dedupeKey = await computeDedupeKey(botId ?? "unknown", startSec, `${segmentKey}|${index}`);
-    const { data: existing } = await admin
-      .from("caption_lines")
-      .select("id")
-      .eq("session_id", session.id)
-      .eq("dedupe_key", dedupeKey)
-      .maybeSingle();
-    if (existing) { previousSource = textSource; continue; }
-
-    const translation = await translateCaption(textSource, sourceLang, previousSource);
-    const { data: currentPlayback, error: playbackReadError } = await admin.from("caption_sessions")
-      .select("id, playback_status, playback_until, playback_file_path").eq("id", session.id).maybeSingle();
-    if (playbackReadError || !currentPlayback) return;
-    if (currentPlayback && await isPlaybackActive(admin, currentPlayback)) return;
-    const { data: maxRow } = await admin
-      .from("caption_lines")
-      .select("seq")
-      .eq("session_id", session.id)
-      .order("seq", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const nextSeq = (maxRow?.seq ?? 0) + 1;
-    const { error: insertErr } = await admin.from("caption_lines").insert({
-      session_id: session.id,
-      seq: nextSeq,
-      speaker_name: speaker,
-      source_lang: sourceLang,
-      text_source: textSource,
-      text_vi: sourceLang === "vi" ? textSource : translation,
-      text_en: sourceLang === "en" ? textSource : translation,
-      ts_offset_sec: sentence.startSec,
-      dedupe_key: dedupeKey,
-    });
-    if (insertErr && insertErr.code !== "23505") {
-      console.error("[angel-caption] caption line insert failed", { error_code: insertErr.code ?? "unknown", segment_key: segmentKey, sentence_index: index });
-      return;
-    } else if (!insertErr) {
-      console.log("[angel-caption] caption_sentence_insert", { session_id: session.id, segment_key: segmentKey, sentence_index: index, seq: nextSeq, inserted_at: new Date().toISOString(), received_at: receivedAt });
+  // Context depends on source order, never on translation completion order.
+  const prepared = sentences.map((sentence, index) => ({
+    sentence, index, textSource: applyHearingCorrections(sentence.text),
+  }));
+  const translations: Array<{
+    textSource: string; sourceLang: "vi" | "en"; dedupeKey: string; translation: string | null;
+  } | null> = new Array(sentences.length).fill(null);
+  const translationDurations: number[] = [];
+  let cursor = 0;
+  let partialCleared = false;
+  let lastInsertMs: number | null = null;
+  let insertedCount = 0;
+  try {
+    // Bound both dedupe reads and Gateway calls within this segment.
+    await Promise.all(Array.from({ length: Math.min(4, prepared.length) }, async () => {
+      while (cursor < prepared.length) {
+        const { index, textSource } = prepared[cursor++];
+        const sourceLang = detectSourceLang(textSource);
+        const dedupeKey = await computeDedupeKey(botId ?? "unknown", startSec, `${segmentKey}|${index}`);
+        const { data: existing } = await admin.from("caption_lines").select("id")
+          .eq("session_id", session.id).eq("dedupe_key", dedupeKey).maybeSingle();
+        if (existing) continue;
+        const translationStarted = performance.now();
+        const translation = await translateCaption(textSource, sourceLang, index ? prepared[index - 1].textSource : null);
+        translationDurations.push(performance.now() - translationStarted);
+        translations[index] = { textSource, sourceLang, dedupeKey, translation };
+      }
+    }));
+    for (const { sentence, index } of prepared) {
+      const result = translations[index];
+      if (!result) continue;
+      const { textSource, sourceLang, dedupeKey, translation } = result;
+      const { data: currentPlayback, error: playbackReadError } = await admin.from("caption_sessions")
+        .select("id, playback_status, playback_until, playback_file_path").eq("id", session.id).maybeSingle();
+      if (playbackReadError || !currentPlayback) return;
+      if (currentPlayback && await isPlaybackActive(admin, currentPlayback)) return;
+      const { data: maxRow } = await admin
+        .from("caption_lines")
+        .select("seq")
+        .eq("session_id", session.id)
+        .order("seq", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const nextSeq = (maxRow?.seq ?? 0) + 1;
+      const { error: insertErr } = await admin.from("caption_lines").insert({
+        session_id: session.id,
+        seq: nextSeq,
+        speaker_name: speaker,
+        source_lang: sourceLang,
+        text_source: textSource,
+        text_vi: sourceLang === "vi" ? textSource : translation,
+        text_en: sourceLang === "en" ? textSource : translation,
+        ts_offset_sec: sentence.startSec,
+        dedupe_key: dedupeKey,
+      });
+      if (insertErr && insertErr.code !== "23505") {
+        console.error("[angel-caption] caption line insert failed", { error_code: insertErr.code ?? "unknown", segment_key: segmentKey, sentence_index: index });
+        return;
+      } else if (!insertErr) {
+        lastInsertMs = performance.now() - receivedAtMs;
+        insertedCount++;
+        if (!partialCleared) {
+          partialCleared = await clearCaptionPartial(admin, session.id, receivedAt);
+        }
+        console.log("[angel-caption] caption_sentence_insert", { session_id: session.id, segment_key: segmentKey, sentence_index: index, seq: nextSeq, inserted_at: new Date().toISOString(), received_at: receivedAt });
+      }
     }
-    previousSource = textSource;
+  } finally {
+    const sorted = translationDurations.sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    const median = sorted.length ? (sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2) : null;
+    console.log("[angel-caption] transcript_segment_complete", {
+      session_id: session.id, segment_key: segmentKey, received_at: receivedAt,
+      sentence_count: sentences.length, inserted_count: insertedCount,
+      processing_ms: performance.now() - receivedAtMs, last_insert_ms: lastInsertMs,
+      translation_median_ms: median, completed_at: new Date().toISOString(),
+    });
   }
-  console.log("[angel-caption] transcript_segment_complete", { session_id: session.id, segment_key: segmentKey, completed_at: new Date().toISOString() });
 }
 
-async function clearCaptionPartial(admin: SupabaseClient, sessionId: string) {
-  const { error } = await admin.from("caption_partials").delete().eq("session_id", sessionId);
-  if (error) console.warn("[angel-caption] partial_clear_failed", { session_id: sessionId, error_code: error.code });
+async function clearCaptionPartial(admin: SupabaseClient, sessionId: string, receivedAt?: string): Promise<boolean> {
+  // Final commits retry transient cleanup once; terminal/playback callers keep their existing single attempt.
+  for (let attempt = 0; attempt < (receivedAt ? 2 : 1); attempt++) {
+    let query = admin.from("caption_partials").delete().eq("session_id", sessionId);
+    // A newer segment may already be speaking while this one translates.
+    if (receivedAt) query = query.lte("updated_at", receivedAt);
+    const { error } = await query;
+    if (!error) return true;
+    console.warn("[angel-caption] partial_clear_failed", { session_id: sessionId, error_code: error.code });
+  }
+  return false;
 }
 
 async function handleTranscriptPartialData(admin: SupabaseClient, payload: TranscriptEvent, metadataSessionId: string | null) {

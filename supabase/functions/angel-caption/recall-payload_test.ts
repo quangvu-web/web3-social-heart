@@ -47,6 +47,7 @@ function fixture(status: string, startedAt: string | null = null, metadataOnly =
       in() { return query; },
       order() { return query; }, limit() { return query; },
       update(value: Record<string, unknown>) { updates.push(value); return query; },
+      lte() { return query; },
       delete() { partialDeletes.push(table); return query; },
       upsert(value: Record<string, unknown>) { partialWrites.push(value); return Promise.resolve({ error: null }); },
       then(resolve: (value: unknown) => void) { resolve({ error: null }); },

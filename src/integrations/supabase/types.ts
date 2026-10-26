@@ -897,6 +897,35 @@ export type Database = {
           },
         ]
       }
+      caption_join_dm_claims: {
+        Row: {
+          claimed_at: string
+          participant_id: string
+          session_id: string
+          webhook_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          participant_id: string
+          session_id: string
+          webhook_id: string
+        }
+        Update: {
+          claimed_at?: string
+          participant_id?: string
+          session_id?: string
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caption_join_dm_claims_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "caption_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       caption_lines: {
         Row: {
           created_at: string
@@ -5687,6 +5716,7 @@ export type Database = {
           fun_core_context_prompt: string | null
           group_id: number
           group_primary_language: string
+          group_vision_enabled: boolean | null
           help_intent_ai_enabled: boolean
           help_intent_prompt: string | null
           id: string
@@ -5777,6 +5807,7 @@ export type Database = {
           fun_core_context_prompt?: string | null
           group_id: number
           group_primary_language?: string
+          group_vision_enabled?: boolean | null
           help_intent_ai_enabled?: boolean
           help_intent_prompt?: string | null
           id?: string
@@ -5867,6 +5898,7 @@ export type Database = {
           fun_core_context_prompt?: string | null
           group_id?: number
           group_primary_language?: string
+          group_vision_enabled?: boolean | null
           help_intent_ai_enabled?: boolean
           help_intent_prompt?: string | null
           id?: string

@@ -230,6 +230,7 @@ async function summarizeSession(lines: Array<{ speaker_name: string | null; text
       model: MODELS.style_pass.id,
       messages: [{ role: "system", content: system }, { role: "user", content }],
       temperature: 0.3,
+      ...(label === "caption-summarize-map" ? { response_format: { type: "json_object" } } : {}),
     }, { label, timeoutMs: 60_000, maxAttempts: 2 });
     if (!result.ok || (longSession && result.data?.choices?.[0]?.finish_reason === "length")) {
       console.warn("[angel-caption] summarize failed", { phase: label, status: result.status, truncated: result.data?.choices?.[0]?.finish_reason === "length" });
@@ -264,8 +265,11 @@ async function summarizeSession(lines: Array<{ speaker_name: string | null; text
           const index = nextChunk++;
           notes[index] = await requestSummary(mapPrompt, `CHẶNG ${index + 1}/${chunks.length} (thứ tự thời gian)\nTRANSCRIPT:\n${chunks[index]}`, "caption-summarize-map");
           if (!notes[index]) { mapFailed = true; continue; }
+          let invalidKind = "invalid_json";
           try {
-            const parsed = JSON.parse(notes[index]!);
+            const jsonNote = notes[index]!.trim().replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
+            const parsed = JSON.parse(jsonNote);
+            invalidKind = "invalid_schema";
             const fields = ["main_points", "qa", "speakers", "source_titles", "session_stages"];
             if (!parsed || !fields.every((field) => Array.isArray(parsed[field]) && parsed[field].every((value: unknown) => typeof value === "string" && value.trim().length > 0))) {
               throw new Error("invalid summary map schema");
@@ -275,7 +279,7 @@ async function summarizeSession(lines: Array<{ speaker_name: string | null; text
             titleLists[index] = parsed.source_titles;
           } catch {
             mapFailed = true;
-            console.warn("[angel-caption] summarize map invalid notes", { session_id: sessionId ?? null, chunk_index: index });
+            console.warn("[angel-caption] summarize map invalid notes", { session_id: sessionId ?? null, chunk_index: index, reason: invalidKind, note_chars: notes[index]!.length, json_fenced: notes[index]!.trim().startsWith("```") });
           }
         }
       }));

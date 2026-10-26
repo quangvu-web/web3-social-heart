@@ -176,3 +176,15 @@ Deno.test("short summary preserves the existing Gateway response handling", asyn
   mod.configure(() => Promise.resolve(response));
   assert.deepEqual(await mod.summarizeSession([line("Short meeting")], "short-response"), { vi: finalText, en: finalText });
 });
+
+Deno.test("map requests JSON mode and accepts a fenced valid JSON object without dropping its stage ledger", async () => {
+  const bodies: Request[] = [];
+  mod.configure((body: Request, opts: {label:string}) => {
+    bodies.push(body);
+    return Promise.resolve(success(opts.label === "caption-summarize-map" ? "```json\n" + mapNote("MC đọc tin nhắn") + "\n```" : finalText));
+  });
+  assert.deepEqual(await mod.summarizeSession([line("x".repeat(24_000))], "fenced-map"), {vi:finalText,en:finalText});
+  assert.deepEqual((bodies[0] as Request & {response_format:unknown}).response_format, {type:"json_object"});
+  assert.equal((bodies[1] as Request & {response_format?:unknown}).response_format, undefined);
+  assert.match(bodies[1].messages[1].content, /MC đọc tin nhắn/);
+});

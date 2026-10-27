@@ -64,6 +64,20 @@ Thẻ Nhà cung cấp AI có ba hàng riêng, mỗi hàng có công tắc, trạ
 - Bare `bun test`: **68 pass, 70 fail/errors**, do các file Deno imports/globals không chạy dưới Bun như baseline; không gọi toàn repo pass.
 - Review độc lập không có finding correctness/security. Chưa merge main.
 
+## Bổ sung nghiệm thu caption live — 6wj7cqbp38u9
+
+Bé cung cấp [phiên đang live](https://web3-social-heart.lovable.app/captions/6wj7cqbp38u9). Đã mở trang phụ đề và xem bản dịch mới; không restart bot, không tạo webhook/segment giả hoặc sửa dữ liệu phiên. Probe tạm chỉ đọc đúng phiên này và CAS đúng row caption, rồi được xóa khỏi backend cùng source/bearer local.
+
+- Baseline **06:03:30 MYT**: phiên live, seq cuối 34; bốn cờ đều true/lovable. Log caption-translate qua Lovable có đối chứng lúc **06:03:47** và **06:04:02**.
+- CAS chỉ `ai.provider.caption` sang gemini lúc **06:04:13.898 MYT**, matched 1 row. Vision, OCR và legacy giữ nguyên cả enabled/meta/updated_at.
+- **18 lần gọi thật** `caption-translate` qua `models/gemini-3.1-flash-lite`, provider gemini, attempt 1, từ **06:04:16 đến 06:07:02 MYT**; tương ứng các dòng seq **37–54** có bản dịch. Không thấy provider_fallback trong cửa sổ log đã lọc.
+- Usage event **160918**, **160931** ghi provider gemini, mỗi event một attempt Gemini. Đây là metadata attempt thực, không phải token/credit.
+- CAS restore đúng enabled/meta ban đầu lúc **06:07:06.616 MYT**, matched 1 row. Đã quan sát thêm **7 call Lovable thật** sau restore, từ **06:07:22 đến 06:07:44**, và các bản dịch seq **55–61** tiếp tục xuất hiện.
+- Snapshot **06:08:02 MYT**: phiên vẫn live; seq **35–61** liên tục, **27 ID duy nhất**, cả text_source/text_vi/text_en đều khác rỗng. Hai dòng đầu cửa sổ là baseline, 18 dòng tiếp ở giai đoạn Gemini, bảy dòng sau rollback. Mẫu seq 40 và 46 giữ đúng ý ở kiểm tra thủ công; không tuyên bố đánh giá chất lượng toàn bộ transcript.
+- Cờ cuối: caption/vision/OCR đều true/lovable, giống trước thử; chỉ timestamp caption thay đổi do bật/restore. Không sửa cờ legacy hoặc hai cờ dịch vụ khác.
+
+[Bằng chứng live](./ai-provider-per-service-caption-live-evidence.json) lưu ID/seq, thời gian MYT, độ dài/hash văn bản và hai ví dụ ngắn; không xuất toàn bộ nội dung phiên họp vào repo. Log provider/model/label đã đọc trực tiếp từ dashboard production, không lấy smoke probe làm bằng chứng live.
+
 ## Phần còn chờ
 
-Backend không có phiên `live` khi kiểm tra 04:33:57; đã nhờ bé gửi mã/link phiên thật. Chưa dùng probe smoke thay cho nghiệm thu caption từ phiên họp thật. Frontend vẫn trên feature branch: chưa có bằng chứng reload browser của UI mới với DB production; test remount hiện dùng DB fixture. Chưa tuyên bố hai phần nghiệm thu này hoàn tất. Không bỏ guard hoặc chấp thuận điều khoản để ép vào admin.
+Caption live đã nghiệm thu như trên. Frontend vẫn trên feature branch: chưa có bằng chứng reload browser của UI mới với DB production; test remount hiện dùng DB fixture. Chưa tuyên bố phần nghiệm thu UI production hoàn tất. Không bỏ guard hoặc chấp thuận điều khoản để ép vào admin. Chưa merge main.

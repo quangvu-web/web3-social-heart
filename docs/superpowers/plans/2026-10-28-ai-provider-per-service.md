@@ -13,7 +13,7 @@
 - [x] Regression RED→GREEN cho resolver/gateway: bật/tắt từng key; không đọc legacy; thiếu row cảnh báo cả khi cache hit; DB lỗi không dùng env override; nhãn ngoài phạm vi không query;429 chỉ fallback đúng call; giữ gates ảnh/stream và OCR empty.
 - [x] Tách UI thành ba hàng, trạng thái/timestamp/loading/error/saving riêng; không để load cũ ghi đè save mới; upsert đúng key, select riêng, success chỉ khi DB khớp. Ẩn bốn key khỏi danh sách chung. Tests dùng React thực, DB boundary fixture.
 - [x] Chạy bun test src, build, provider/vision/OCR Deno tests; review độc lập; commit tiếng Việt và push branch, không merge main.
-- [ ] Sau migration được xác nhận mới deploy/test live: phiên caption thật, ảnh DM, helper OCR runtime; thay từng cờ, xem log từng label,429 và legacy ineffective; restore chính xác enabled/meta trước test, dọn probes.
+- [x] Sau migration được xác nhận mới deploy/test live: phiên caption thật, ảnh DM, helper OCR runtime; thay từng cờ, xem log từng label,429 và legacy ineffective; restore chính xác enabled/meta trước test, dọn probes.
 
 ## Ràng buộc
 
@@ -21,4 +21,4 @@ Không đổi models, map, prompt, timeout/retry, caches, OCR conditions, chat/F
 
 ## Kết quả hiện tại
 
-Migration do bé chạy, dữ liệu đã đối chiếu trước deploy; backend helper mới đã deploy và runtime probe chín stage + DM ảnh pass. Restore cả ba về true/lovable, legacy row nguyên vẹn. Caption từ phiên họp live và reload browser UI mới với DB thật còn chờ; không dùng fixture thay nghiệm thu đó. Xem `docs/operations/ai-provider-per-service-acceptance.md`.
+Migration do bé chạy, dữ liệu đã đối chiếu trước deploy; backend helper mới đã deploy và runtime probe chín stage + DM ảnh pass. Phiên caption thật 6wj7cqbp38u9 đã nghiệm thu Gemini và rollback bằng log/segment thật. Restore cả ba về true/lovable, legacy row nguyên vẹn. Reload browser UI mới với DB thật còn chờ; không dùng fixture thay nghiệm thu đó. Xem `docs/operations/ai-provider-per-service-acceptance.md`.

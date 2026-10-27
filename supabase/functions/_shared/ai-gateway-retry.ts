@@ -35,7 +35,10 @@ export async function callAiGateway(
   const configured = await resolveAiProvider();
   const hasImage = JSON.stringify(body.messages ?? []).includes('"image_url"');
   const nativeModel = Object.hasOwn(GEMINI_TEXT_MODELS, gatewayModel) ? GEMINI_TEXT_MODELS[gatewayModel] : undefined;
-  const directEligible = configured === "gemini" && label === "caption-translate" && !hasImage && body.stream !== true;
+  // Only image labels verified with a real data URL in Phase 2 may carry images.
+  // Chat and the legacy group-vision classifier remain on Gateway this phase.
+  const imageEligible = label === "describeImage" || label === "ocr";
+  const directEligible = configured === "gemini" && (imageEligible || (label === "caption-translate" && !hasImage)) && body.stream !== true;
   const fallback = (reason: string, status = 0) => console.warn("[ai-gateway] provider_fallback", {
     provider: "gemini", model: nativeModel ?? gatewayModel, label,
     fallback_provider: "lovable", fallback_model: gatewayModel, reason, status,
@@ -65,7 +68,9 @@ export async function callAiGateway(
         });
         if (res.ok) {
           const data = await res.json().catch(() => null);
-          if (!data || !Array.isArray(data?.choices) || (provider === "gemini" && (typeof data.choices[0]?.message?.content !== "string" || !data.choices[0].message.content.trim()))) {
+          // OCR explicitly returns an empty string for a clean image without text.
+          // Missing/nonstring content is still malformed for every direct label.
+          if (!data || !Array.isArray(data?.choices) || (provider === "gemini" && (typeof data.choices[0]?.message?.content !== "string" || (label !== "ocr" && !data.choices[0].message.content.trim())))) {
             return { ok: false, status: res.status, data, error: "malformed AI response", retryable: false, provider, model };
           }
           return { ok: true, status: res.status, data, provider, model };

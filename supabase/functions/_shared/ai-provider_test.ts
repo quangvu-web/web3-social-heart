@@ -26,6 +26,11 @@ globalThis.fetch=async(input,init)=>{
   if(directMode==="network")throw new Error("test-gemini provider failure");
   if(directMode==="timeout")return await new Promise((_resolve,reject)=>init?.signal?.addEventListener("abort",()=>reject(new DOMException("Timeout","AbortError")),{once:true}));
   if(directMode==="malformed"){sent.push({url,body,auth:null});return Response.json({choices:[]});}
+  if(["empty","null","object","missing"].includes(directMode)){
+   sent.push({url,body,auth:new Headers(init?.headers).get("Authorization")});
+   const content=directMode==="empty"?"":directMode==="null"?null:directMode==="object"?{}:undefined;
+   return Response.json({choices:[{message:{content}}]});
+  }
  }
  sent.push({url,body,auth:new Headers(init?.headers).get("Authorization")});
  const status=url.includes("googleapis.com")?directStatus:gatewayStatus;
@@ -44,9 +49,66 @@ Deno.test("verified caption model routes direct with unchanged messages and temp
  assert.equal(sent.length,1);assert.equal(sent[0].url,"https://generativelanguage.googleapis.com/v1beta/openai/chat/completions");
  assert.equal(sent[0].body.model,"models/gemini-3.1-flash-lite");assert.deepEqual(sent[0].body.messages,body.messages);assert.equal(sent[0].body.temperature,0.2);assert.equal(sent[0].auth,"Bearer test-gemini");assert.equal((result as any).provider,"gemini");
 });
-Deno.test("stage1 keeps all other labels and image_url on Gateway",async()=>{
- for(const input of [{...opts,label:"caption-summarize"},{...opts,label:"chat"},{...opts,label:"ocr"}]){reset({enabled:true,meta:{value:"gemini"}});await callAiGateway(body,input);assert.match(sent[0].url,/ai.gateway.lovable.dev/);}
+Deno.test("out-of-scope labels and caption image_url stay on Gateway",async()=>{
+ for(const label of ["caption-summarize","chat","group-vision","transcribeAudio","image_fast","image_heavy","image-extract","pdf-extract","ai-gateway","toString"]){reset({enabled:true,meta:{value:"gemini"}});await callAiGateway(body,{...opts,label});assert.match(sent[0].url,/ai.gateway.lovable.dev/);}
  reset({enabled:true,meta:{value:"gemini"}});await callAiGateway({...body,messages:[{role:"user",content:[{type:"image_url",image_url:{url:"https://image.test/a.png"}}]}]},opts);assert.match(sent[0].url,/ai.gateway.lovable.dev/);
+});
+const imageBody={...body,messages:[{role:"user",content:[{type:"text",text:"Read this image"},{type:"image_url",image_url:{url:"data:image/png;base64,fixture"}}]}]};
+Deno.test("verified describeImage and OCR allow images direct without changing payload",async()=>{
+ for(const label of ["describeImage","ocr"]){
+  reset({enabled:true,meta:{value:"gemini"}});
+  const result=await callAiGateway(imageBody,{...opts,label,maxAttempts:1});
+  assert.equal(result.provider,"gemini");assert.equal(sent.length,1);
+  assert.match(sent[0].url,/googleapis/);assert.deepEqual(sent[0].body,{...imageBody,model:"models/gemini-3.1-flash-lite"});
+  assert.equal(sent[0].auth,"Bearer test-gemini");
+  assert.ok(logs.some(([message,context]:any[])=>message==="[ai-gateway] ai_call"&&context.label===label&&context.provider==="gemini"));
+ }
+});
+Deno.test("streaming never routes direct even for verified image labels",async()=>{
+ for(const label of ["caption-translate","describeImage","ocr"]){
+  reset({enabled:true,meta:{value:"gemini"}});
+  await callAiGateway({...imageBody,stream:true},{...opts,label});
+  assert.equal(sent.length,1);assert.match(sent[0].url,/ai.gateway/);
+ }
+});
+Deno.test("image429 respects one attempt and falls back only that call with exact original body",async()=>{
+ reset({enabled:true,meta:{value:"gemini"}});directStatus=429;
+ const result=await callAiGateway(imageBody,{...opts,label:"describeImage",maxAttempts:1});
+ assert.equal(result.ok,true);assert.equal(result.provider,"lovable");assert.equal(sent.length,2);
+ assert.match(sent[0].url,/googleapis/);assert.match(sent[1].url,/ai.gateway/);assert.deepEqual(sent[1].body,imageBody);
+ assert.ok(logs.some(([message,context]:any[])=>message==="[ai-gateway] provider_fallback"&&context.label==="describeImage"&&context.status===429));
+ directStatus=200;sent.length=0;
+ assert.equal((await callAiGateway(imageBody,{...opts,label:"describeImage",maxAttempts:1})).provider,"gemini");
+ assert.equal(sent.length,1);assert.match(sent[0].url,/googleapis/);
+});
+Deno.test("unmapped vision models stay on Gateway with unmapped_model audit",async()=>{
+ for(const label of ["describeImage","ocr"]){
+  reset({enabled:true,meta:{value:"gemini"}});
+  const request={...imageBody,model:"google/unverified-vision"};await callAiGateway(request,{...opts,label});
+  assert.equal(sent.length,1);assert.match(sent[0].url,/ai.gateway/);assert.deepEqual(sent[0].body,request);
+  assert.ok(logs.some(([message,context]:any[])=>message==="[ai-gateway] provider_fallback"&&context.label===label&&context.reason==="unmapped_model"));
+ }
+});
+Deno.test("OCR valid empty direct response succeeds without an unnecessary paid fallback",async()=>{
+ reset({enabled:true,meta:{value:"gemini"}});directMode="empty";gatewayStatus=503;
+ const result=await callAiGateway(imageBody,{...opts,label:"ocr",maxAttempts:1});
+ assert.equal(result.ok,true);assert.equal(result.provider,"gemini");assert.equal(result.data.choices[0].message.content,"");
+ assert.equal(sent.length,1);assert.match(sent[0].url,/googleapis/);
+ assert.ok(!logs.some(([message])=>message==="[ai-gateway] provider_fallback"));
+});
+Deno.test("OCR missing or nonstring direct content is invalid and still falls back",async()=>{
+ for(const mode of ["null","object","missing"]){
+  reset({enabled:true,meta:{value:"gemini"}});directMode=mode;
+  const result=await callAiGateway(imageBody,{...opts,label:"ocr",maxAttempts:1});
+  assert.equal(result.ok,true);assert.equal(result.provider,"lovable");assert.equal(sent.length,2);assert.match(sent[1].url,/ai.gateway/);
+ }
+});
+Deno.test("empty describeImage and caption completions still fall back",async()=>{
+ for(const label of ["describeImage","caption-translate"]){
+  reset({enabled:true,meta:{value:"gemini"}});directMode="empty";
+  const result=await callAiGateway(label==="describeImage"?imageBody:body,{...opts,label,maxAttempts:1});
+  assert.equal(result.provider,"lovable");assert.equal(sent.length,2);assert.match(sent[1].url,/ai.gateway/);
+ }
 });
 Deno.test("missing Gemini key falls back without interrupting caption",async()=>{
  reset({enabled:true,meta:{value:"gemini"}});Deno.env.delete("GEMINI_API_KEY");const result=await callAiGateway(body,opts);

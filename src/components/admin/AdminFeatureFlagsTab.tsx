@@ -83,7 +83,7 @@ export default function AdminFeatureFlagsTab() {
         key: "ai.provider",
         enabled: true,
         meta: { value },
-        description: providerFlag?.description || "Chọn nhà cung cấp AI cho dịch phụ đề (Giai đoạn 1).",
+        description: providerFlag?.description || "Chọn nhà cung cấp AI cho dịch phụ đề, đọc ảnh và OCR.",
       }, { onConflict: "key" });
       if (writeError) throw new Error(writeError.message);
       // Read separately: show the current DB value, including concurrent changes.
@@ -97,7 +97,7 @@ export default function AdminFeatureFlagsTab() {
       setProviderReady(true);
       setProviderError(null);
       if (data.enabled === true && data.meta?.value === value) {
-        toast.success("Đã lưu nhà cung cấp dịch phụ đề (áp dụng trong ~60 giây).");
+        toast.success("Đã lưu nhà cung cấp AI (áp dụng trong ~60 giây).");
       } else {
         toast.warning("Lựa chọn đã thay đổi. Đã tải trạng thái hiện tại từ hệ thống.");
       }
@@ -149,18 +149,18 @@ export default function AdminFeatureFlagsTab() {
     <div className="space-y-4">
       <Card aria-busy={loading || providerBusy}>
         <CardHeader>
-          <CardTitle>Nhà cung cấp AI cho dịch phụ đề</CardTitle>
+          <CardTitle>Nhà cung cấp AI</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <label htmlFor="caption-ai-provider" className="text-sm font-medium">
-              Dịch phụ đề dùng key Gemini riêng
+              Dùng key Gemini riêng
             </label>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Lovable Gateway</span>
               <Switch
                 id="caption-ai-provider"
-                aria-label="Dịch phụ đề dùng key Gemini riêng"
+                aria-label="Dùng key Gemini riêng"
                 checked={geminiEnabled}
                 onCheckedChange={(value) => void toggleProvider(value)}
                 disabled={loading || providerBusy || !providerReady || !!providerError}
@@ -184,9 +184,10 @@ export default function AdminFeatureFlagsTab() {
             )}
           </div>
           <div className="space-y-1 text-xs text-muted-foreground">
-            <p>Chỉ áp dụng cho dịch phụ đề — tóm tắt và chat vẫn dùng Lovable Gateway.</p>
+            <p>Áp dụng cho: dịch phụ đề, đọc ảnh và quét chữ trong ảnh (OCR).</p>
+            <p>Công tắc này chưa áp dụng cho chat, câu trả lời cho link YouTube và tóm tắt.</p>
             <p>Đổi cờ có hiệu lực trong ~60 giây (cache của edge function).</p>
-            <p>Khi dùng key riêng, các câu dịch sẽ không hiện trong bảng AI activity của Lovable — đó là đúng; nếu đường key riêng lỗi, hệ thống tự về Lovable cho lần gọi đó.</p>
+            <p>Khi dùng key riêng, các lần gọi AI trực tiếp sẽ không hiện trong bảng AI activity của Lovable — đó là đúng; nếu đường key riêng lỗi, hệ thống tự về Lovable cho lần gọi đó.</p>
           </div>
         </CardContent>
       </Card>

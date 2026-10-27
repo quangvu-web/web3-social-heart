@@ -1,5 +1,7 @@
 # AI provider Giai đoạn 2 — kết quả Bước 0, chưa mở routing
 
+> Snapshot điều tra trước khi sửa. Chủ dự án sau đó chọn giữ chat ở Gateway; kết quả triển khai phạm vi đọc ảnh/OCR nằm trong [nghiệm thu Giai đoạn 2](./ai-provider-phase2-acceptance.md).
+
 Ngày 27/10/2026, Malaysia Time (UTC+8). Base `d5adc5d`, khớp `origin/main` sau fetch. Branch `feature/ai-provider-phase2`.
 
 **Chưa triển khai Giai đoạn 2.** Có khác biệt giữa tiền đề yêu cầu và đường chat thực tế cần chủ dự án quyết định. Chỉ bổ sung báo cáo và bằng chứng; không đổi code sản phẩm, bảng map, UI, schema, secret hay cờ production.

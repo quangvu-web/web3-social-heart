@@ -1,0 +1,178 @@
+{
+  "ocr-result": {
+    "action": "ocr",
+    "result": {
+      "status": "text",
+      "text": "FUN\nProfile\nWEB3"
+    },
+    "logs": [
+      {
+        "event": "ai_call",
+        "provider": "gemini",
+        "model": "models/gemini-3.1-flash-lite",
+        "label": "ocr",
+        "attempt": 1
+      }
+    ],
+    "telegram_transport": "PNG fixture; OCR helper and AI provider real",
+    "observed_at_myt": "2026-10-27T23:45:50.829513+08:00"
+  },
+  "fallback-result": {
+    "action": "fallback",
+    "ok": true,
+    "status": 200,
+    "provider": "lovable",
+    "logs": [
+      {
+        "event": "ai_call",
+        "provider": "gemini",
+        "model": "models/gemini-3.1-flash-lite",
+        "label": "describeImage",
+        "attempt": 1
+      },
+      {
+        "event": "provider_fallback",
+        "provider": "gemini",
+        "model": "models/gemini-3.1-flash-lite",
+        "label": "describeImage",
+        "fallback_provider": "lovable",
+        "fallback_model": "google/gemini-3.1-flash-lite",
+        "reason": "direct_failed",
+        "status": 429
+      },
+      {
+        "event": "ai_call",
+        "provider": "lovable",
+        "model": "google/gemini-3.1-flash-lite",
+        "label": "describeImage",
+        "attempt": 1
+      }
+    ],
+    "observed_at_myt": "2026-10-27T23:45:53.825992+08:00"
+  },
+  "unmapped-result": {
+    "action": "unmapped",
+    "ok": true,
+    "status": 200,
+    "provider": "lovable",
+    "logs": [
+      {
+        "event": "provider_fallback",
+        "provider": "gemini",
+        "model": "google/gemini-2.5-flash",
+        "label": "describeImage",
+        "fallback_provider": "lovable",
+        "fallback_model": "google/gemini-2.5-flash",
+        "reason": "unmapped_model",
+        "status": 0
+      },
+      {
+        "event": "ai_call",
+        "provider": "lovable",
+        "model": "google/gemini-2.5-flash",
+        "label": "describeImage",
+        "attempt": 1
+      }
+    ],
+    "observed_at_myt": "2026-10-27T23:45:57.812896+08:00"
+  },
+  "flag-gemini": {
+    "matched": "0-0/1",
+    "flag": {
+      "enabled": true,
+      "meta": {
+        "value": "gemini"
+      },
+      "updated_at": "2026-10-27T23:45:13.821204+08:00"
+    },
+    "observed_at_myt": "2026-10-27T23:45:13.832032+08:00"
+  },
+  "flag-lovable": {
+    "matched": "0-0/1",
+    "flag": {
+      "enabled": true,
+      "meta": {
+        "value": "lovable"
+      },
+      "updated_at": "2026-10-27T23:48:31.710661+08:00"
+    },
+    "observed_at_myt": "2026-10-27T23:48:31.709534+08:00"
+  },
+  "status-result": {
+    "flag": {
+      "enabled": true,
+      "meta": {
+        "value": "lovable"
+      },
+      "updated_at": "2026-10-27T23:48:31.710661+08:00"
+    },
+    "bot": {
+      "id": 8922750787,
+      "username": "funrich_community_bot"
+    },
+    "usage_status": 200,
+    "usage": [
+      {
+        "id": 160299,
+        "occurred_at": "2026-10-27T23:46:32.406103+08:00"
+      },
+      {
+        "id": 160298,
+        "occurred_at": "2026-10-27T23:46:30.235606+08:00"
+      },
+      {
+        "id": 160297,
+        "occurred_at": "2026-10-27T23:46:25.621546+08:00",
+        "provider": "gemini",
+        "ai_attempts": {
+          "gemini": 1
+        }
+      },
+      {
+        "id": 160116,
+        "occurred_at": "2026-10-27T23:29:21.907017+08:00"
+      },
+      {
+        "id": 160115,
+        "occurred_at": "2026-10-27T23:29:20.746954+08:00"
+      },
+      {
+        "id": 160114,
+        "occurred_at": "2026-10-27T23:29:19.036005+08:00"
+      },
+      {
+        "id": 160113,
+        "occurred_at": "2026-10-27T23:29:18.978535+08:00"
+      },
+      {
+        "id": 160112,
+        "occurred_at": "2026-10-27T23:29:18.855861+08:00"
+      }
+    ],
+    "observed_at_myt": "2026-10-27T23:49:22.064159+08:00"
+  },
+  "dm_evidence": {
+    "message_id": 7649,
+    "ai_call_at_myt": "2026-10-27T23:46:34+08:00",
+    "provider": "gemini",
+    "model": "models/gemini-3.1-flash-lite",
+    "label": "describeImage",
+    "attempt": 1,
+    "model_success_at_myt": "2026-10-27T23:46:36+08:00",
+    "reply_at_myt": "2026-10-27T23:46:51+08:00",
+    "reply_provider": "funcore",
+    "recognized_text": [
+      "FUN",
+      "Profile",
+      "WEB3"
+    ],
+    "colors": {
+      "FUN": "white",
+      "Profile": "gold",
+      "WEB3": "white",
+      "background": "green"
+    },
+    "log_source": "production webhook logs viewed in dashboard",
+    "telegram_ui_observed": true
+  }
+}

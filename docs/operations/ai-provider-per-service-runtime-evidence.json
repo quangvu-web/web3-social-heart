@@ -1,0 +1,1202 @@
+{
+  "initial": {
+    "flags": [
+      {
+        "key": "ai.provider",
+        "enabled": true,
+        "meta": {
+          "value": "lovable"
+        },
+        "updated_at": "2026-10-27T23:48:31.710661+08:00"
+      },
+      {
+        "key": "ai.provider.caption",
+        "enabled": true,
+        "meta": {
+          "value": "lovable"
+        },
+        "updated_at": "2026-10-28T04:28:37.496534+08:00"
+      },
+      {
+        "key": "ai.provider.ocr",
+        "enabled": true,
+        "meta": {
+          "value": "lovable"
+        },
+        "updated_at": "2026-10-28T04:28:37.496534+08:00"
+      },
+      {
+        "key": "ai.provider.vision",
+        "enabled": true,
+        "meta": {
+          "value": "lovable"
+        },
+        "updated_at": "2026-10-28T04:28:37.496534+08:00"
+      }
+    ],
+    "live_sessions_status": 200,
+    "live_sessions": [],
+    "observed_at_myt": "2026-10-28T04:33:57.435468+08:00"
+  },
+  "current": {
+    "ai.provider": {
+      "key": "ai.provider",
+      "enabled": true,
+      "meta": {
+        "value": "lovable"
+      },
+      "updated_at": "2026-10-27T23:48:31.710661+08:00"
+    },
+    "ai.provider.caption": {
+      "key": "ai.provider.caption",
+      "enabled": true,
+      "meta": {
+        "value": "lovable"
+      },
+      "updated_at": "2026-10-28T04:38:32.078378+08:00"
+    },
+    "ai.provider.ocr": {
+      "key": "ai.provider.ocr",
+      "enabled": true,
+      "meta": {
+        "value": "lovable"
+      },
+      "updated_at": "2026-10-28T04:38:41.548110+08:00"
+    },
+    "ai.provider.vision": {
+      "key": "ai.provider.vision",
+      "enabled": true,
+      "meta": {
+        "value": "lovable"
+      },
+      "updated_at": "2026-10-28T04:38:36.890841+08:00"
+    }
+  },
+  "stages": [
+    {
+      "name": "baseline",
+      "response": {
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:28:37.496534+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:28:37.496534+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:28:37.496534+08:00"
+          }
+        ],
+        "results": [
+          {
+            "label": "caption-translate",
+            "ok": true,
+            "status": 200,
+            "provider": "lovable",
+            "content_excerpt": "Wishing you a peaceful day, little one."
+          },
+          {
+            "label": "describeImage",
+            "ok": true,
+            "status": 200,
+            "provider": "lovable",
+            "content_excerpt": "Hình ảnh là một biểu tượng hình tròn nằm trên nền đen.\n\n**Chữ trong ảnh:**\n*   Dòng trên cùng: \"FUN\" (viết hoa, phông chữ không chân).\n*   Dòng giữa: \"Profile\" "
+          },
+          {
+            "label": "ocr",
+            "result": {
+              "status": "text",
+              "text": "FUN\nProfile\nWEB3"
+            },
+            "media_transport": "PNG fixture; actual OCR helper and provider"
+          }
+        ],
+        "logs": [
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "caption-translate",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "describeImage",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "ocr",
+            "attempt": 1
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:35:59.202136+08:00"
+      }
+    },
+    {
+      "name": "caption_only",
+      "response": {
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:35:59.546459+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:28:37.496534+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:28:37.496534+08:00"
+          }
+        ],
+        "results": [
+          {
+            "label": "caption-translate",
+            "ok": true,
+            "status": 200,
+            "provider": "gemini",
+            "content_excerpt": "Wishing you a peaceful day, little one."
+          },
+          {
+            "label": "describeImage",
+            "ok": true,
+            "status": 200,
+            "provider": "lovable",
+            "content_excerpt": "Hình ảnh là một biểu tượng hình tròn nằm trên nền đen.\n\n**Chữ trong ảnh:**\n*   Dòng trên cùng: \"FUN\" (viết hoa, phông chữ có chân).\n*   Dòng giữa: \"Profile\" (vi"
+          },
+          {
+            "label": "ocr",
+            "result": {
+              "status": "text",
+              "text": "FUN\nProfile\nWEB3"
+            },
+            "media_transport": "PNG fixture; actual OCR helper and provider"
+          }
+        ],
+        "logs": [
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "caption-translate",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "describeImage",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "ocr",
+            "attempt": 1
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:36:05.087001+08:00"
+      }
+    },
+    {
+      "name": "caption_and_vision",
+      "response": {
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:35:59.546459+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:28:37.496534+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:36:05.502870+08:00"
+          }
+        ],
+        "results": [
+          {
+            "label": "caption-translate",
+            "ok": true,
+            "status": 200,
+            "provider": "gemini",
+            "content_excerpt": "Wishing you a peaceful day, little one."
+          },
+          {
+            "label": "describeImage",
+            "ok": true,
+            "status": 200,
+            "provider": "gemini",
+            "content_excerpt": "Hình ảnh là một biểu tượng hình tròn với nền là hiệu ứng ánh sáng màu xanh lá cây rực rỡ, có các đốm sáng lấp lánh.\n\nTrên nền đó có các dòng chữ:\n- Dòng trên cù"
+          },
+          {
+            "label": "ocr",
+            "result": {
+              "status": "text",
+              "text": "FUN\nProfile\nWEB3"
+            },
+            "media_transport": "PNG fixture; actual OCR helper and provider"
+          }
+        ],
+        "logs": [
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "caption-translate",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "describeImage",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "ocr",
+            "attempt": 1
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:36:10.178718+08:00"
+      }
+    },
+    {
+      "name": "vision429",
+      "response": {
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:35:59.546459+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:28:37.496534+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:36:05.502870+08:00"
+          }
+        ],
+        "results": [
+          {
+            "label": "caption-translate",
+            "ok": true,
+            "status": 200,
+            "provider": "gemini",
+            "content_excerpt": "Wishing you a peaceful day, little one."
+          },
+          {
+            "label": "describeImage",
+            "ok": true,
+            "status": 200,
+            "provider": "lovable",
+            "content_excerpt": "Hình ảnh là một biểu tượng hình tròn nằm trên nền đen.\n\n**Chữ trong ảnh:**\n*   Dòng trên cùng: \"FUN\" (viết hoa, phông chữ không chân).\n*   Dòng giữa: \"Profile\" "
+          },
+          {
+            "label": "ocr",
+            "result": {
+              "status": "text",
+              "text": "FUN\nProfile\nWEB3"
+            },
+            "media_transport": "PNG fixture; actual OCR helper and provider"
+          }
+        ],
+        "logs": [
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "caption-translate",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "describeImage",
+            "attempt": 1
+          },
+          {
+            "event": "[ai-gateway] provider_fallback",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "describeImage",
+            "fallback_provider": "lovable",
+            "fallback_model": "google/gemini-3.1-flash-lite",
+            "reason": "direct_failed",
+            "status": 429
+          },
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "describeImage",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "ocr",
+            "attempt": 1
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:36:15.223867+08:00"
+      }
+    },
+    {
+      "name": "after_vision429",
+      "response": {
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:35:59.546459+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:28:37.496534+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:36:05.502870+08:00"
+          }
+        ],
+        "results": [
+          {
+            "label": "caption-translate",
+            "ok": true,
+            "status": 200,
+            "provider": "gemini",
+            "content_excerpt": "Wishing you a peaceful day, little one."
+          },
+          {
+            "label": "describeImage",
+            "ok": true,
+            "status": 200,
+            "provider": "gemini",
+            "content_excerpt": "Hình ảnh là một biểu tượng hình tròn có nền là hiệu ứng ánh sáng màu xanh lá cây rực rỡ, trông giống như các hạt bụi sáng hoặc tinh vân.\n\nTrên nền đó có các dòn"
+          },
+          {
+            "label": "ocr",
+            "result": {
+              "status": "text",
+              "text": "FUN\nProfile\nWEB3"
+            },
+            "media_transport": "PNG fixture; actual OCR helper and provider"
+          }
+        ],
+        "logs": [
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "caption-translate",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "describeImage",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "ocr",
+            "attempt": 1
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:36:20.736091+08:00"
+      }
+    },
+    {
+      "name": "all_gemini",
+      "response": {
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:35:59.546459+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:38:27.927587+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:36:05.502870+08:00"
+          }
+        ],
+        "results": [
+          {
+            "label": "caption-translate",
+            "ok": true,
+            "status": 200,
+            "provider": "gemini",
+            "content_excerpt": "Wishing you a peaceful day, little one."
+          },
+          {
+            "label": "describeImage",
+            "ok": true,
+            "status": 200,
+            "provider": "gemini",
+            "content_excerpt": "Hình ảnh là một biểu tượng hình tròn với nền là hiệu ứng ánh sáng màu xanh lá cây rực rỡ, trông giống như các hạt bụi sáng hoặc tinh vân.\n\nCác chữ viết trên ảnh"
+          },
+          {
+            "label": "ocr",
+            "result": {
+              "status": "text",
+              "text": "FUN\nProfile\nWEB3"
+            },
+            "media_transport": "PNG fixture; actual OCR helper and provider"
+          }
+        ],
+        "logs": [
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "caption-translate",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "describeImage",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "ocr",
+            "attempt": 1
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:38:31.682555+08:00"
+      }
+    },
+    {
+      "name": "caption_restored",
+      "response": {
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:32.078378+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:38:27.927587+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:36:05.502870+08:00"
+          }
+        ],
+        "results": [
+          {
+            "label": "caption-translate",
+            "ok": true,
+            "status": 200,
+            "provider": "lovable",
+            "content_excerpt": "Wishing you a peaceful day, little one."
+          },
+          {
+            "label": "describeImage",
+            "ok": true,
+            "status": 200,
+            "provider": "gemini",
+            "content_excerpt": "Hình ảnh là một biểu tượng hình tròn có nền là hiệu ứng ánh sáng màu xanh lá cây với các hạt lấp lánh.\n\nCác chữ viết trên ảnh bao gồm:\n- Dòng trên cùng: **FUN**"
+          },
+          {
+            "label": "ocr",
+            "result": {
+              "status": "text",
+              "text": "FUN\nProfile\nWEB3"
+            },
+            "media_transport": "PNG fixture; actual OCR helper and provider"
+          }
+        ],
+        "logs": [
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "caption-translate",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "describeImage",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "ocr",
+            "attempt": 1
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:38:36.254460+08:00"
+      }
+    },
+    {
+      "name": "vision_restored",
+      "response": {
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:32.078378+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:38:27.927587+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:36.890841+08:00"
+          }
+        ],
+        "results": [
+          {
+            "label": "caption-translate",
+            "ok": true,
+            "status": 200,
+            "provider": "lovable",
+            "content_excerpt": "Wishing you a peaceful day, little one."
+          },
+          {
+            "label": "describeImage",
+            "ok": true,
+            "status": 200,
+            "provider": "lovable",
+            "content_excerpt": "Hình ảnh là một biểu tượng hình tròn nằm trên nền đen.\n\n**Về nội dung chữ:**\nCác dòng chữ được xếp chồng lên nhau theo thứ tự từ trên xuống dưới:\n*   Dòng 1: **"
+          },
+          {
+            "label": "ocr",
+            "result": {
+              "status": "text",
+              "text": "FUN\nProfile\nWEB3"
+            },
+            "media_transport": "PNG fixture; actual OCR helper and provider"
+          }
+        ],
+        "logs": [
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "caption-translate",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "describeImage",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "gemini",
+            "model": "models/gemini-3.1-flash-lite",
+            "label": "ocr",
+            "attempt": 1
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:38:41.227044+08:00"
+      }
+    },
+    {
+      "name": "all_lovable",
+      "response": {
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:32.078378+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:41.548110+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:36.890841+08:00"
+          }
+        ],
+        "results": [
+          {
+            "label": "caption-translate",
+            "ok": true,
+            "status": 200,
+            "provider": "lovable",
+            "content_excerpt": "Wishing you a peaceful day, little one."
+          },
+          {
+            "label": "describeImage",
+            "ok": true,
+            "status": 200,
+            "provider": "lovable",
+            "content_excerpt": "Hình ảnh là một biểu tượng hình tròn trên nền đen.\n\n**Chữ viết trong ảnh:**\n*   Dòng trên cùng: \"FUN\" (viết hoa, phông chữ không chân).\n*   Dòng giữa: \"Profile\""
+          },
+          {
+            "label": "ocr",
+            "result": {
+              "status": "text",
+              "text": "FUN\nProfile\nWEB3"
+            },
+            "media_transport": "PNG fixture; actual OCR helper and provider"
+          }
+        ],
+        "logs": [
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "caption-translate",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "describeImage",
+            "attempt": 1
+          },
+          {
+            "event": "ai_call",
+            "provider": "lovable",
+            "model": "google/gemini-3.1-flash-lite",
+            "label": "ocr",
+            "attempt": 1
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:38:51.858360+08:00"
+      }
+    }
+  ],
+  "changes": [
+    {
+      "key": "ai.provider.caption",
+      "value": "gemini",
+      "result": {
+        "matched": "0-0/1",
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:35:59.546459+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:28:37.496534+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:28:37.496534+08:00"
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:35:59.640638+08:00"
+      }
+    },
+    {
+      "key": "ai.provider.vision",
+      "value": "gemini",
+      "result": {
+        "matched": "0-0/1",
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:35:59.546459+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:28:37.496534+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:36:05.502870+08:00"
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:36:05.567945+08:00"
+      }
+    },
+    {
+      "key": "ai.provider.ocr",
+      "value": "gemini",
+      "result": {
+        "matched": "0-0/1",
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:35:59.546459+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:38:27.927587+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:36:05.502870+08:00"
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:38:28.003986+08:00"
+      }
+    },
+    {
+      "key": "ai.provider.caption",
+      "value": "lovable",
+      "result": {
+        "matched": "0-0/1",
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:32.078378+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:38:27.927587+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:36:05.502870+08:00"
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:38:32.146382+08:00"
+      }
+    },
+    {
+      "key": "ai.provider.vision",
+      "value": "lovable",
+      "result": {
+        "matched": "0-0/1",
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:32.078378+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "gemini"
+            },
+            "updated_at": "2026-10-28T04:38:27.927587+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:36.890841+08:00"
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:38:36.957903+08:00"
+      }
+    },
+    {
+      "key": "ai.provider.ocr",
+      "value": "lovable",
+      "result": {
+        "matched": "0-0/1",
+        "flags": [
+          {
+            "key": "ai.provider",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-27T23:48:31.710661+08:00"
+          },
+          {
+            "key": "ai.provider.caption",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:32.078378+08:00"
+          },
+          {
+            "key": "ai.provider.ocr",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:41.548110+08:00"
+          },
+          {
+            "key": "ai.provider.vision",
+            "enabled": true,
+            "meta": {
+              "value": "lovable"
+            },
+            "updated_at": "2026-10-28T04:38:36.890841+08:00"
+          }
+        ],
+        "observed_at_myt": "2026-10-28T04:38:41.596783+08:00"
+      }
+    }
+  ],
+  "final": {
+    "flags": [
+      {
+        "key": "ai.provider",
+        "enabled": true,
+        "meta": {
+          "value": "lovable"
+        },
+        "updated_at": "2026-10-27T23:48:31.710661+08:00"
+      },
+      {
+        "key": "ai.provider.caption",
+        "enabled": true,
+        "meta": {
+          "value": "lovable"
+        },
+        "updated_at": "2026-10-28T04:38:32.078378+08:00"
+      },
+      {
+        "key": "ai.provider.ocr",
+        "enabled": true,
+        "meta": {
+          "value": "lovable"
+        },
+        "updated_at": "2026-10-28T04:38:41.548110+08:00"
+      },
+      {
+        "key": "ai.provider.vision",
+        "enabled": true,
+        "meta": {
+          "value": "lovable"
+        },
+        "updated_at": "2026-10-28T04:38:36.890841+08:00"
+      }
+    ],
+    "live_sessions_status": 200,
+    "live_sessions": [],
+    "observed_at_myt": "2026-10-28T04:38:52.823160+08:00"
+  },
+  "deployed_functions": [
+    {
+      "name": "telegram-community-webhook",
+      "version": 61,
+      "status": "ACTIVE"
+    },
+    {
+      "name": "angel-caption",
+      "version": 36,
+      "status": "ACTIVE"
+    }
+  ],
+  "dm": {
+    "observed_on_ui": true,
+    "sent_at_myt": "2026-10-28T04:37:00+08:00",
+    "label": "describeImage",
+    "ai_call_at_myt": "2026-10-28T04:37:15+08:00",
+    "provider": "gemini",
+    "model": "models/gemini-3.1-flash-lite",
+    "attempt": 1,
+    "recognized": [
+      "FUN",
+      "Profile",
+      "WEB3"
+    ],
+    "colors": [
+      "white",
+      "gold",
+      "white"
+    ],
+    "note": "Actual image in bot DM; response observed and production log read in dashboard."
+  }
+}

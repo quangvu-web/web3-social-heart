@@ -1,5 +1,5 @@
 import { recordAiAttempt } from "./ai-usage-context.ts";
-import { resolveAiProvider, GEMINI_TEXT_MODELS, type AiProvider } from "./ai-provider.ts";
+import { resolveAiProviderForLabel, GEMINI_TEXT_MODELS, type AiProvider } from "./ai-provider.ts";
 // _shared/ai-gateway-retry.ts
 // Gọi Lovable AI Gateway với retry CÓ GIỚI HẠN đúng ngữ nghĩa lỗi:
 //   - 400 / 401 / 402 / 403 → lỗi vĩnh viễn, KHÔNG retry (ví dụ media URL không
@@ -32,13 +32,13 @@ export async function callAiGateway(
 ): Promise<GatewayResult> {
   const label = opts.label ?? "ai-gateway";
   const gatewayModel = typeof body.model === "string" ? body.model : "unspecified";
-  const configured = await resolveAiProvider();
+  const configuredForLabel = await resolveAiProviderForLabel(label);
   const hasImage = JSON.stringify(body.messages ?? []).includes('"image_url"');
   const nativeModel = Object.hasOwn(GEMINI_TEXT_MODELS, gatewayModel) ? GEMINI_TEXT_MODELS[gatewayModel] : undefined;
   // Only image labels verified with a real data URL in Phase 2 may carry images.
   // Chat and the legacy group-vision classifier remain on Gateway this phase.
   const imageEligible = label === "describeImage" || label === "ocr";
-  const directEligible = configured === "gemini" && (imageEligible || (label === "caption-translate" && !hasImage)) && body.stream !== true;
+  const directEligible = configuredForLabel === "gemini" && (imageEligible || (label === "caption-translate" && !hasImage)) && body.stream !== true;
   const fallback = (reason: string, status = 0) => console.warn("[ai-gateway] provider_fallback", {
     provider: "gemini", model: nativeModel ?? gatewayModel, label,
     fallback_provider: "lovable", fallback_model: gatewayModel, reason, status,

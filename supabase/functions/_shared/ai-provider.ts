@@ -6,7 +6,20 @@ export type AiProvider = "lovable" | "gemini";
 export const GEMINI_TEXT_MODELS: Readonly<Record<string, string>> = Object.freeze({
   "google/gemini-3.1-flash-lite": "models/gemini-3.1-flash-lite",
 });
-export async function resolveAiProvider(): Promise<AiProvider> {
-  try { return await getFlag("ai.provider", "lovable", { throwOnError: true }); }
-  catch { return Deno.env.get("AI_PROVIDER") === "gemini" ? "gemini" : "lovable"; }
+export async function resolveAiProviderForLabel(label: string): Promise<AiProvider> {
+  const key = label === "caption-translate" ? "ai.provider.caption"
+    : label === "describeImage" ? "ai.provider.vision"
+    : label === "ocr" ? "ai.provider.ocr" : null;
+  // The retired ai.provider row and AI_PROVIDER env never override service flags.
+  // Unscoped labels do not read flags and always retain the Gateway route.
+  if (!key) return "lovable";
+  try {
+    return await getFlag(key, "lovable", {
+      throwOnError: true,
+      onMissing: () => console.warn("[ai-provider] provider_flag_missing", { key, label, provider: "lovable" }),
+    });
+  } catch {
+    console.warn("[ai-provider] provider_flag_unreadable", { key, label, provider: "lovable" });
+    return "lovable";
+  }
 }

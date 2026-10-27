@@ -10,6 +10,9 @@ import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 export type FlagKey =
   | "ai.provider"
+  | "ai.provider.caption"
+  | "ai.provider.vision"
+  | "ai.provider.ocr"
   | "postprocess.style_pass"
   | "postprocess.narrative_fixup"
   | "postprocess.hard_revert"
@@ -75,15 +78,17 @@ function svcClient(): SupabaseClient | null {
  * Cache 60s per key.
  */
 export type AiProviderFlag = "lovable" | "gemini";
-export function getFlag(key: "ai.provider", defaultValue: AiProviderFlag, opts?: { throwOnError?: boolean }): Promise<AiProviderFlag>;
+export type AiProviderFlagKey = "ai.provider" | "ai.provider.caption" | "ai.provider.vision" | "ai.provider.ocr";
+interface ProviderFlagReadOptions { throwOnError?: boolean; onMissing?: () => void }
+export function getFlag(key: AiProviderFlagKey, defaultValue: AiProviderFlag, opts?: ProviderFlagReadOptions): Promise<AiProviderFlag>;
 export function getFlag(key: FlagKey, defaultValue: boolean): Promise<boolean>;
 export async function getFlag(
-  key: FlagKey, defaultValue: boolean | AiProviderFlag, opts: { throwOnError?: boolean } = {},
+  key: FlagKey, defaultValue: boolean | AiProviderFlag, opts: ProviderFlagReadOptions = {},
 ): Promise<boolean | AiProviderFlag> {
   const valueOf = (entry: CacheEntry): boolean | AiProviderFlag => {
     if (typeof defaultValue === "boolean") return entry.value;
-    if (!entry.present) return defaultValue;
-    if (!entry.value) return "lovable";
+    if (!entry.present) { opts.onMissing?.(); return defaultValue; }
+    if (entry.value !== true) return "lovable";
     return entry.meta?.value === "gemini" ? "gemini" : "lovable";
   };
   const cached = cache.get(key);

@@ -6,6 +6,9 @@ Deno.env.set("GEMINI_API_KEY","test-gemini");
 const {callAiGateway}=await import("./ai-gateway-retry.ts");
 const {invalidateFlagCache,getFlag,getFlagMeta}=await import("./angel/flags.ts");
 let flag:unknown=null,dbError=false,directStatus=200,gatewayStatus=200,directMode="status";
+const serviceKeys=["ai.provider.caption","ai.provider.vision","ai.provider.ocr"];
+let flags=new Map<string,unknown>();
+const flagReads:string[]=[];
 const usageEvents:any[]=[];
 let onUsageEvent=()=>{};
 let onUsageUpdate=()=>{};
@@ -19,7 +22,10 @@ const originalWarn=console.warn,originalLog=console.log,originalInfo=console.inf
 console.warn=(...args)=>{logs.push(args);};console.log=(...args)=>{logs.push(args);};console.info=(...args)=>{logs.push(args);};
 globalThis.fetch=async(input,init)=>{
  const url=String(input);
- if(url.includes("backend.test/rest/v1/angel_feature_flags"))return Response.json(dbError?{message:"unavailable"}:flag,{status:dbError?503:200});
+ if(url.includes("backend.test/rest/v1/angel_feature_flags")){
+  const key=new URL(url).searchParams.get("key")?.replace(/^eq\./,"")??"";flagReads.push(key);
+  return Response.json(dbError?{message:"unavailable"}:flags.has(key)?flags.get(key):flag,{status:dbError?503:200});
+ }
  const body=JSON.parse(String(init?.body??"{}"));
  if(url.includes("backend.test/rest/v1/cloud_usage_events")){if(init?.method==="PATCH"){usageUpdates.push(body);onUsageUpdate();return Response.json(null);}usageEvents.push(body);onUsageEvent();return Response.json({id:"usage-row-1"});}
  if(url.includes("googleapis.com")){
@@ -36,7 +42,7 @@ globalThis.fetch=async(input,init)=>{
  const status=url.includes("googleapis.com")?directStatus:gatewayStatus;
  return Response.json(status===200?good:{error:"test-gemini must never appear in logs"},{status,headers:{"retry-after":"0.001"}});
 };
-function reset(value:unknown=null){directMode="status";usageEvents.length=0;flag=value;dbError=false;directStatus=200;gatewayStatus=200;sent.length=0;logs.length=0;invalidateFlagCache();Deno.env.delete("AI_PROVIDER");Deno.env.set("GEMINI_API_KEY","test-gemini");}
+function reset(value:unknown=null){directMode="status";usageEvents.length=0;flag=value;flags=new Map(serviceKeys.map(key=>[key,value]));flagReads.length=0;dbError=false;directStatus=200;gatewayStatus=200;sent.length=0;logs.length=0;invalidateFlagCache();Deno.env.delete("AI_PROVIDER");Deno.env.set("GEMINI_API_KEY","test-gemini");}
 const body={model:"google/gemini-3.1-flash-lite",messages:[{role:"user",content:"Xin mời ngồi thiền."}],temperature:0.2};
 const opts={label:"caption-translate",maxAttempts:2,timeoutMs:15000};
 Deno.test("absent provider flag defaults to lovable even if env requests gemini",async()=>{
@@ -122,8 +128,8 @@ Deno.test("direct429 retries then falls back with exact original Gateway call an
 Deno.test("direct auth error does not retry and still falls back",async()=>{
  reset({enabled:true,meta:{value:"gemini"}});directStatus=401;const result=await callAiGateway(body,opts);assert.equal(result.ok,true);assert.equal(sent.length,2);
 });
-Deno.test("DB read error uses validated env fallback; missing or invalid flag does not",async()=>{
- reset();dbError=true;Deno.env.set("AI_PROVIDER","gemini");await callAiGateway(body,opts);assert.match(sent[0].url,/googleapis/);
+Deno.test("DB read error fails closed without a shared env override",async()=>{
+ reset();dbError=true;Deno.env.set("AI_PROVIDER","gemini");await callAiGateway(body,opts);assert.match(sent[0].url,/ai.gateway/);assert.match(JSON.stringify(logs),/provider_flag_unreadable/);
  reset({enabled:true,meta:{value:"typo"}});Deno.env.set("AI_PROVIDER","gemini");await callAiGateway(body,opts);assert.match(sent[0].url,/ai.gateway/);
 });
 Deno.test("unmapped override model is never guessed or sent to Google",async()=>{
@@ -169,5 +175,52 @@ Deno.test("disabled provider stays lovable and existing boolean/meta flags retai
  assert.equal(await getFlag("cost.postprocess_enabled",true),false);
  assert.deepEqual(await getFlagMeta("cost.postprocess_enabled"),{value:"gemini",marker:"retained"});
  reset();assert.equal(await getFlag("cost.postprocess_enabled",true),true);
+});
+Deno.test("each service has one independent flag through staged enables and restores",async()=>{
+ reset({enabled:true,meta:{value:"lovable"}});
+ const labels=["caption-translate","describeImage","ocr"];
+ const expected=["lovable","lovable","lovable"];
+ const check=async()=>{
+  for(let i=0;i<labels.length;i++){
+   const result=await callAiGateway(i===0?body:imageBody,{...opts,label:labels[i],maxAttempts:1});
+   assert.equal(result.provider,expected[i],`wrong provider for ${labels[i]}`);
+  }
+ };
+ await check();
+ for(const value of ["gemini","lovable"]){
+  for(let i=0;i<serviceKeys.length;i++){
+   flags.set(serviceKeys[i],{enabled:true,meta:{value}});invalidateFlagCache();expected[i]=value;await check();
+  }
+ }
+ assert.ok(flagReads.every(key=>serviceKeys.includes(key)));assert.ok(serviceKeys.every(key=>flagReads.includes(key)));
+});
+Deno.test("retired master flag and env cannot control missing service flags; missing is audited on cache hits",async()=>{
+ reset({enabled:true,meta:{value:"gemini"}});Deno.env.set("AI_PROVIDER","gemini");
+ for(const key of serviceKeys)flags.set(key,null);
+ for(let pass=0;pass<2;pass++)for(const label of ["caption-translate","describeImage","ocr"]){
+  const result=await callAiGateway(body,{...opts,label,maxAttempts:1});assert.equal(result.provider,"lovable");
+ }
+ assert.equal(flagReads.length,3);assert.ok(!flagReads.includes("ai.provider"));
+ const warnings=logs.filter(([message])=>message==="[ai-provider] provider_flag_missing");
+ assert.equal(warnings.length,6);
+ for(const key of serviceKeys)assert.ok(warnings.some(([,ctx]:any[])=>ctx.key===key&&ctx.provider==="lovable"));
+});
+Deno.test("legacy flag changes do not alter existing service flags and unrelated labels do not read flags",async()=>{
+ reset({enabled:true,meta:{value:"lovable"}});flag={enabled:true,meta:{value:"gemini"}};
+ for(const label of ["caption-translate","describeImage","ocr"])assert.equal((await callAiGateway(body,{...opts,label})).provider,"lovable");
+ invalidateFlagCache();flagReads.length=0;
+ for(const label of ["chat","group-vision","transcribeAudio","caption-summarize","toString","__proto__"])assert.equal((await callAiGateway(body,{...opts,label})).provider,"lovable");
+ assert.deepEqual(flagReads,[]);
+});
+Deno.test("429 fallback is scoped to one service call and cannot change other service choices",async()=>{
+ reset({enabled:true,meta:{value:"gemini"}});
+ flags.set("ai.provider.ocr",{enabled:true,meta:{value:"lovable"}});
+ directStatus=429;
+ assert.equal((await callAiGateway(imageBody,{...opts,label:"describeImage",maxAttempts:1})).provider,"lovable");
+ directStatus=200;
+ assert.equal((await callAiGateway(body,{...opts,label:"caption-translate",maxAttempts:1})).provider,"gemini");
+ assert.equal((await callAiGateway(imageBody,{...opts,label:"ocr",maxAttempts:1})).provider,"lovable");
+ assert.equal((await callAiGateway(imageBody,{...opts,label:"describeImage",maxAttempts:1})).provider,"gemini");
+ assert.equal(logs.filter(([message])=>message==="[ai-gateway] provider_fallback").length,1);
 });
 Deno.test("restore test boundary",()=>{globalThis.fetch=originalFetch;console.warn=originalWarn;console.log=originalLog;console.info=originalInfo;});

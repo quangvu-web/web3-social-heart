@@ -115,7 +115,7 @@ Deno.test("detectSourceLang: tiếng Việt có dấu, stopword, và tiếng Anh
   assertEq(detectSourceLang("Urantia Melchizedek Nebadon"), "en", "proper nouns default en");
 });
 
-Deno.test("applyHearingCorrections: chỉ 4 cặp đã duyệt", () => {
+Deno.test("applyHearingCorrections: giữ nguyên 4 cặp đã duyệt trước đây", () => {
   assertEq(
     applyHearingCorrections("Welcome to The Selections Horn, thought-adapter and ByBuddy"),
     "Welcome to Resurrection Hall, Thought Adjuster and bé Ly",
@@ -131,6 +131,25 @@ Deno.test("applyHearingCorrections: chỉ 4 cặp đã duyệt", () => {
     "Resurrection Hall is fine",
     "no false positive",
   );
+});
+
+Deno.test("applyHearingCorrections: đợi ơn tiếng Việt thực sự khớp, không dùng ASCII word boundary", () => {
+  assertEq(applyHearingCorrections("cha dạ đợi ơn cha"), "cha dạ đội ơn cha", "Vietnamese correction executes");
+});
+
+Deno.test("applyHearingCorrections: sửa mọi lần xuất hiện và giữ hoa đầu câu", () => {
+  assertEq(
+    applyHearingCorrections("Đợi ơn Cha. cha dạ đợi ơn cha đợi ơn bé ly à đợi ơn à các em bé nha đợi ơn bé quân"),
+    "Đội ơn Cha. cha dạ đội ơn cha đội ơn bé ly à đội ơn à các em bé nha đội ơn bé quân",
+    "all approved phrase variants",
+  );
+});
+
+Deno.test("applyHearingCorrections: câu đội ơn đúng và các từ đợi/ơn khác không thay đổi", () => {
+  const correct = "Đội ơn Cha, đội ơn bé Ly. Đợi xe, chờ đợi, biết ơn và cảm ơn.";
+  assertEq(applyHearingCorrections(correct), correct, "no unrelated replacement");
+  const fixed = applyHearingCorrections("Đợi ơn Cha và đợi ơn bé Ly");
+  assertEq(applyHearingCorrections(fixed), fixed, "idempotent");
 });
 
 Deno.test("computeDedupeKey: ổn định và phân biệt", async () => {

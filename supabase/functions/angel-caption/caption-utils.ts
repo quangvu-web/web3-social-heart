@@ -155,16 +155,21 @@ export function detectSourceLang(text: string): "vi" | "en" {
 }
 
 /** Bảng sửa lỗi nghe sai KHÔNG mơ hồ — chỉ các cặp đã duyệt. */
-const HEARING_CORRECTIONS: Array<[RegExp, string]> = [
+const HEARING_CORRECTIONS: Array<[RegExp | string, string]> = [
   [/\bThe Selections Horn\b/g, "Resurrection Hall"],
   [/\bThe Selections Hall\b/g, "Resurrection Hall"],
   [/\bthought-adapter\b/gi, "Thought Adjuster"],
   [/\bByBuddy\b/g, "bé Ly"],
+  // Vietnamese literals: ASCII word boundaries do not match the initial đ.
+  ["đợi ơn", "đội ơn"],
+  ["Đợi ơn", "Đội ơn"],
 ];
 
 export function applyHearingCorrections(text: string): string {
   let out = String(text ?? "");
-  for (const [re, to] of HEARING_CORRECTIONS) out = out.replace(re, to);
+  for (const [from, to] of HEARING_CORRECTIONS) {
+    out = typeof from === "string" ? out.replaceAll(from, to) : out.replace(from, to);
+  }
   return out;
 }
 

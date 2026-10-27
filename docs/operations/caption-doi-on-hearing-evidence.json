@@ -1,0 +1,39 @@
+{
+  "session_public_code": "6wj7cqbp38u9",
+  "timezone": "Asia/Kuala_Lumpur (UTC+8)",
+  "before_observed_at": "2026-10-28T07:36:48.997781+08:00",
+  "repair_observed_at": "2026-10-28T07:38:32.893756+08:00",
+  "source_rows_before": 1,
+  "repaired_rows": 1,
+  "results": [
+    {
+      "seq": 439,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "replacements": {
+        "text_source": 4,
+        "text_vi": 4
+      },
+      "unchanged": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "text_en_sha256": "8255f07a7c3295f22b150722b39b27fb43e7b67c50c6620a9835356e9083711f"
+    }
+  ],
+  "source_rows_remaining": 0,
+  "vi_rows_remaining": 0,
+  "deployment": {
+    "name": "angel-caption",
+    "version": 37,
+    "status": "ACTIVE",
+    "updated_at": 1793144248976,
+    "updated_at_myt": "2026-10-28T07:37:28.976000+08:00"
+  }
+}

@@ -14,6 +14,33 @@ export { createRecallBot };
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
 const mod = await import(`data:application/javascript,${encodeURIComponent(code)}`);
 
+const keytermsStart = source.indexOf("const KEYTERMS = [");
+assert.ok(keytermsStart >= 0);
+const productionCode = ts.transpileModule(`
+${source.slice(keytermsStart, source.indexOf("\n];", keytermsStart) + 3)}
+${functions}
+export { buildRecallBotBody };
+`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
+const production = await import(`data:application/javascript,${encodeURIComponent(productionCode)}`);
+
+Deno.test("production STT payload includes đội ơn without changing existing keyterms", () => {
+  const keyterms = production.buildRecallBotBody("https://zoom.us/j/1", "session", "https://functions.example/caption")
+    .recording_config.transcript.provider.assembly_ai_v3_streaming.keyterms_prompt;
+  assert.ok(keyterms.includes("đội ơn"));
+  assert.equal(keyterms.filter((term: string) => term === "đội ơn").length, 1);
+  assert.deepEqual(keyterms.filter((term: string) => term !== "đội ơn"), [
+    "Urantia", "Melchizedek", "Machiventa", "Nebadon", "Orvonton", "Havona",
+    "Satania", "Norlatiadek", "Thought Adjuster", "Điều Chỉnh Tư Duy",
+    "Đấng Cha Vũ Trụ", "Sảnh Phục Sinh", "Resurrection Hall",
+    "thiên thần hộ mệnh", "sứ giả trung gian", "thế giới nhà ở",
+    "hành trình thăng thiên", "Kinh Urantia", "FUN Community", "Fun.Rich",
+    "LoveHub", "FUN-ID", "CAMLY", "Angel Translator", "Daniels Hussaini",
+    "Angel Kim", "Hoàng Tỷ Đô", "bé Ly", "Richard E. Warren",
+    "The Melchizedek Mission", "The First Humans", "Abuja", "Nigeria",
+    "meditation", "mindfulness",
+  ]);
+});
+
 Deno.test("create bot accepts tuned turn silence with existing language and keyterms", async () => {
   mod.sent.length = 0;
   mod.configure([{ ok: true, status: 201, data: { id: "bot-fast" } }]);

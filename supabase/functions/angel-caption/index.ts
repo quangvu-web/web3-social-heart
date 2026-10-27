@@ -46,7 +46,7 @@ const KEYTERMS = [
   "LoveHub", "FUN-ID", "CAMLY", "Angel Translator", "Daniels Hussaini",
   "Angel Kim", "Hoàng Tỷ Đô", "bé Ly", "Richard E. Warren",
   "The Melchizedek Mission", "The First Humans", "Abuja", "Nigeria",
-  "meditation", "mindfulness",
+  "meditation", "mindfulness", "đội ơn",
 ];
 
 function json(payload: unknown, status = 200): Response {

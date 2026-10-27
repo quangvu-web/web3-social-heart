@@ -35,5 +35,35 @@
     "status": "ACTIVE",
     "updated_at": 1793144248976,
     "updated_at_myt": "2026-10-28T07:37:28.976000+08:00"
+  },
+  "live": {
+    "observed_at": "2026-10-28T07:56:50.596500+08:00",
+    "seq": 717,
+    "created_at_myt": "2026-10-28T07:56:49.817872+08:00",
+    "after_deployment": true,
+    "text_source_contains_correct_phrase": true,
+    "text_vi_contains_correct_phrase": true,
+    "source_excerpt": "hạnh phúc và đội ơn cha đã ban tặng",
+    "english_excerpt": "deeply grateful to you, our Teacher",
+    "raw_stt_available": false,
+    "source_rows_remaining": 0,
+    "vi_rows_remaining": 0
+  },
+  "final_verification": {
+    "observed_at": "2026-10-28T07:57:14.944690+08:00",
+    "latest_seq": 721,
+    "source_rows_remaining": 0,
+    "vi_rows_remaining": 0
+  },
+  "ui_after_reload": {
+    "new_correct_phrase_count": 1,
+    "old_wrong_phrase_count": 0,
+    "repaired_phrase_count": 1
+  },
+  "cleanup": {
+    "verified_at_myt": "2026-10-28T07:57:51.804979+08:00",
+    "remote_probe_absent": true,
+    "local_probe_removed": true,
+    "bearer_token_removed": true
   }
 }

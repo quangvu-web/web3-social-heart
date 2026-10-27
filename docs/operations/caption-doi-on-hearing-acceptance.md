@@ -36,8 +36,12 @@ Chỉ PATCH `text_source` và `text_vi`, với điều kiện khớp dữ liệu
 
 ## Nghiệm thu live
 
-Bé chọn đợi lần MC nói tự nhiên tiếp theo trong phiên hiện tại. Chỉ dòng mới sau deploy mới tính là bằng chứng; seq 439 đã sửa không tính. Chưa quan sát thấy lần xuất hiện mới tại lần đọc **07:41:28**, seq mới nhất **699**, cả hai cột còn 0 dòng chứa cụm sai.
+Bé chọn đợi lần MC nói tự nhiên tiếp theo trong phiên hiện tại. Lần đọc **07:56:50.597** tìm thấy dòng mới **seq 717**, lưu lúc **07:56:49.818**, sau deploy. Cả `text_source` và `text_vi` đều chứa `hạnh phúc và đội ơn cha đã ban tặng`. Tiếng Anh chứa `deeply grateful to you, our Teacher`, giữ đúng nghĩa cảm ơn. Cả hai cột còn **0 dòng** chứa cụm sai. Seq 439 đã sửa không dùng làm bằng chứng live.
+
+Đây là bằng chứng đầu ra lưu DB của lần xuất hiện tự nhiên sau deploy. Không có raw STT trong bằng chứng này để phân biệt provider nghe đúng từ đầu hay lưới correction đã sửa; không suy diễn keyterms mới đã được gửi vào phiên STT cũ.
 
 ## Dọn công cụ và bàn giao
 
-Probe sửa dữ liệu có xác thực và thời hạn, chỉ cho đúng phiên. Trạng thái dọn probe và commit sẽ được cập nhật khi hoàn tất.
+Đối chiếu cuối lúc **07:57:14.945**, seq mới nhất **721**: vẫn 0 dòng sai ở cả hai cột. Reload trang live: câu mới đúng xuất hiện, câu seq 439 đã sửa xuất hiện, cụm cũ `cha dạ đợi ơn cha` không còn. Trang đã mở trước lúc sửa có thể giữ bản cũ của seq 439 cho đến khi reload; không thay đổi UI trong bản vá này.
+
+Probe sửa dữ liệu có xác thực và thời hạn, chỉ cho đúng phiên, đã xóa khỏi backend và xác minh không còn trong danh sách functions. Đã xóa source probe local và bearer token. Không chạy migration. Bản vá ở branch `fix/caption-doi-on-hearing`, commit code `3d372f8`; không merge main trong đợt sửa này. Bằng chứng tối thiểu lưu ở [caption-doi-on-hearing-evidence.json](./caption-doi-on-hearing-evidence.json).

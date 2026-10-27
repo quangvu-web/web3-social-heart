@@ -1,0 +1,96 @@
+{
+  "date_myt": "2026-10-27",
+  "base_commit": "d5adc5d",
+  "fixture": "src/assets/fun-profile-logo.png",
+  "fixture_sha256": "0494ec07fa9d6f0f33e8c4fdde67166a5f6545e4b87a750b8645b68ec8a08b23",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+  "catalog_http_status": 200,
+  "runtime": {
+    "vision": "google/gemini-3.1-flash-lite",
+    "vision_override": null,
+    "chat_primary": "google/gemini-3.6-flash",
+    "chat_backup": "google/gemini-3.5-flash",
+    "chat_primary_override": null,
+    "chat_backup_override": null,
+    "adapter_default": "google/gemini-3-flash-preview"
+  },
+  "provider_flag_observed": [
+    {
+      "enabled": true,
+      "meta": {
+        "value": "lovable"
+      }
+    }
+  ],
+  "probes": [
+    {
+      "status": 200,
+      "model": "models/gemini-3.1-flash-lite",
+      "label": "describeImage",
+      "nonempty": true,
+      "content": "Hình ảnh là một biểu tượng hình tròn có nền là họa tiết trừu tượng với các sắc thái màu xanh lá cây và trắng, trông giống như hiệu ứng ánh sáng hoặc không gian.\n\nTrên nền này có các dòng chữ:\n- Dòng trên cùng: \"FUN\" (chữ in hoa, màu trắng).\n- Dòng ở giữa: \"Profile\" (chữ kiểu viết tay, màu vàng).\n- Dòng dưới cùng: \"WEB3\" (chữ in hoa, màu trắng).",
+      "latency_ms": 2170,
+      "tested_at_myt": "2026-10-27T23:08:30.165089+08:00",
+      "input_image": "src/assets/fun-profile-logo.png"
+    },
+    {
+      "status": 200,
+      "model": "models/gemini-3.1-flash-lite",
+      "label": "ocr",
+      "nonempty": true,
+      "content": "FUN\nProfile\nWEB3",
+      "latency_ms": 1947,
+      "tested_at_myt": "2026-10-27T23:08:29.954149+08:00",
+      "input_image": "src/assets/fun-profile-logo.png"
+    },
+    {
+      "status": 200,
+      "model": "models/gemini-2.5-flash",
+      "label": "group-vision",
+      "nonempty": true,
+      "content": "Here is the",
+      "latency_ms": 2193,
+      "tested_at_myt": "2026-10-27T23:08:30.199620+08:00",
+      "input_image": "src/assets/fun-profile-logo.png"
+    },
+    {
+      "status": 200,
+      "model": "models/gemini-3-flash-preview",
+      "label": "chat-candidate",
+      "nonempty": true,
+      "content": "5",
+      "latency_ms": 1854,
+      "tested_at_myt": "2026-10-27T23:08:31.999621+08:00",
+      "input_image": null
+    },
+    {
+      "status": 200,
+      "model": "models/gemini-3.6-flash",
+      "label": "chat-candidate",
+      "nonempty": true,
+      "content": "Bằng 5.",
+      "latency_ms": 3393,
+      "tested_at_myt": "2026-10-27T23:08:33.746560+08:00",
+      "input_image": null
+    },
+    {
+      "status": 200,
+      "model": "models/gemini-3.5-flash",
+      "label": "chat-candidate",
+      "nonempty": true,
+      "content": "Bằng 5.",
+      "latency_ms": 3646,
+      "tested_at_myt": "2026-10-27T23:08:34.023346+08:00",
+      "input_image": null
+    }
+  ],
+  "group_vision_recheck": {
+    "status": 200,
+    "model": "models/gemini-2.5-flash",
+    "label": "group-vision",
+    "nonempty": true,
+    "content": "Here",
+    "finish_reason": "length",
+    "latency_ms": 1971
+  }
+}

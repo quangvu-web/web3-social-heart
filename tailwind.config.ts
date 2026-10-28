@@ -29,6 +29,15 @@ export default {
       },
       colors: {
         caption: {
+          "background": "hsl(var(--caption-background))",
+          "control": "hsl(var(--caption-control))",
+          "control-foreground": "hsl(var(--caption-control-foreground))",
+          "control-border": "hsl(var(--caption-control-border))",
+          "control-hover": "hsl(var(--caption-control-hover))",
+          "selected": "hsl(var(--caption-selected))",
+          "selected-foreground": "hsl(var(--caption-selected-foreground))",
+          "selected-hover": "hsl(var(--caption-selected-hover))",
+          "live": "hsl(var(--caption-live))",
           foreground: "hsl(var(--caption-foreground))",
           muted: "hsl(var(--caption-muted))",
           border: "hsl(var(--caption-border))",

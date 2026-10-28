@@ -11,7 +11,16 @@
     --background: 210 40% 98%;
     --foreground: 222 47% 11%;
 
-    /* Caption history retains its existing dark-surface palette. */
+    /* Default caption palette: unchanged dark appearance. */
+    --caption-background: 225.714286 48.837209% 8.431373%;
+    --caption-control: 217.241379 32.584270% 17.450980%;
+    --caption-control-foreground: 212.727273 26.829268% 83.921569%;
+    --caption-control-border: 215.294118 25.000000% 26.666667%;
+    --caption-control-hover: 215.294118 25.000000% 26.666667%;
+    --caption-selected: 221.212121 83.193277% 53.333333%;
+    --caption-selected-foreground: 0.000000 0.000000% 100.000000%;
+    --caption-selected-hover: 224.278075 76.326531% 48.039216%;
+    --caption-live: 0.000000 90.604027% 70.784314%;
     --caption-foreground: 210 40% 98%;
     --caption-muted: 215 20.2% 65.1%;
     --caption-border: 217.2 32.6% 17.5%;
@@ -69,6 +78,105 @@
     --reaction-wow: 43 74% 49%;
     --reaction-sad: 43 74% 49%;
     --reaction-angry: 15 80% 50%;
+  }
+}
+
+/* Scoped caption palettes also serve the picker previews. */
+@layer base {
+  [data-caption-theme="dark"] {
+    --caption-background: 225.714286 48.837209% 8.431373%;
+    --caption-foreground: 210 40% 98%;
+    --caption-muted: 215 20.2% 65.1%;
+    --caption-border: 217.2 32.6% 17.5%;
+    --caption-speaker: 188.7 94.5% 42.7%;
+    --caption-control: 217.241379 32.584270% 17.450980%;
+    --caption-control-foreground: 212.727273 26.829268% 83.921569%;
+    --caption-control-border: 215.294118 25.000000% 26.666667%;
+    --caption-control-hover: 215.294118 25.000000% 26.666667%;
+    --caption-selected: 221.212121 83.193277% 53.333333%;
+    --caption-selected-foreground: 0.000000 0.000000% 100.000000%;
+    --caption-selected-hover: 224.278075 76.326531% 48.039216%;
+    --caption-live: 0.000000 90.604027% 70.784314%;
+  }
+
+  [data-caption-theme="light"] {
+    --caption-background: 42.857143 100.000000% 98.627451%;
+    --caption-foreground: 217.142857 30.434783% 13.529412%;
+    --caption-muted: 215.000000 13.793103% 34.117647%;
+    --caption-border: 216.000000 12.195122% 83.921569%;
+    --caption-speaker: 224.278075 76.326531% 48.039216%;
+    --caption-control: 220.000000 13.043478% 90.980392%;
+    --caption-control-foreground: 215.000000 27.906977% 16.862745%;
+    --caption-control-border: 217.894737 10.614525% 64.901961%;
+    --caption-control-hover: 216.000000 12.195122% 83.921569%;
+    --caption-selected: 224.278075 76.326531% 48.039216%;
+    --caption-selected-foreground: 0.000000 0.000000% 100.000000%;
+    --caption-selected-hover: 225.931034 70.731707% 40.196078%;
+    --caption-live: 0.000000 73.708920% 41.764706%;
+  }
+
+  [data-caption-theme="warm"] {
+    --caption-background: 40.000000 60.000000% 92.156863%;
+    --caption-foreground: 22.000000 31.914894% 18.431373%;
+    --caption-muted: 25.000000 20.224719% 34.901961%;
+    --caption-border: 36.585366 33.884298% 76.274510%;
+    --caption-speaker: 173.793103 74.358974% 22.941176%;
+    --caption-control: 38.181818 41.772152% 84.509804%;
+    --caption-control-foreground: 26.000000 25.862069% 22.745098%;
+    --caption-control-border: 34.468085 25.133690% 63.333333%;
+    --caption-control-hover: 37.500000 36.363636% 78.431373%;
+    --caption-selected: 173.793103 74.358974% 22.941176%;
+    --caption-selected-foreground: 0.000000 0.000000% 100.000000%;
+    --caption-selected-hover: 173.913043 74.193548% 18.235294%;
+    --caption-live: 4.230769 76.470588% 40.000000%;
+  }
+
+  [data-caption-theme="neutral"] {
+    --caption-background: 210.000000 13.333333% 94.117647%;
+    --caption-foreground: 213.333333 11.111111% 15.882353%;
+    --caption-muted: 210.000000 7.865169% 34.901961%;
+    --caption-border: 210.000000 9.803922% 80.000000%;
+    --caption-speaker: 202.800000 28.735632% 34.117647%;
+    --caption-control: 206.666667 14.754098% 88.039216%;
+    --caption-control-foreground: 208.000000 14.563107% 20.196078%;
+    --caption-control-border: 206.666667 10.843373% 67.450980%;
+    --caption-control-hover: 207.692308 14.285714% 82.156863%;
+    --caption-selected: 202.800000 28.735632% 34.117647%;
+    --caption-selected-foreground: 0.000000 0.000000% 100.000000%;
+    --caption-selected-hover: 202.500000 29.411765% 26.666667%;
+    --caption-live: 0.000000 73.708920% 41.764706%;
+  }
+
+  [data-caption-theme="energy"] {
+    --caption-background: 247.500000 45.714286% 13.725490%;
+    --caption-foreground: 0.000000 0.000000% 100.000000%;
+    --caption-muted: 254.117647 34.693878% 80.784314%;
+    --caption-border: 254.210526 21.590909% 34.509804%;
+    --caption-speaker: 184.583333 81.818182% 65.490196%;
+    --caption-control: 255.000000 34.482759% 22.745098%;
+    --caption-control-foreground: 255.652174 100.000000% 95.490196%;
+    --caption-control-border: 259.534884 17.842324% 47.254902%;
+    --caption-control-hover: 260.454545 27.848101% 30.980392%;
+    --caption-selected: 304.651163 65.482234% 38.627451%;
+    --caption-selected-foreground: 0.000000 0.000000% 100.000000%;
+    --caption-selected-hover: 304.444444 70.129870% 30.196078%;
+    --caption-live: 0.000000 100.000000% 76.078431%;
+  }
+
+  [data-caption-theme="high-contrast"] {
+    --caption-background: 0.000000 0.000000% 0.000000%;
+    --caption-foreground: 0.000000 0.000000% 100.000000%;
+    --caption-muted: 0.000000 0.000000% 93.333333%;
+    --caption-border: 0.000000 0.000000% 100.000000%;
+    --caption-speaker: 60.000000 100.000000% 50.000000%;
+    --caption-control: 0.000000 0.000000% 0.000000%;
+    --caption-control-foreground: 0.000000 0.000000% 100.000000%;
+    --caption-control-border: 0.000000 0.000000% 100.000000%;
+    --caption-control-hover: 0.000000 0.000000% 18.823529%;
+    --caption-selected: 60.000000 100.000000% 50.000000%;
+    --caption-selected-foreground: 0.000000 0.000000% 0.000000%;
+    --caption-selected-hover: 60.000000 100.000000% 44.901961%;
+    --caption-live: 0.000000 100.000000% 75.098039%;
   }
 }
 

@@ -6,6 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Minus, Plus, Loader2, ArrowDown } from "lucide-react";
 
+import { CaptionThemePicker } from "@/components/captions/CaptionThemePicker";
+import { readCaptionTheme, saveCaptionTheme, type CaptionTheme } from "@/components/captions/captionThemes";
+
 type SessionStatus = "pending" | "joining" | "live" | "ended" | "failed";
 
 interface CaptionSession {
@@ -111,6 +114,12 @@ export default function CaptionsPage() {
   const [fontSize, setFontSize] = useState(28);
   const [now, setNow] = useState(Date.now());
   const [jumpState, setJumpState] = useState({ visible: false, count: 0 });
+
+  const [theme, setTheme] = useState<CaptionTheme>(() => readCaptionTheme());
+  const changeTheme = (next: CaptionTheme) => {
+    setTheme(next);
+    saveCaptionTheme(next);
+  };
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
@@ -354,16 +363,16 @@ export default function CaptionsPage() {
 
   if (notFound) {
     return (
-      <div className="min-h-screen bg-[#0B1020] text-slate-100 flex items-center justify-center p-6">
-        <p className="text-xl text-slate-300">Không tìm thấy phiên phụ đề</p>
+      <div data-caption-theme={theme} className="min-h-screen bg-caption-background text-caption-foreground flex items-center justify-center p-6">
+        <p className="text-xl text-caption-control-foreground">Không tìm thấy phiên phụ đề</p>
       </div>
     );
   }
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-[#0B1020] text-slate-100 flex items-center justify-center p-6">
-        <Loader2 className="w-8 h-8 animate-spin text-[#06B6D4]" />
+      <div data-caption-theme={theme} className="min-h-screen bg-caption-background text-caption-foreground flex items-center justify-center p-6">
+        <Loader2 className="w-8 h-8 animate-spin text-caption-speaker" />
       </div>
     );
   }
@@ -372,46 +381,49 @@ export default function CaptionsPage() {
   const showPartial = session.status === "live" && !!partial?.text_source;
 
   return (
-    <div className="h-dvh overflow-hidden bg-[#0B1020] text-slate-100 flex flex-col">
+    <div data-caption-theme={theme} className="h-dvh overflow-hidden bg-caption-background text-caption-foreground flex flex-col">
       {/* Header: trạng thái + đồng hồ + điều khiển */}
-      <header className="shrink-0 sticky top-0 z-10 bg-[#0B1020]/95 backdrop-blur border-b border-slate-800 px-4 py-3">
+      <header className="shrink-0 sticky top-0 z-10 bg-caption-background/95 backdrop-blur border-b border-caption-border px-4 py-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <span className={`text-base font-semibold ${session.status === "live" ? "text-red-400" : "text-slate-200"}`}>
+            <span className={`text-base font-semibold ${session.status === "live" ? "text-caption-live" : "text-caption-foreground"}`}>
               {STATUS_LABEL[session.status]}
             </span>
-            <span className="text-sm text-slate-400 tabular-nums">
+            <span className="text-sm text-caption-muted tabular-nums">
               {formatDuration(session.started_at, session.ended_at, now)}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex rounded-lg overflow-hidden border border-slate-700">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="flex rounded-lg overflow-hidden border border-caption-control-border">
               {(["vi", "en", "both"] as ViewMode[]).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
                   className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                    mode === m ? "bg-[#2563EB] text-white" : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                    mode === m ? "bg-caption-selected text-caption-selected-foreground" : "bg-caption-control/60 text-caption-control-foreground hover:bg-caption-control-hover"
                   }`}
                 >
                   {m === "vi" ? "Tiếng Việt" : m === "en" ? "English" : "Song ngữ"}
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setFontSize((s) => Math.max(18, s - 4))}
-              className="p-2 rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 border border-slate-700"
-              aria-label="Giảm cỡ chữ"
-            >
-              <Minus className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setFontSize((s) => Math.min(48, s + 4))}
-              className="p-2 rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 border border-slate-700"
-              aria-label="Tăng cỡ chữ"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+            <div className="flex shrink-0 items-center gap-2" role="group" aria-label="Cỡ chữ phụ đề">
+              <button
+                onClick={() => setFontSize((s) => Math.max(18, s - 4))}
+                className="p-2 rounded-lg bg-caption-control/60 text-caption-control-foreground hover:bg-caption-control-hover border border-caption-control-border"
+                aria-label="Giảm cỡ chữ"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setFontSize((s) => Math.min(48, s + 4))}
+                className="p-2 rounded-lg bg-caption-control/60 text-caption-control-foreground hover:bg-caption-control-hover border border-caption-control-border"
+                aria-label="Tăng cỡ chữ"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            <CaptionThemePicker theme={theme} onChange={changeTheme} />
           </div>
         </div>
       </header>
@@ -424,7 +436,7 @@ export default function CaptionsPage() {
         {jumpState.visible && (
           <button
             onClick={jumpToLatest}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-[#2563EB] text-white text-sm font-medium shadow-lg shadow-black/40 hover:bg-[#1D4ED8] transition-colors"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-caption-selected text-caption-selected-foreground text-sm font-medium shadow-lg shadow-caption-background/40 hover:bg-caption-selected-hover transition-colors"
           >
             <ArrowDown className="w-4 h-4" />
             {jumpState.count > 0 ? `${jumpState.count} dòng mới` : "Dòng mới nhất"}
@@ -436,10 +448,10 @@ export default function CaptionsPage() {
       {session.status === "live" && (
         <section
           aria-label="Người đang nói"
-          className="h-[8.25em] shrink-0 overflow-y-auto overscroll-contain border-t border-border px-4 leading-snug italic text-muted-foreground"
+          className="h-[8.25em] shrink-0 overflow-y-auto overscroll-contain border-t border-caption-border px-4 leading-snug italic text-caption-muted"
           style={{ fontSize }}
         >
-          <div className="text-sm min-h-[1.25em] mb-1">{showPartial ? partial?.speaker_name ?? "" : ""}</div>
+          <div className="text-sm min-h-[1.25em] mb-1 font-semibold text-caption-speaker">{showPartial ? partial?.speaker_name ?? "" : ""}</div>
           <div>{showPartial ? `${partial?.text_source}…` : "🎙️ Đang nghe…"}</div>
         </section>
       )}

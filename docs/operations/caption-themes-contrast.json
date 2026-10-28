@@ -1,0 +1,68 @@
+[
+  {
+    "theme": "dark",
+    "contrast": {
+      "foreground": 18.08,
+      "muted": 7.38,
+      "speaker": 7.79,
+      "control-foreground": 12.75,
+      "live": 6.84,
+      "selected": 5.17
+    }
+  },
+  {
+    "theme": "light",
+    "contrast": {
+      "foreground": 16.1,
+      "muted": 7.43,
+      "speaker": 6.59,
+      "control-foreground": 14.44,
+      "live": 6.36,
+      "selected": 6.7
+    }
+  },
+  {
+    "theme": "warm",
+    "contrast": {
+      "foreground": 11.69,
+      "muted": 6.03,
+      "speaker": 5.97,
+      "control-foreground": 9.75,
+      "live": 5.75,
+      "selected": 6.82
+    }
+  },
+  {
+    "theme": "neutral",
+    "contrast": {
+      "foreground": 12.98,
+      "muted": 6.22,
+      "speaker": 6.12,
+      "control-foreground": 11.06,
+      "live": 5.66,
+      "selected": 6.99
+    }
+  },
+  {
+    "theme": "energy",
+    "contrast": {
+      "foreground": 17.84,
+      "muted": 9.95,
+      "speaker": 11.75,
+      "control-foreground": 14.97,
+      "live": 7.6,
+      "selected": 6.47
+    }
+  },
+  {
+    "theme": "high-contrast",
+    "contrast": {
+      "foreground": 21.0,
+      "muted": 18.1,
+      "speaker": 19.56,
+      "control-foreground": 21.0,
+      "live": 8.65,
+      "selected": 19.56
+    }
+  }
+]

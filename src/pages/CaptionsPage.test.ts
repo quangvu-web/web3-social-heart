@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import ts from "typescript";
 import { readFileSync } from "node:fs";
+import * as captionThemes from "../components/captions/captionThemes";
 
 function harness() {
   const effects: Array<() => (() => void)> = [];
@@ -208,7 +209,7 @@ function layoutHarness() {
     memo: (component: unknown) => component,
     useState(initial: any) {
       const i = stateIndex++;
-      if (!(i in states)) states[i] = initial;
+      if (!(i in states)) states[i] = typeof initial === "function" ? initial() : initial;
       return [states[i], (v: any) => { states[i] = typeof v === "function" ? v(states[i]) : v; }];
     },
     useRef(value: any) { const i = refIndex++; return refs[i] ??= { current: value }; },
@@ -225,7 +226,7 @@ function layoutHarness() {
   const exports: any = {};
   new Function("require", "exports", "requestAnimationFrame", code)((name: string) =>
     name === "react" ? react : name === "react-router-dom" ? { useParams: () => ({ code: "test" }) } :
-    name.includes("supabase/client") ? { supabase: {} } : { jsx, jsxs: jsx }, exports, (cb: () => void) => cb());
+    name.includes("supabase/client") ? { supabase: {} } : name.endsWith("/captionThemes") ? captionThemes : { jsx, jsxs: jsx }, exports, (cb: () => void) => cb());
   function render() {
     stateIndex = refIndex = effectIndex = 0;
     const tree = exports.default();
@@ -242,6 +243,30 @@ function layoutHarness() {
 }
 
 describe("stable live speaking layout", () => {
+  test("all six theme changes preserve language, font size, detached scroll and unread state", () => {
+    const h = layoutHarness();
+    expect(h.render().props["data-caption-theme"]).toBe("dark");
+    h.states[4] = "en";
+    h.states[5] = 36;
+    h.refs[1].current = false;
+    h.history.scrollTop = 300;
+    const unread = h.states[7];
+    for (const { value } of captionThemes.CAPTION_THEMES) {
+      const picker = h.descendants(h.render()).find((n: any) => n.props?.onChange && n.props?.theme);
+      picker.props.onChange(value);
+      const tree = h.render();
+      expect(tree.props["data-caption-theme"]).toBe(value);
+      expect(h.states[4]).toBe("en");
+      expect(h.find(tree, "Người đang nói").props.style.fontSize).toBe(36);
+      expect(h.history.scrollTop).toBe(300);
+      expect(h.states[7]).toBe(unread);
+      h.find(tree, "Giảm cỡ chữ").props.onClick();
+      expect(h.find(h.render(), "Người đang nói").props.style.fontSize).toBe(32);
+      h.find(h.render(), "Tăng cỡ chữ").props.onClick();
+      expect(h.find(h.render(), "Người đang nói").props.style.fontSize).toBe(36);
+    }
+  });
+
   test("partial updates/translation wait/delete never scroll history or reset unread controls", () => {
     const h = layoutHarness();
     h.render();

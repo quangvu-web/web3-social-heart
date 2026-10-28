@@ -1,0 +1,325 @@
+{
+  "timezone": "Asia/Kuala_Lumpur (UTC+8)",
+  "session_id": "7a710178-174b-4a25-a906-741ce720a466",
+  "public_code": "k4e5yd55zfu5",
+  "session_status": "ended",
+  "deployment": {
+    "name": "angel-caption",
+    "version": 38,
+    "status": "ACTIVE",
+    "updated_at": 1793168886438,
+    "updated_at_myt": "2026-10-28T14:28:06.438000+08:00"
+  },
+  "before_observed_at": "2026-10-28T14:28:42.386953+08:00",
+  "repaired_at": "2026-10-28T14:28:51.411355+08:00",
+  "verified_at": "2026-10-28T14:29:20.064909+08:00",
+  "rows_in_session": 678,
+  "source_rows_before": 12,
+  "vi_rows_before": 12,
+  "repaired_rows": 12,
+  "distinct_seq_count": 12,
+  "seqs": [
+    39,
+    41,
+    42,
+    43,
+    44,
+    46,
+    459,
+    460,
+    461,
+    463,
+    464,
+    497
+  ],
+  "results": [
+    {
+      "seq": 39,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "c4ae56a2c27aca341e32cdebe575412ca69100bb1b7eec660756f6e25b4c74f7"
+    },
+    {
+      "seq": 41,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "d2db8196f161362925a61a473cdad90ad007714f29dc89877b7c8252843a99d1"
+    },
+    {
+      "seq": 42,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "d234f507bb0ac9be9c84d6b0e83bf9a9da84fc7b85d37ab45b34c2024918010f"
+    },
+    {
+      "seq": 43,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "49446bd6ebf56173d02e5265478c0ea8d54ce111a0571612b12c55cbeb16353e"
+    },
+    {
+      "seq": 44,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "fc246a8eb1d53f2556a477761d9d308133adc6d92946f53ae4e403b6068d0865"
+    },
+    {
+      "seq": 46,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "fb64aa82006eb2051309a9e5e4e5ecf8f787c1b4b25b98c7508a94de69620c7f"
+    },
+    {
+      "seq": 459,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "d2db8196f161362925a61a473cdad90ad007714f29dc89877b7c8252843a99d1"
+    },
+    {
+      "seq": 460,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "21bf527440aac6479f90f7d5431c679046848d1a2eda9f060ec215cc31feedfb"
+    },
+    {
+      "seq": 461,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "5871709d0b6a3f82e9792bd467860e99962a89021157c8a68684b92acbc818c6"
+    },
+    {
+      "seq": 463,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "c5365cd4f7d8ce6cc0cec961016004e3fcef686b28099cd653101a891cd6602e"
+    },
+    {
+      "seq": 464,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "8f59144cb2b27a0596b22e1709c18cb7eae281c770a03f8f02010f230cdebd1c"
+    },
+    {
+      "seq": 497,
+      "patched_fields": [
+        "text_source",
+        "text_vi"
+      ],
+      "preserved": {
+        "id": true,
+        "session_id": true,
+        "seq": true,
+        "speaker_name": true,
+        "dedupe_key": true,
+        "created_at": true,
+        "text_en": true
+      },
+      "english_sha256": "6a2fc169963cde2f3348fc9c0df7b8fc22209af676f5bab9a2eb6149fa1a4a33"
+    }
+  ],
+  "remaining_source": 0,
+  "remaining_vi": 0,
+  "approved_pairs": [
+    [
+      "đỡ ơn",
+      "đội ơn"
+    ],
+    [
+      "Đỡ ơn",
+      "Đội ơn"
+    ],
+    [
+      "giao hộ",
+      "gia hộ"
+    ],
+    [
+      "gia hội",
+      "gia hộ"
+    ],
+    [
+      "thập tinh tấn",
+      "thật tinh tấn"
+    ],
+    [
+      "bổ thiền",
+      "buổi thiền"
+    ],
+    [
+      "hầu hứa",
+      "hồi hướng"
+    ],
+    [
+      "hầu ứng",
+      "hồi hướng"
+    ],
+    [
+      "bé chùa Cam Ly",
+      "em bé Angel Cam Ly"
+    ],
+    [
+      "bệ chùa Cam Ly",
+      "em bé Angel Cam Ly"
+    ],
+    [
+      "mẹ chùa Cam Ly",
+      "mẹ em bé Angel Cam Ly"
+    ],
+    [
+      "bạn chùa Cam Ly",
+      "em bé Angel Cam Ly"
+    ],
+    [
+      "thời thiên thập tân tấn",
+      "thời thiền thật tinh tấn"
+    ]
+  ],
+  "live_acceptance": {
+    "status": "pending_real_test_session",
+    "required_terms": [
+      "đội ơn",
+      "gia hộ",
+      "hồi hướng",
+      "buổi thiền",
+      "em bé Angel Cam Ly"
+    ],
+    "public_code": "yxjuet3re8y5",
+    "session_id": "7ebf7f53-0d4a-479a-aefd-167a8edca9d0",
+    "started_at": "2026-10-28T05:23:08.805+00:00",
+    "new_keyterms_sent_to_this_existing_bot": false,
+    "baseline_latest_seq": 538,
+    "baseline_observed_at_myt": "2026-10-28T14:29:53.821939+08:00"
+  },
+  "cleanup": {
+    "verified_at_myt": "2026-10-28T14:29:55.399085+08:00",
+    "remote_probe_absent": true,
+    "local_probe_removed": true,
+    "token_removed": true
+  },
+  "public_read_verification": {
+    "observed_at_myt": "2026-10-28T14:29:20.974528+08:00",
+    "row_count": 678,
+    "source_remaining": 0,
+    "vi_remaining": 0
+  }
+}

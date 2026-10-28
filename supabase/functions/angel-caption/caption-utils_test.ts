@@ -201,3 +201,69 @@ Deno.test("verifySvixSignature: chữ ký đúng/sai, prefix whsec_, replay cũ"
     "missing id rejected",
   );
 });
+
+// Approved meditation/thanksgiving hearing corrections (28/10/2026).
+
+Deno.test("applyHearingCorrections: đỡ ơn → đội ơn", () => {
+  assertEq(applyHearingCorrections("đỡ ơn"), "đội ơn", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: Đỡ ơn → Đội ơn", () => {
+  assertEq(applyHearingCorrections("Đỡ ơn"), "Đội ơn", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: giao hộ → gia hộ", () => {
+  assertEq(applyHearingCorrections("giao hộ"), "gia hộ", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: gia hội → gia hộ", () => {
+  assertEq(applyHearingCorrections("gia hội"), "gia hộ", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: thập tinh tấn → thật tinh tấn", () => {
+  assertEq(applyHearingCorrections("thập tinh tấn"), "thật tinh tấn", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: bổ thiền → buổi thiền", () => {
+  assertEq(applyHearingCorrections("bổ thiền"), "buổi thiền", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: hầu hứa → hồi hướng", () => {
+  assertEq(applyHearingCorrections("hầu hứa"), "hồi hướng", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: hầu ứng → hồi hướng", () => {
+  assertEq(applyHearingCorrections("hầu ứng"), "hồi hướng", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: bé chùa Cam Ly → em bé Angel Cam Ly", () => {
+  assertEq(applyHearingCorrections("bé chùa Cam Ly"), "em bé Angel Cam Ly", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: bệ chùa Cam Ly → em bé Angel Cam Ly", () => {
+  assertEq(applyHearingCorrections("bệ chùa Cam Ly"), "em bé Angel Cam Ly", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: mẹ chùa Cam Ly → mẹ em bé Angel Cam Ly", () => {
+  assertEq(applyHearingCorrections("mẹ chùa Cam Ly"), "mẹ em bé Angel Cam Ly", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: bạn chùa Cam Ly → em bé Angel Cam Ly", () => {
+  assertEq(applyHearingCorrections("bạn chùa Cam Ly"), "em bé Angel Cam Ly", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: thời thiên thập tân tấn → thời thiền thật tinh tấn", () => {
+  assertEq(applyHearingCorrections("thời thiên thập tân tấn"), "thời thiền thật tinh tấn", "approved Vietnamese literal executes");
+});
+
+Deno.test("applyHearingCorrections: bài cảm ơn hỗn hợp sửa mọi lần xuất hiện, không nhân đôi tinh tấn", () => {
+  const before = "Con đỡ ơn cha, con đỡ ơn mẹ. mẹ chùa Cam Ly giao hộ, gia hội cho thời thiên thập tân tấn; hầu ứng công đức bổ thiền.";
+  const expected = "Con đội ơn cha, con đội ơn mẹ. mẹ em bé Angel Cam Ly gia hộ, gia hộ cho thời thiền thật tinh tấn; hồi hướng công đức buổi thiền.";
+  assertEq(applyHearingCorrections(before), expected, "combined approved phrases");
+  assertEq(applyHearingCorrections(expected), expected, "idempotent");
+});
+
+Deno.test("applyHearingCorrections: giữ cụm đúng và không đoán các biến thể thiền/tân/tên khác", () => {
+  const unchanged = "đội ơn, gia hộ, thật tinh tấn, hồi hướng, buổi thiền, thời thiền, em bé Angel Cam Ly. thập tân; thời thiên; ban chùa Cam Ly; bé chùa Camly; thiện nhân.";
+  assertEq(applyHearingCorrections(unchanged), unchanged, "no unapproved generic replacements");
+});

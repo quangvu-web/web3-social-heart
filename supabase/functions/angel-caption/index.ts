@@ -47,6 +47,8 @@ const KEYTERMS = [
   "Angel Kim", "Hoàng Tỷ Đô", "bé Ly", "Richard E. Warren",
   "The Melchizedek Mission", "The First Humans", "Abuja", "Nigeria",
   "meditation", "mindfulness", "đội ơn",
+  "gia hộ", "tinh tấn", "hồi hướng", "thiền nhân", "buổi thiền", "thời thiền",
+  "chư vị đại giác ngộ", "hộ pháp", "mẹ em bé Angel Cam Ly", "em bé Angel Cam Ly",
 ];
 
 function json(payload: unknown, status = 200): Response {

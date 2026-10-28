@@ -23,12 +23,14 @@ export { buildRecallBotBody };
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
 const production = await import(`data:application/javascript,${encodeURIComponent(productionCode)}`);
 
-Deno.test("production STT payload includes đội ơn without changing existing keyterms", () => {
+Deno.test("production STT payload includes meditation terms without changing existing keyterms", () => {
   const keyterms = production.buildRecallBotBody("https://zoom.us/j/1", "session", "https://functions.example/caption")
     .recording_config.transcript.provider.assembly_ai_v3_streaming.keyterms_prompt;
-  assert.ok(keyterms.includes("đội ơn"));
-  assert.equal(keyterms.filter((term: string) => term === "đội ơn").length, 1);
-  assert.deepEqual(keyterms.filter((term: string) => term !== "đội ơn"), [
+  const added = ["gia hộ", "tinh tấn", "hồi hướng", "thiền nhân", "buổi thiền", "thời thiền", "chư vị đại giác ngộ", "hộ pháp", "mẹ em bé Angel Cam Ly", "em bé Angel Cam Ly"];
+  for (const term of added) {
+    assert.equal(keyterms.filter((value: string) => value === term).length, 1, `missing/duplicate ${term}`);
+  }
+  assert.deepEqual(keyterms.filter((term: string) => !added.includes(term)), [
     "Urantia", "Melchizedek", "Machiventa", "Nebadon", "Orvonton", "Havona",
     "Satania", "Norlatiadek", "Thought Adjuster", "Điều Chỉnh Tư Duy",
     "Đấng Cha Vũ Trụ", "Sảnh Phục Sinh", "Resurrection Hall",
@@ -37,7 +39,7 @@ Deno.test("production STT payload includes đội ơn without changing existing 
     "LoveHub", "FUN-ID", "CAMLY", "Angel Translator", "Daniels Hussaini",
     "Angel Kim", "Hoàng Tỷ Đô", "bé Ly", "Richard E. Warren",
     "The Melchizedek Mission", "The First Humans", "Abuja", "Nigeria",
-    "meditation", "mindfulness",
+    "meditation", "mindfulness", "đội ơn",
   ]);
 });
 

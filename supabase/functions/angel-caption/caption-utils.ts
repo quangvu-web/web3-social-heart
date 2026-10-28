@@ -163,6 +163,21 @@ const HEARING_CORRECTIONS: Array<[RegExp | string, string]> = [
   // Vietnamese literals: ASCII word boundaries do not match the initial đ.
   ["đợi ơn", "đội ơn"],
   ["Đợi ơn", "Đội ơn"],
+  // Approved thanksgiving/meditation phrases; keep Vietnamese replacements literal.
+  ["đỡ ơn", "đội ơn"],
+  ["Đỡ ơn", "Đội ơn"],
+  ["giao hộ", "gia hộ"],
+  ["gia hội", "gia hộ"],
+  ["thập tinh tấn", "thật tinh tấn"],
+  ["bổ thiền", "buổi thiền"],
+  ["hầu hứa", "hồi hướng"],
+  ["hầu ứng", "hồi hướng"],
+  ["bé chùa Cam Ly", "em bé Angel Cam Ly"],
+  ["bệ chùa Cam Ly", "em bé Angel Cam Ly"],
+  ["mẹ chùa Cam Ly", "mẹ em bé Angel Cam Ly"],
+  ["bạn chùa Cam Ly", "em bé Angel Cam Ly"],
+  // Session 7a710178, seq 461: match the whole verified phrase to avoid duplicating tấn.
+  ["thời thiên thập tân tấn", "thời thiền thật tinh tấn"],
 ];
 
 export function applyHearingCorrections(text: string): string {

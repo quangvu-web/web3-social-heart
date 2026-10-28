@@ -8,9 +8,9 @@
 - [x] Deno typed targeted + toàn bộ caption, frontend hồi quy; review diff và probe CAS.
 - [x] Deploy angel-caption; không restart phiên. KEYTERMS mới chỉ có ở bot/STT mới.
 - [x] Sửa đúng phiên bằng CAS, PATCH chỉ text_source và text_vi khi chứa literal; GET riêng đối chiếu metadata/text_en; báo count, seq và remaining=0.
-- [ ] Nghiệm thu live phiên thử do bé cung cấp, năm cụm đúng trong DB; không tạo webhook/transcript giả.
+- [x] Nghiệm thu live được bé miễn sau khi cung cấp phiên yxjuet3re8y5; ghi rõ chưa kiểm chứng, dừng theo dõi, không đánh dấu pass.
 - [x] Lưu bằng chứng sửa dữ liệu tối thiểu và xóa probe/token.
-- [ ] Commit tiếng Việt, push nhánh riêng; cập nhật nghiệm thu live khi đủ bằng chứng.
+- [x] Commit tiếng Việt, push nhánh riêng; cập nhật trạng thái miễn nghiệm thu live theo yêu cầu bé.
 
 ## Quyết định theo bằng chứng
 - Lovable query_database không truy cập được DB (kể cả SELECT 1); dùng probe tạm có bearer hash và hạn 2 giờ, đúng một phiên, không schema/migration.

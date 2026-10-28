@@ -295,7 +295,7 @@
     ]
   ],
   "live_acceptance": {
-    "status": "pending_real_test_session",
+    "status": "waived_by_user",
     "required_terms": [
       "đội ơn",
       "gia hộ",
@@ -308,7 +308,10 @@
     "started_at": "2026-10-28T05:23:08.805+00:00",
     "new_keyterms_sent_to_this_existing_bot": false,
     "baseline_latest_seq": 538,
-    "baseline_observed_at_myt": "2026-10-28T14:29:53.821939+08:00"
+    "baseline_observed_at_myt": "2026-10-28T14:29:53.821939+08:00",
+    "verified": false,
+    "reason": "Bé yêu cầu bỏ qua bước nghiệm thu live sau khi cung cấp phiên thử; không có đủ năm cụm mới để xác minh.",
+    "last_observed_seq": 539
   },
   "cleanup": {
     "verified_at_myt": "2026-10-28T14:29:55.399085+08:00",

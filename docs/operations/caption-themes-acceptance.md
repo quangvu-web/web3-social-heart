@@ -45,4 +45,4 @@ Dùng chính `CaptionsPage` với fixture backend local, không đăng nhập v�
 - Bare `bun test` vẫn có **70 lỗi** khi Bun tải bộ test Edge/Deno (npm specifier/Deno globals), như trước; không báo toàn repo xanh. Đợt này không chạy `deno test` vì không sửa Edge Function.
 - Review độc lập không xác nhận lỗi chặn. Đã đo thực tế nghi vấn collapse trên màn hình hẹp; history vẫn có chiều cao. Đã bổ sung tên lựa chọn cho accessible name và ổn định nhóm nút.
 
-Fixture local được dọn trước commit. Chưa merge main hoặc deploy production trong đợt này.
+Fixture local được dọn trước commit. Bé đã yêu cầu merge vào `main` sau nghiệm thu; không thực hiện deploy production thủ công trong đợt này.

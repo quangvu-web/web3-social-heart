@@ -58,4 +58,4 @@ Bé cung cấp phiên `yxjuet3re8y5` (UUID `7ebf7f53-0d4a-479a-aefd-167a8edca9d0
 
 **Bé yêu cầu bỏ qua nghiệm thu live** trong phiên ngày 28/10/2026. Tiêu chí (c) được miễn theo yêu cầu, **chưa kiểm chứng live**, không đánh dấu đạt. Trước khi tiến trình theo dõi dừng, lần đọc cuối lúc **14:34:18.662** có đến seq **545**; bộ đệm đã ghi nhận `đội ơn` ở seq 542 và `buổi thiền` ở seq 543, chưa có đủ năm cụm cần thử. Đây chỉ là quan sát một phần, không phải nghiệm thu đạt. Không tạo transcript/webhook giả. Bằng chứng dữ liệu sửa lưu tại [caption-meditation-hearing-evidence.json](./caption-meditation-hearing-evidence.json).
 
-Đã dừng theo dõi phiên thử. Code đã push nhánh `fix/caption-meditation-hearing` (commit sản phẩm `28f68e3`), backend đã deploy v38; chưa merge `main` trong đợt này.
+Đã dừng theo dõi phiên thử. Code đã push nhánh `fix/caption-meditation-hearing` (commit sản phẩm `28f68e3`), backend đã deploy v38; bé đã yêu cầu merge vào `main` sau khi miễn nghiệm thu live.

@@ -56,6 +56,6 @@ Lovable query_database không truy cập được DB, kể cả `SELECT 1`; dùn
 
 Bé cung cấp phiên `yxjuet3re8y5` (UUID `7ebf7f53-0d4a-479a-aefd-167a8edca9d0`), đang live. Phiên mở **13:23:08.805**, trước deploy; không thể khẳng định bot cũ đã nhận KEYTERMS mới. Kiểm tra các dòng mới sau deploy/cursor baseline seq 538 để nghiệm thu đầu ra của corrections, không dùng các dòng đã backfill hoặc các cụm có sẵn trước deploy làm bằng chứng.
 
-**Bé yêu cầu bỏ qua nghiệm thu live** trong phiên ngày 28/10/2026. Tiêu chí (c) được miễn theo yêu cầu, **chưa kiểm chứng live**, không đánh dấu đạt. Trong thời gian theo dõi, dòng mới seq 539 là lời nhạc, chưa có đủ năm cụm cần thử. Không tạo transcript/webhook giả. Bằng chứng dữ liệu sửa lưu tại [caption-meditation-hearing-evidence.json](./caption-meditation-hearing-evidence.json).
+**Bé yêu cầu bỏ qua nghiệm thu live** trong phiên ngày 28/10/2026. Tiêu chí (c) được miễn theo yêu cầu, **chưa kiểm chứng live**, không đánh dấu đạt. Trước khi tiến trình theo dõi dừng, lần đọc cuối lúc **14:34:18.662** có đến seq **545**; bộ đệm đã ghi nhận `đội ơn` ở seq 542 và `buổi thiền` ở seq 543, chưa có đủ năm cụm cần thử. Đây chỉ là quan sát một phần, không phải nghiệm thu đạt. Không tạo transcript/webhook giả. Bằng chứng dữ liệu sửa lưu tại [caption-meditation-hearing-evidence.json](./caption-meditation-hearing-evidence.json).
 
 Đã dừng theo dõi phiên thử. Code đã push nhánh `fix/caption-meditation-hearing` (commit sản phẩm `28f68e3`), backend đã deploy v38; chưa merge `main` trong đợt này.

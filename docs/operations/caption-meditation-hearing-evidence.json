@@ -311,7 +311,19 @@
     "baseline_observed_at_myt": "2026-10-28T14:29:53.821939+08:00",
     "verified": false,
     "reason": "Bé yêu cầu bỏ qua bước nghiệm thu live sau khi cung cấp phiên thử; không có đủ năm cụm mới để xác minh.",
-    "last_observed_seq": 539
+    "last_observed_seq": 545,
+    "last_observed_at_myt": "2026-10-28T14:34:18.662187+08:00",
+    "partial_observations_before_stop": {
+      "đội ơn": [
+        542
+      ],
+      "gia hộ": [],
+      "hồi hướng": [],
+      "buổi thiền": [
+        543
+      ],
+      "em bé Angel Cam Ly": []
+    }
   },
   "cleanup": {
     "verified_at_myt": "2026-10-28T14:29:55.399085+08:00",

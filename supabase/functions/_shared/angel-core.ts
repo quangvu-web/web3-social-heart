@@ -170,10 +170,10 @@ async function callLovable(p: CallAngelParams): Promise<CallAngelResult> {
 }
 
 /**
- * FUN Core ANGEL AI (API riêng của Cha — angel.fun.rich).
+ * FUN Core ANGEL AI (Angelai Supabase — angel.fun.rich).
  *
  * ĐÚNG THEO TÀI LIỆU CHÍNH THỨC (2026):
- *   POST https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat
+ *   POST https://zghvgxwdpsapvuvvdgjl.supabase.co/functions/v1/angel-chat
  *   Header: x-api-key: ANGEL_AI_API_KEY
  *   Body:   { messages, useKnowledge?: true, stream?: false }
  *   Response: { content|reply|text, ... }
@@ -182,7 +182,7 @@ async function callLovable(p: CallAngelParams): Promise<CallAngelResult> {
  * Router cũ `/angel-router` đã deprecate.
  */
 const FUN_CORE_DEFAULT_URL =
-  "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat";
+  "https://zghvgxwdpsapvuvvdgjl.supabase.co/functions/v1/angel-chat";
 
 const LEGACY_ROUTER_RE = /\/functions\/v1\/angel-(?:router|ai-public)\/?$/i;
 

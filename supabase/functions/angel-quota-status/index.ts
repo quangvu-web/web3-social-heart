@@ -8,7 +8,7 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const DEFAULT_BASE = "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1";
+const DEFAULT_BASE = "https://zghvgxwdpsapvuvvdgjl.supabase.co/functions/v1";
 
 function getBase(): string {
   const raw = Deno.env.get("ANGEL_ROOT_BASE_URL")

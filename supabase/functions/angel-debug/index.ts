@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     const provider = body?.provider ?? getAngelProvider();
     const endpoint = provider === "funcore"
       ? (Deno.env.get("ANGEL_AI_CHAT_URL")
-        || "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/angel-chat")
+        || "https://zghvgxwdpsapvuvvdgjl.supabase.co/functions/v1/angel-chat")
       : "https://ai.gateway.lovable.dev/v1/chat/completions";
 
     // Payload tối giản giống askAngel cho funcore — để xem RAG raw trả về.

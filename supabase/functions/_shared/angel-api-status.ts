@@ -2,7 +2,7 @@
 // Client cho Angel gốc GET /api-key-status.
 // Trả về quota chat + image còn lại hôm nay. Cache 60s để tránh gọi thừa.
 
-const DEFAULT_BASE = "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1";
+const DEFAULT_BASE = "https://zghvgxwdpsapvuvvdgjl.supabase.co/functions/v1";
 
 export type AngelApiKeyStatus = {
   ok: boolean;

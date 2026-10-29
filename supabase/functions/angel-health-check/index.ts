@@ -1,9 +1,9 @@
-// angel-health-check — cron mỗi 5 phút, ping /api-key-status Angel gốc.
+// angel-health-check — cron mỗi 5 phút, ping /api-key-status Angel gốc (Angelai Supabase: zghvgxwdpsapvuvvdgjl).
 // Ghi kết quả vào angel_ai_events (channel=health, intent=root.ping) để AI Ops
 // tab hiển thị uptime/latency của Angel gốc.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const DEFAULT_BASE = "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1";
+const DEFAULT_BASE = "https://zghvgxwdpsapvuvvdgjl.supabase.co/functions/v1";
 
 function getBase(): string {
   const raw = Deno.env.get("ANGEL_ROOT_BASE_URL") || Deno.env.get("ANGEL_AI_BASE_URL") || "";

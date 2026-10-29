@@ -2,7 +2,7 @@
  * Angel Knowledge push adapter (Angel AI gốc — angel.fun.rich)
  *
  * Endpoint contract: https://angel.fun.rich/docs/knowledge-ingest-api
- *   POST https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/knowledge-external-ingest
+ *   POST https://zghvgxwdpsapvuvvdgjl.supabase.co/functions/v1/knowledge-external-ingest
  *   Header: x-api-key: <khóa được chọn bởi getKey()>
  *
  * 3 action:
@@ -18,7 +18,7 @@
 import { logAiEvent } from "./angel/telemetry.ts";
 
 const INGEST_URL =
-  "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1/knowledge-external-ingest";
+  "https://zghvgxwdpsapvuvvdgjl.supabase.co/functions/v1/knowledge-external-ingest";
 
 function getKey(): string | null {
   return (

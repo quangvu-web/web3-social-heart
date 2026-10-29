@@ -2,7 +2,7 @@
 // Client cho Angel gốc POST /knowledge-search.
 // Trả về top-k đoạn tri thức khớp query. Dùng cho tra cứu nhanh không tốn quota chat.
 
-const DEFAULT_BASE = "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1";
+const DEFAULT_BASE = "https://zghvgxwdpsapvuvvdgjl.supabase.co/functions/v1";
 
 export type KnowledgeMatch = {
   content: string;

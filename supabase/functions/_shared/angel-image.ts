@@ -14,7 +14,7 @@ import { logImagePipeline } from "./angel/image-telemetry.ts";
 import { distillImagePrompt } from "./angel/image-distill.ts";
 
 const DEFAULT_BASE =
-  "https://ssjoetiitctqzapymtzl.supabase.co/functions/v1";
+  "https://zghvgxwdpsapvuvvdgjl.supabase.co/functions/v1";
 
 export function getAngelRootBase(): string {
   const raw =

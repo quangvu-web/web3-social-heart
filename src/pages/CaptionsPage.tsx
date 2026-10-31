@@ -43,6 +43,18 @@ const partialsDb = supabase as unknown as SupabaseClient;
 type ViewMode = "vi" | "en" | "both";
 
 const SPEAKING_WIDTH_KEY = "caption-speaking-panel-width";
+const SPEAKING_HEIGHT_KEY = "caption-speaking-panel-height-em";
+const DEFAULT_SPEAKING_HEIGHT = 8.25;
+
+function readSpeakingHeight(): number {
+  try {
+    const stored = window.localStorage.getItem(SPEAKING_HEIGHT_KEY);
+    const height = stored === null ? NaN : Number(stored);
+    return Number.isFinite(height) && height >= 4 ? height : DEFAULT_SPEAKING_HEIGHT;
+  } catch {
+    return DEFAULT_SPEAKING_HEIGHT;
+  }
+}
 
 function readSpeakingWidth(): number {
   try {
@@ -129,6 +141,7 @@ export default function CaptionsPage() {
 
   const [theme, setTheme] = useState<CaptionTheme>(() => readCaptionTheme());
   const [speakingWidth, setSpeakingWidth] = useState(readSpeakingWidth);
+  const [speakingHeight, setSpeakingHeight] = useState(readSpeakingHeight);
   const changeTheme = (next: CaptionTheme) => {
     setTheme(next);
     saveCaptionTheme(next);
@@ -143,6 +156,10 @@ export default function CaptionsPage() {
   const speakingPanelRef = useRef<HTMLElement>(null);
   const speakingDrag = useRef<{
     pointerId: number; startX: number; startWidth: number; pageWidth: number; direction: number;
+  } | null>(null);
+
+  const speakingHeightDrag = useRef<{
+    pointerId: number; startY: number; startHeight: number; fontSize: number;
   } | null>(null);
 
   // Đồng hồ thời lượng
@@ -386,8 +403,45 @@ export default function CaptionsPage() {
     }
   }, [speakingWidth]);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SPEAKING_HEIGHT_KEY, String(speakingHeight));
+    } catch {
+      // Keep the in-page selection when device storage is unavailable.
+    }
+  }, [speakingHeight]);
+
+  const clampSpeakingHeight = (height: number, size = fontSize) =>
+    Math.min(Math.max(4, 0.7 * window.innerHeight / size), Math.max(4, height));
+
+  const startSpeakingHeightResize = (event: PointerEvent<HTMLButtonElement>) => {
+    const panel = speakingPanelRef.current;
+    if (event.button !== 0 || speakingHeightDrag.current || speakingDrag.current || !panel) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    speakingHeightDrag.current = {
+      pointerId: event.pointerId, startY: event.clientY,
+      // Start from the displayed height if a smaller viewport has capped the saved preference.
+      startHeight: panel.getBoundingClientRect().height / fontSize, fontSize,
+    };
+  };
+
+  const moveSpeakingHeightResize = (event: PointerEvent<HTMLButtonElement>) => {
+    const drag = speakingHeightDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setSpeakingHeight(clampSpeakingHeight(drag.startHeight + (drag.startY - event.clientY) / drag.fontSize, drag.fontSize));
+  };
+
+  const stopSpeakingHeightResize = (event: PointerEvent<HTMLButtonElement>) => {
+    if (speakingHeightDrag.current?.pointerId !== event.pointerId) return;
+    speakingHeightDrag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
   const startSpeakingResize = (event: PointerEvent<HTMLButtonElement>, direction: number) => {
-    if (event.button !== 0 || speakingDrag.current) return;
+    if (event.button !== 0 || speakingDrag.current || speakingHeightDrag.current) return;
     const panel = speakingPanelRef.current;
     const pageWidth = panel?.parentElement?.getBoundingClientRect().width;
     if (!panel || !pageWidth) return;
@@ -498,19 +552,49 @@ export default function CaptionsPage() {
           </button>
         )}
       </div>
-      {/* Chừa đúng 6 dòng (leading-snug = 1.375) theo cỡ chữ hiện tại.
-          Chỉ lịch sử mới tác động bám đáy; partial/chờ luôn dùng cùng các node. */}
+      {/* Mặc định 6 dòng; chiều cao tùy chọn vẫn bám theo cỡ chữ bằng em.
+          Partial/chờ luôn dùng cùng các node, độc lập với bám đáy của lịch sử. */}
       {session.status === "live" && (
         <section
           ref={speakingPanelRef}
           aria-label="Người đang nói"
           className="relative mx-auto h-[8.25em] shrink-0 overflow-y-auto overscroll-contain border-t border-caption-border leading-snug italic text-caption-muted"
-          style={{ fontSize, width: `${speakingWidth}%`, minWidth: "min(300px, 100%)" }}
+          style={{
+            fontSize, width: `${speakingWidth}%`, minWidth: "min(300px, 100%)",
+            height: `${speakingHeight}em`, minHeight: "4em", maxHeight: "max(4em, 70dvh)",
+          }}
         >
           <div className="h-full overflow-y-auto overscroll-contain px-4">
             <div className="text-sm min-h-[1.25em] mb-1 font-semibold text-caption-speaker">{showPartial ? partial?.speaker_name ?? "" : ""}</div>
             <div>{showPartial ? `${partial?.text_source}…` : "🎙️ Đang nghe…"}</div>
           </div>
+          <button
+            type="button"
+            aria-label="Đổi chiều cao khung người đang nói"
+            title="Kéo để đổi chiều cao; nhấp đúp để về mặc định"
+            className="group absolute top-0 left-0 right-0 z-20 flex h-3 touch-none select-none cursor-ns-resize items-center justify-center hover:bg-caption-control/30 focus-visible:bg-caption-control/30 focus-visible:outline-none"
+            onPointerDown={startSpeakingHeightResize}
+            onPointerMove={moveSpeakingHeightResize}
+            onPointerUp={stopSpeakingHeightResize}
+            onPointerCancel={stopSpeakingHeightResize}
+            onLostPointerCapture={stopSpeakingHeightResize}
+            onDoubleClick={() => setSpeakingHeight(DEFAULT_SPEAKING_HEIGHT)}
+            onKeyDown={(event) => {
+              if (event.key === "Home") {
+                event.preventDefault();
+                setSpeakingHeight(DEFAULT_SPEAKING_HEIGHT);
+              }
+              if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+                event.preventDefault();
+                const panel = speakingPanelRef.current;
+                if (!panel) return;
+                const height = panel.getBoundingClientRect().height / fontSize;
+                setSpeakingHeight(clampSpeakingHeight(height + (event.key === "ArrowUp" ? 0.5 : -0.5)));
+              }
+            }}
+          >
+            <span aria-hidden="true" className="w-10 border-t-2 border-caption-border opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+          </button>
           {(["trái", "phải"] as const).map((side) => (
             <button
               key={side}

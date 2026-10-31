@@ -1,6 +1,6 @@
 // Trang phụ đề trực tiếp Angel Translator — công khai theo mã phiên, không cần đăng nhập.
 // Nhận dòng mới qua Supabase Realtime (INSERT trên caption_lines, lọc theo session_id).
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -41,6 +41,18 @@ interface CaptionPartial {
 const partialsDb = supabase as unknown as SupabaseClient;
 
 type ViewMode = "vi" | "en" | "both";
+
+const SPEAKING_WIDTH_KEY = "caption-speaking-panel-width";
+
+function readSpeakingWidth(): number {
+  try {
+    const stored = window.localStorage.getItem(SPEAKING_WIDTH_KEY);
+    const width = stored === null ? NaN : Number(stored);
+    return Number.isFinite(width) && width >= 35 && width <= 100 ? width : 100;
+  } catch {
+    return 100;
+  }
+}
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
   pending: "Đang chờ bot vào phòng…",
@@ -116,6 +128,7 @@ export default function CaptionsPage() {
   const [jumpState, setJumpState] = useState({ visible: false, count: 0 });
 
   const [theme, setTheme] = useState<CaptionTheme>(() => readCaptionTheme());
+  const [speakingWidth, setSpeakingWidth] = useState(readSpeakingWidth);
   const changeTheme = (next: CaptionTheme) => {
     setTheme(next);
     saveCaptionTheme(next);
@@ -127,6 +140,10 @@ export default function CaptionsPage() {
   const unreadBase = useRef(0);
   const linesCountRef = useRef(0);
   const autoScrollGuard = useRef(0);
+  const speakingPanelRef = useRef<HTMLElement>(null);
+  const speakingDrag = useRef<{
+    pointerId: number; startX: number; startWidth: number; pageWidth: number; direction: number;
+  } | null>(null);
 
   // Đồng hồ thời lượng
   useEffect(() => {
@@ -361,6 +378,44 @@ export default function CaptionsPage() {
     }
   }, []);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SPEAKING_WIDTH_KEY, String(speakingWidth));
+    } catch {
+      // Resizing still works when device storage is unavailable.
+    }
+  }, [speakingWidth]);
+
+  const startSpeakingResize = (event: PointerEvent<HTMLButtonElement>, direction: number) => {
+    if (event.button !== 0 || speakingDrag.current) return;
+    const panel = speakingPanelRef.current;
+    const pageWidth = panel?.parentElement?.getBoundingClientRect().width;
+    if (!panel || !pageWidth) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    speakingDrag.current = {
+      pointerId: event.pointerId, startX: event.clientX,
+      startWidth: panel.getBoundingClientRect().width, pageWidth, direction,
+    };
+  };
+
+  const moveSpeakingResize = (event: PointerEvent<HTMLButtonElement>) => {
+    const drag = speakingDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const minWidth = Math.min(100, Math.max(35, 300 / drag.pageWidth * 100));
+    // Both edges move equally because the panel stays centered.
+    const width = (drag.startWidth + 2 * drag.direction * (event.clientX - drag.startX)) / drag.pageWidth * 100;
+    setSpeakingWidth(Math.min(100, Math.max(minWidth, width)));
+  };
+
+  const stopSpeakingResize = (event: PointerEvent<HTMLButtonElement>) => {
+    if (speakingDrag.current?.pointerId !== event.pointerId) return;
+    speakingDrag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
   if (notFound) {
     return (
       <div data-caption-theme={theme} className="min-h-screen bg-caption-background text-caption-foreground flex items-center justify-center p-6">
@@ -447,12 +502,43 @@ export default function CaptionsPage() {
           Chỉ lịch sử mới tác động bám đáy; partial/chờ luôn dùng cùng các node. */}
       {session.status === "live" && (
         <section
+          ref={speakingPanelRef}
           aria-label="Người đang nói"
-          className="h-[8.25em] shrink-0 overflow-y-auto overscroll-contain border-t border-caption-border px-4 leading-snug italic text-caption-muted"
-          style={{ fontSize }}
+          className="relative mx-auto h-[8.25em] shrink-0 overflow-y-auto overscroll-contain border-t border-caption-border leading-snug italic text-caption-muted"
+          style={{ fontSize, width: `${speakingWidth}%`, minWidth: "min(300px, 100%)" }}
         >
-          <div className="text-sm min-h-[1.25em] mb-1 font-semibold text-caption-speaker">{showPartial ? partial?.speaker_name ?? "" : ""}</div>
-          <div>{showPartial ? `${partial?.text_source}…` : "🎙️ Đang nghe…"}</div>
+          <div className="h-full overflow-y-auto overscroll-contain px-4">
+            <div className="text-sm min-h-[1.25em] mb-1 font-semibold text-caption-speaker">{showPartial ? partial?.speaker_name ?? "" : ""}</div>
+            <div>{showPartial ? `${partial?.text_source}…` : "🎙️ Đang nghe…"}</div>
+          </div>
+          {(["trái", "phải"] as const).map((side) => (
+            <button
+              key={side}
+              type="button"
+              aria-label={`Đổi chiều rộng khung từ bên ${side}`}
+              title="Kéo để đổi chiều rộng; nhấp đúp để mở rộng toàn trang"
+              className={`group absolute inset-y-0 z-10 flex w-3 touch-none select-none cursor-ew-resize items-center justify-center hover:bg-caption-control/30 focus-visible:bg-caption-control/30 focus-visible:outline-none ${side === "trái" ? "left-0" : "right-0"}`}
+              onPointerDown={(event) => startSpeakingResize(event, side === "trái" ? -1 : 1)}
+              onPointerMove={moveSpeakingResize}
+              onPointerUp={stopSpeakingResize}
+              onPointerCancel={stopSpeakingResize}
+              onLostPointerCapture={stopSpeakingResize}
+              onDoubleClick={() => setSpeakingWidth(100)}
+              onKeyDown={(event) => {
+                if (event.key === "Home") setSpeakingWidth(100);
+                if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                  event.preventDefault();
+                  const pageWidth = speakingPanelRef.current?.parentElement?.getBoundingClientRect().width;
+                  if (!pageWidth) return;
+                  const minWidth = Math.min(100, Math.max(35, 300 / pageWidth * 100));
+                  const direction = (event.key === "ArrowRight" ? 1 : -1) * (side === "trái" ? -1 : 1);
+                  setSpeakingWidth((width) => Math.min(100, Math.max(minWidth, width + direction * 5)));
+                }
+              }}
+            >
+              <span aria-hidden="true" className="h-10 border-l-2 border-caption-border opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+            </button>
+          ))}
         </section>
       )}
     </div>

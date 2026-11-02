@@ -2673,14 +2673,17 @@ ${addressRule}`;
     let factualLookup = false;
     let factualLookupReason = "not_checked";
 
-    // ===== YouTube on-demand augmentation =====
-    // Nếu user gửi link YouTube (DM hoặc mention trong group), fetch transcript
-    // và inline vào user message (Mirror-safe — không dùng system role).
+    // ===== YouTube on-demand augmentation — ĐÃ TẮT (02/11/2026) =====
+    // Lý do: YouTube chặn fetch transcript (HTTP 429) nên tính năng không hoạt
+    // động, mà vẫn tốn credit AI cho prompt có transcript. Link YouTube giờ được
+    // xử lý như tin nhắn thường (không fetch transcript, không inline context).
+    // Muốn bật lại: đổi YOUTUBE_AUGMENTATION_ENABLED thành true.
+    const YOUTUBE_AUGMENTATION_ENABLED = false;
     let _ytAugmented = false;
     let _ytHasTranscript = false;
     let _ytFailureReasons: string[] = [];
     try {
-      const ytIds = extractYouTubeIds(originalUserMessage);
+      const ytIds = YOUTUBE_AUGMENTATION_ENABLED ? extractYouTubeIds(originalUserMessage) : [];
       if (ytIds.length > 0) {
         const ytCtx = await buildYouTubeContextBlock(originalUserMessage, { maxVideos: 2 });
         if (ytCtx) {
@@ -3700,9 +3703,8 @@ ${addressRule}`;
     if (isAngelCore && errStatus === 429) fallback = fallbackRateLimit(q, params.fallbackLangBucket ?? params.forcedLangBucket);
     else if (isAngelCore && errStatus === 402) fallback = fallbackRest(q, params.fallbackLangBucket ?? params.forcedLangBucket);
     else if (isAngelCore && errStatus === 500 && /not configured/i.test(errMsg)) fallback = fallbackRest(q, params.fallbackLangBucket ?? params.forcedLangBucket);
-    else if (ytIds.length > 0) {
-      fallback = "Bé ơi, Angel vừa thử đọc video YouTube này nhưng chưa lấy được nội dung (có thể video riêng tư, không có phụ đề, hoặc YouTube đang chặn tạm thời) 💛✨\n\nBé có thể tóm tắt hoặc dán transcript để Angel cùng suy ngẫm với bé nhé.";
-    }
+    // Nhánh YouTube riêng đã bỏ (02/11/2026) — tính năng đọc link YouTube đã tắt,
+    // dùng fallback chung như mọi tin nhắn khác.
     else fallback = fallbackBusy(q, params.fallbackLangBucket ?? params.forcedLangBucket);
     _finalReason = "busy";
     fallback = enforceVietnamesePronouns(fallback, senderUsername);

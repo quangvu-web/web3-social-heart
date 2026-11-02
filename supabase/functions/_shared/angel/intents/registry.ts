@@ -12,7 +12,6 @@
 // chuỗi if/else trong `telegram-community.ts`.
 
 import { detectImageIntent } from "./image.ts";
-import { detectYouTubeIntent } from "./youtube.ts";
 import {
   detectFactualLookupQuery,
   detectMeditationInvite,
@@ -42,13 +41,7 @@ export const INTENT_REGISTRY: IntentDefinition[] = [
     category: "media",
     detector: (c) => detectImageIntent(c.text, c.hasImage ?? false),
   },
-  {
-    key: "media.youtube_link",
-    label: "Link YouTube",
-    description: "Tin nhắn có link YouTube → phân tích transcript.",
-    category: "media",
-    detector: (c) => detectYouTubeIntent(c.text),
-  },
+  // Intent media.youtube_link đã gỡ (02/11/2026) — tính năng đọc link YouTube đã tắt.
   {
     key: "lookup.factual_wallet",
     label: "Truy vấn dữ liệu ví / ID",

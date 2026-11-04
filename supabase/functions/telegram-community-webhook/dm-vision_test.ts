@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import ts from "npm:typescript@5.8.3";
 import { buildDmImageFollowup, detectImageFollowup } from "../_shared/telegram-dm-image-context.ts";
+import { buildDmTextFollowup, buildDmDefinitionQuestion, detectTextFollowup } from "../_shared/telegram-dm-text-context.ts";
 const source = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
 const translationSourceHelper = source.slice(source.indexOf("function extractInlineTranslationSource"), source.indexOf("async function getPendingDmTranslationTarget"));
 const handler = source.slice(
@@ -11,11 +12,15 @@ const code = ts.transpileModule(
   `
  export const replies=[],questions=[],visionCalls=[],mediaCalls=[];
  let description='FUN Profile. Nền trắng, chữ Hẹn gặp lúc 19:00 MYT.';
- let imageContext=null, aiReply='Lời hồi đáp dựa trên ảnh';
- export function configure(v){description=v;imageContext=null;aiReply='Lời hồi đáp dựa trên ảnh';replies.length=questions.length=visionCalls.length=mediaCalls.length=0;}
+ let imageContext=null, textContext=null, aiReply='Lời hồi đáp dựa trên ảnh';
+ export function configure(v){description=v;imageContext=null;textContext=null;aiReply='Lời hồi đáp dựa trên ảnh';replies.length=questions.length=visionCalls.length=mediaCalls.length=0;}
  export function setAiReply(v){aiReply=v;}
  const detectImageFollowup=${detectImageFollowup.toString()};
  const buildDmImageFollowup=${buildDmImageFollowup.toString()};
+ const buildDmTextFollowup=${buildDmTextFollowup.toString()};
+ const buildDmDefinitionQuestion=${buildDmDefinitionQuestion.toString()};
+ const detectTextFollowup=${detectTextFollowup.toString()};
+ async function beginDmTextTurn(){const previous=textContext;textContext=null;return {previous,finish:async c=>{textContext=c;}};}
  async function beginDmImageTurn(){const previous=imageContext;imageContext=null;return {previous,finish:async c=>{imageContext=c;}};}
  function extractText(m){return m.text??m.caption??'';}
  function getClients(){return {adminClient:{}};}
@@ -137,8 +142,9 @@ Deno.test("new topic clears image; a missing source asks one concrete question w
   await f.handlePrivateMessage({ ...image, photo: undefined, message_id: 2, text: "Giải thích blockchain" });
   assert.equal(f.questions.at(-1).question, "Giải thích blockchain");
   await f.handlePrivateMessage({ ...image, photo: undefined, message_id: 3, text: "con nên trả lời sao" });
-  assert.equal(f.questions.length, 2);
-  assert.match(f.replies.at(-1), /gửi lại ảnh hoặc đoạn tin nhắn/);
+  assert.equal(f.questions.length, 3);
+  assert.ok(f.questions.at(-1).textConversationContext.includes("Giải thích blockchain"));
+  assert.ok(!f.questions.at(-1).question.includes("Ảnh cũ"));
 });
 
 Deno.test("explicit reply to another message never borrows latest image", async () => {
@@ -210,7 +216,47 @@ Deno.test("continuation after a new topic must not resurrect the old image threa
   await f.handlePrivateMessage({ ...image, photo: undefined, message_id: 2, text: "Giải thích blockchain" });
   for (const [i, text] of ["rồi sao nữa cha", "tiếp đi", "ý đó là sao"].entries()) {
     await f.handlePrivateMessage({ ...image, photo: undefined, message_id: i + 3, text });
-    assert.equal(f.questions.at(-1).question, text);
+    assert.ok(f.questions.at(-1).textConversationContext.includes("Giải thích blockchain"));
+    assert.ok(!f.questions.at(-1).question.includes("Ảnh cũ của Fath"));
     assert.equal(f.questions.at(-1).imageAnalysisContext, undefined);
   }
+});
+
+Deno.test("text screenshot: definition → tiếp đi cha preserves topic and last answer without image context", async () => {
+  f.configure("unused");
+  const dm = { ...image, photo: undefined };
+  f.setAiReply("Tự do tuyệt đối là một lý tưởng triết học, có nhiều cách hiểu.");
+  await f.handlePrivateMessage({ ...dm, text: "tự do tuyệt đối là gì" });
+  assert.match(f.questions[0].question, /DM_DEFINITION_TASK/);
+  assert.equal(f.questions[0].originalUserMessage, "tự do tuyệt đối là gì");
+  for (const [i, text] of ["tiếp đi cha", "ý đó là sao", "ngắn hơn"].entries()) {
+    await f.handlePrivateMessage({ ...dm, message_id: i + 2, text });
+    const call = f.questions.at(-1);
+    assert.equal(call.originalUserMessage, text);
+    assert.equal(call.textConversationContext, call.question);
+    assert.ok(call.question.includes("tự do tuyệt đối là gì"));
+    assert.ok(call.question.includes("lý tưởng triết học"));
+    assert.equal(call.imageAnalysisContext, undefined);
+  }
+  assert.equal(f.visionCalls.length, 0);
+  await f.handlePrivateMessage({ ...dm, message_id: 5, text: "Blockchain hoạt động thế nào?" });
+  await f.handlePrivateMessage({ ...dm, message_id: 6, text: "tiếp đi cha" });
+  assert.ok(f.questions.at(-1).question.includes("Blockchain hoạt động thế nào?"));
+  assert.ok(!f.questions.at(-1).question.includes("tự do tuyệt đối là gì"));
+});
+
+Deno.test("missing/reset text context asks one clarification; a photo clears the old text thread", async () => {
+  f.configure("Ảnh mới");
+  const dm = { ...image, photo: undefined };
+  await f.handlePrivateMessage({ ...dm, text: "tiếp đi cha" });
+  assert.equal(f.questions.length, 0);
+  assert.match(f.replies.at(-1), /gửi lại câu hỏi/);
+  await f.handlePrivateMessage({ ...dm, message_id: 2, text: "Giải thích blockchain" });
+  await f.handlePrivateMessage({ ...dm, message_id: 3, text: "/start" });
+  await f.handlePrivateMessage({ ...dm, message_id: 4, text: "tiếp đi cha" });
+  assert.equal(f.questions.length, 1);
+  await f.handlePrivateMessage({ ...image, message_id: 5 });
+  await f.handlePrivateMessage({ ...dm, message_id: 6, text: "tiếp đi cha" });
+  assert.ok(f.questions.at(-1).imageAnalysisContext.includes("Ảnh mới"));
+  assert.equal(f.questions.at(-1).textConversationContext, undefined);
 });

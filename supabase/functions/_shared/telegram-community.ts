@@ -2490,6 +2490,8 @@ async function askAngelReply(params: {
   telegramGroupContext?: TelegramGroupContext | null;
   /** Grounded DM photo context must survive factual/confirmation routing. */
   imageAnalysisContext?: string | null;
+  /** Scoped short-lived DM text context, preserved through mirror/retries. */
+  textConversationContext?: string | null;
   /** Attachments (ảnh gửi kèm) — forward tới `/angel-router` để Angel gốc tự phân tích. */
   attachments?: Array<{ kind: "image"; url?: string; base64?: string; mime_type?: string }>;
   /** Out-param: nếu router trả ảnh (image_generate / image_analyze) → askAngel mutate object này. */
@@ -2514,6 +2516,7 @@ async function askAngelReply(params: {
 
 ${addressRule}`;
   const originalUserMessage = params.originalUserMessage?.trim() || q;
+  const groundedReplyContext = params.imageAnalysisContext || (params.conversationContext?.chatType === "private" ? params.textConversationContext : null);
   const langBucket = resolveAngelLanguageBucket(originalUserMessage, params.forcedLangBucket);
   const trustedGroupLanguagePolicy = ["group", "supergroup", "channel"].includes(
     (params.conversationContext?.chatType ?? "").toLowerCase(),
@@ -3110,8 +3113,8 @@ ${addressRule}`;
     // Angel gốc. Câu nhạy cảm nội bộ (ví, mật khẩu, tên user...) → chỉ trả
     // lời khi có RAG match; câu kiến thức phổ thông → cho phép fallback LLM.
     const { classifyQuestionSensitivity } = await import("./angel-sensitivity.ts");
-    if (params.imageAnalysisContext && !messages.some((message) => message.content === params.imageAnalysisContext)) {
-      messages.push({ role: "user", content: params.imageAnalysisContext });
+    if (groundedReplyContext && !messages.some((message) => message.content === groundedReplyContext)) {
+      messages.push({ role: "user", content: groundedReplyContext });
     }
     const _answerMode = classifyQuestionSensitivity(originalUserMessage || q);
     if (_answerMode !== "auto") {
@@ -3212,6 +3215,7 @@ ${addressRule}`;
     const _isDmContext = !(_rawChatType === "group" || _rawChatType === "supergroup" || _rawChatType === "channel");
     const _langOk = !replyViolatesAngelLanguageBucket(reply, langBucket);
     const _shortDmSkip = _isDmContext && reply.length < 400 && _langOk;
+    const _keepDmTextStyle = params.conversationContext?.chatType === "private" && !!params.textConversationContext;
     if (_shortDmSkip) {
       console.log(`[askAngel] TẦNG B skip restyle+repair+postprocess (short DM ${reply.length} chars, lang ok)`);
     }
@@ -3220,7 +3224,7 @@ ${addressRule}`;
     // Mặc định: giữ nguyên reply Angel chính chủ từ FUN Core (đầy đủ, nhiều mục, ví dụ, câu mở).
     // Bỏ fallback defaultAiStylePromptForLanguage vì nó ép cắt xuống ≤180 từ / 5 bullet
     // → làm mất giọng chính chủ (giống bản angelquangvu.fun.rich).
-    if (provider === "funcore" && !_shortDmSkip) {
+    if (provider === "funcore" && !_shortDmSkip && !_keepDmTextStyle) {
       const styleRule = params.aiStylePrompt?.trim();
       const skipFactualRestyle = factualLookup && replyHasConcreteFactualData(reply);
       if (skipFactualRestyle) {
@@ -3293,7 +3297,7 @@ ${addressRule}`;
     // KHÔNG dính vào request gửi FUN Core → không ảnh hưởng RAG. Rewrite CHỈ chạy
     // trên reply output. Nếu miss fact hoặc lỗi → tự động fallback về reply gốc.
     // TẦNG B: skip toàn bộ khi short DM + lang ok (đã cover ở guard đầu block).
-    if (_shortDmSkip || params.telegramGroupContext) {
+    if (_shortDmSkip || _keepDmTextStyle || params.telegramGroupContext) {
       // Structured replies keep their verified speaker relationships; skip a context-free style rewrite.
       // no-op — enforceVietnamesePronouns + hardRevert đã chạy ở trên, đủ an toàn.
     } else {
@@ -3380,8 +3384,8 @@ ${addressRule}`;
             try {
               const funcoreRetryMsgs = [
                 { role: "user" as const, content: originalUserMessage },
-                { role: "user" as const, content: params.imageAnalysisContext
-                  ? `${params.imageAnalysisContext}\n\n${ANTI_REPEAT_RULE}`
+                { role: "user" as const, content: groundedReplyContext
+                  ? `${groundedReplyContext}\n\n${ANTI_REPEAT_RULE}`
                   : ANTI_REPEAT_RULE },
               ];
               retry = await callAngelCore({
@@ -3569,7 +3573,7 @@ ${addressRule}`;
     const isHardBlock = isAngelCore && (errStatus === 429 || errStatus === 402
       || (errStatus === 500 && /not configured/i.test(errMsg)));
     // Nếu turn này đã bridge context, dùng bridged query cho retry để không mất anchor.
-    const cleanUserText = (params.imageAnalysisContext || bridgedQueryForRetry || params.originalUserMessage?.trim() || originalUserMessage || q).trim();
+    const cleanUserText = (groundedReplyContext || bridgedQueryForRetry || params.originalUserMessage?.trim() || originalUserMessage || q).trim();
 
     const buildLogPayload = (extra: Record<string, unknown>) => JSON.stringify({
       route: extra.route ?? provider,
@@ -3667,7 +3671,7 @@ ${addressRule}`;
     const _staleEnabled = await getFlag("router.stale_fallback_on_error", true);
     if (
       _staleEnabled
-      && !params.imageAnalysisContext
+      && !groundedReplyContext
       && !params.telegramGroupContext
       && params.conversationContext?.chatId != null
       && params.conversationContext?.userId != null

@@ -27,6 +27,12 @@ Deno.test("screenshot review: bot observation uses Angel while the user's ready-
   assert.equal(normalize(input), `Angel thấy bé vừa gửi ảnh. Angel tò mò về câu hỏi trong ảnh.\n\n${draft}`);
   assert.equal(normalize("Bé kể rằng mình thấy bình an. Cha Vũ Trụ yêu thương mọi người."), "Bé kể rằng mình thấy bình an. Cha Vũ Trụ yêu thương mọi người.");
 });
+Deno.test("text DM screenshot: fillers, negative identity clauses and bot-directed objects use Angel", () => {
+  assert.equal(normalize("À, mình hiểu bé muốn mình tiếp tục. Mình không phải Cha Vũ Trụ. Bé muốn mình làm rõ phần nào?"), "À, Angel hiểu bé muốn Angel tiếp tục. Angel không phải Cha Vũ Trụ. Bé muốn Angel làm rõ phần nào?");
+  assert.equal(normalize("Câu hỏi này rất rộng lớn, bạn thân mến. Theo những gì mình được biết, bé có thể thử."), "Câu hỏi này rất rộng lớn, bé. Theo những gì Angel được biết, bé có thể thử.");
+  assert.equal(normalize("Nếu bé muốn, mình có thể chia sẻ thêm."), "Nếu bé muốn, Angel có thể chia sẻ thêm.");
+  for (const unchanged of ['"À, mình hiểu. Mình không phải người đó."', "Bé muốn mình sống bình an.", "Bé kể rằng mình không biết.", "Bé kể rằng theo những gì mình biết thì chuyện đã xong.", "Bé kể rằng, theo những gì mình biết thì chuyện đã xong.", "Người bạn thân của bé."]) assert.equal(normalize(unchanged), unchanged);
+});
 Deno.test("Telegram guard preserves quoted dialogue, code, URLs and handles", () => {
   const spans = ['“Mình sẽ giúp bạn, bé Ly.”', '"Tôi chào bé Ly"', '`mình bé Ly`', '```ts\nconst mình = "bé Ly";\n```', '<code>Mình chào bạn</code>', '<pre>Tôi chào bé Ly</pre>', '<blockquote>Cha sẽ giúp con.</blockquote>', 'https://example.test/bạn/@Camly_Duong', '@Camly_Duong', '> Mình sẽ giúp bạn.', '— Tôi chào bạn.'];
   for (const span of spans) assert.equal(normalize(span, "Camly_Duong"), span);

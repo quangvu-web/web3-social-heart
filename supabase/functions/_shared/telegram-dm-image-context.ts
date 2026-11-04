@@ -63,8 +63,13 @@ function parseSnapshot(raw: string, scope: Scope): Snapshot | null {
 // Claim before vision/AI. A newer turn writes a tombstone, so an older slow
 // request cannot resurrect its image context after the user changes topic.
 export async function beginDmImageTurn(admin: SupabaseClient, scope: Scope, now = Date.now()): Promise<DmImageTurn | null> {
+  return beginDmContextTurn(admin, scope, "image", now);
+}
+
+// Shared bounded source/request/reply envelope; namespaces never share records.
+export async function beginDmContextTurn(admin: SupabaseClient, scope: Scope, kind: "image" | "text", now = Date.now()): Promise<DmImageTurn | null> {
   if (scope.chatType !== "private" || ![scope.chatId, scope.userId, scope.messageId].every(n => Number.isSafeInteger(n) && n > 0)) return null;
-  const key = `dm-image-thread:v1:${scope.userId}`;
+  const key = `dm-${kind}-thread:v1:${scope.userId}`;
   const table = () => admin.from("telegram_ai_response_cache");
   try {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -76,7 +81,7 @@ export async function beginDmImageTurn(admin: SupabaseClient, scope: Scope, now 
       const previous = data && Date.parse(data.expires_at) > now ? snapshot?.context ?? null : null;
       const stamp = new Date(Math.max(now, (Date.parse(data?.updated_at ?? "") || 0) + 1)).toISOString();
       const payload = {
-        group_id: scope.chatId, cache_key: key, intent: "dm_image_thread", prompt_hash: key,
+        group_id: scope.chatId, cache_key: key, intent: `dm_${kind}_thread`, prompt_hash: key,
         prompt_preview: null, provider: null, model: null,
         response_text: JSON.stringify({ version: 1, userId: scope.userId, messageId: scope.messageId, context: null }),
         expires_at: new Date(now + TTL).toISOString(), updated_at: stamp,

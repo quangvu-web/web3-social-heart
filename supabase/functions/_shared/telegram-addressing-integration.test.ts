@@ -47,3 +47,29 @@ Deno.test("Vietnamese language lock requires Angel self-address", async () => {
   assert.ok(angelLanguageDirective("vi").includes('tự xưng "Angel"'));
   assert.ok(!angelLanguageDirective("vi").includes('tự xưng "mình"'));
 });
+
+Deno.test("scoped text context survives strict mirror; groups cannot opt into private text context", async () => {
+  const get = Deno.env.get;
+  const fetchOriginal = globalThis.fetch;
+  const requests: string[] = [];
+  let failOnce = false;
+  const grounded = "DM_TEXT_FOLLOWUP — topic: tự do tuyệt đối; request: tiếp đi cha; reply: lý tưởng triết học.";
+  Deno.env.get = name => ({ ANGEL_AI_BASE_URL: "https://fixture.invalid", ANGEL_AI_API_KEY: "fixture-only" } as Record<string, string>)[name];
+  globalThis.fetch = async (_url, init) => {
+    requests.push(String(init?.body ?? ""));
+    if (failOnce) { failOnce = false; return new Response("fixture retry", { status: 400 }); }
+    return Response.json({ text: "Angel chia sẻ thêm một ví dụ thực tế cho bé." });
+  };
+  try {
+    await askAngel({ question: "tiếp đi cha", originalUserMessage: "tiếp đi cha", textConversationContext: grounded, systemPrompt: "", forcedLangBucket: "vi", conversationContext: { chatId: 123, chatType: "private", userId: 123, triggerSource: "dm" } });
+    assert.ok(requests.some(body => body.includes(grounded)), "strict mirror must retain the scoped text prompt");
+    requests.length = 0;
+    failOnce = true;
+    await askAngel({ question: "tiếp đi cha", originalUserMessage: "tiếp đi cha", textConversationContext: grounded, systemPrompt: "", forcedLangBucket: "vi", conversationContext: { chatId: 123, chatType: "private", userId: 123, triggerSource: "dm" } });
+    assert.ok(requests.length >= 2, "fixture must exercise the retry path");
+    assert.ok(requests.every(body => body.includes(grounded)), "retry must preserve the scoped topic too");
+    requests.length = 0;
+    await askAngel({ question: "tiếp đi cha", originalUserMessage: "tiếp đi cha", textConversationContext: grounded, systemPrompt: "", forcedLangBucket: "vi", conversationContext: { chatId: -123, chatType: "supergroup", userId: 123, triggerSource: "group_mention" } });
+    assert.ok(!requests.some(body => body.includes(grounded)), "group calls must ignore private text context");
+  } finally { Deno.env.get = get; globalThis.fetch = fetchOriginal; }
+});

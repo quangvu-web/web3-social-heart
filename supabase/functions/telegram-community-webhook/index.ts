@@ -1,6 +1,7 @@
 ﻿import { buildTelegramGroupContext, type TelegramGroupContext } from "../_shared/telegram-group-context.ts";
 import { isCaptionOperator } from "./caption-operators.ts";
 import { beginDmImageTurn, buildDmImageFollowup, detectImageFollowup, type DmImageContext } from "../_shared/telegram-dm-image-context.ts";
+import { beginDmTextTurn, buildDmTextFollowup, buildDmDefinitionQuestion, detectTextFollowup } from "../_shared/telegram-dm-text-context.ts";
 import { detectImageIntent } from "../_shared/angel-image.ts";
 import { handleBotInvite } from "../_shared/telegram-unauthorized-invite.ts";
 import { resolveDeletePermission } from "../_shared/telegram-moderation-notice.ts";
@@ -1562,6 +1563,9 @@ export async function handlePrivateMessage(message: TelegramMessage) {
     await beginDmImageTurn(adminClient, {
       chatType: message.chat?.type ?? "", chatId, userId: tgUserId, messageId: message.message_id ?? 0,
     });
+    await beginDmTextTurn(adminClient, {
+      chatType: message.chat?.type ?? "", chatId, userId: tgUserId, messageId: message.message_id ?? 0,
+    });
   }
 
   // Track DM (best-effort, non-blocking semantics handled inside try/catch)
@@ -1820,9 +1824,14 @@ export async function handlePrivateMessage(message: TelegramMessage) {
       const explicitPhotoEdit = hasDmPhoto && detectImageIntent(text, true)?.mode === "edit";
       let effectiveQuestion = translationQuestion;
       let analyzedDmPhoto = false;
-      const imageTurn = await beginDmImageTurn(adminClient, {
+      const dmScope = {
         chatType: message.chat?.type ?? "", chatId, userId: message.from.id, messageId: message.message_id ?? 0,
-      });
+      };
+      const [imageTurn, textTurn] = await Promise.all([
+        beginDmImageTurn(adminClient, dmScope), beginDmTextTurn(adminClient, dmScope),
+      ]);
+      let textContext: string | undefined;
+      let textTopic = text;
       let imageContext: DmImageContext | null = null;
       let imageFollowup = false;
       let dmOutputLanguage = translationTarget ?? resolveAngelLanguageBucket(text);
@@ -1848,10 +1857,21 @@ export async function handlePrivateMessage(message: TelegramMessage) {
           if (intent === "shorten" || intent === "polish") {
             dmOutputLanguage = resolveAngelLanguageBucket(previous.lastReply);
           }
-        } else if (intent && !message.reply_to_message && (intent === "reply" || imageTurn?.expiredImage)) {
-          await replyDm("Bé muốn Angel chỉnh hoặc soạn lời đáp cho nội dung nào? Bé gửi lại ảnh hoặc đoạn tin nhắn đó nhé 💛", { skipAutoDelete: true });
+        } else if (intent && textTurn?.previous && !message.reply_to_message) {
+          textTopic = textTurn.previous.topic;
+          effectiveQuestion = buildDmTextFollowup(textTurn.previous, text, intent);
+          textContext = effectiveQuestion;
+          if (intent === "shorten" || intent === "polish") dmOutputLanguage = resolveAngelLanguageBucket(textTurn.previous.reply);
+        } else if (intent && !message.reply_to_message && (intent === "reply" || intent === "continue" || intent === "next_step" || intent === "explain" || imageTurn?.expiredImage)) {
+          await replyDm(intent === "reply" || imageTurn?.expiredImage
+            ? "Bé muốn Angel chỉnh hoặc soạn lời đáp cho nội dung nào? Bé gửi lại ảnh hoặc đoạn tin nhắn đó nhé 💛"
+            : "Bé muốn Angel tiếp tục hoặc giải thích nội dung nào? Bé gửi lại câu hỏi hoặc đoạn tin nhắn đó nhé 💛", { skipAutoDelete: true });
           return;
         }
+      }
+      if (!hasAnalyzableImage(message) && !textContext && !imageFollowup && !translationTarget && !message.reply_to_message && !detectTextFollowup(text)) {
+        textContext = buildDmDefinitionQuestion(text) ?? undefined;
+        if (textContext) effectiveQuestion = textContext;
       }
       const _dmAttachments: Array<{ kind: "image"; url?: string; base64?: string; mime_type?: string }> = [];
       // Keep raw media for explicit editing and non-photo media only. Ordinary
@@ -1880,6 +1900,7 @@ export async function handlePrivateMessage(message: TelegramMessage) {
         question: effectiveQuestion,
         originalUserMessage: text || (analyzedDmPhoto ? "Xem ảnh và hỗ trợ lời đáp nếu có câu hỏi rõ ràng trong cuộc trò chuyện." : text),
         imageAnalysisContext: analyzedDmPhoto || imageFollowup ? effectiveQuestion : undefined,
+        textConversationContext: textContext,
         systemPrompt: effectiveSystemPrompt,
         userLabel: userName,
         personaMode: (settings as any)?.persona_mode,
@@ -1919,6 +1940,9 @@ export async function handlePrivateMessage(message: TelegramMessage) {
       } else {
         const delivered = await replyDm(reply, { skipAutoDelete: true });
         if (delivered?.ok && imageContext) await imageTurn?.finish({ ...imageContext, lastReply: reply, lastRequest: text || "Xem ảnh và hỗ trợ lời đáp nếu có câu hỏi rõ ràng trong cuộc trò chuyện." });
+        if (delivered?.ok && !imageContext && !hasAnalyzableImage(message) && !text.startsWith("/") && (!detectTextFollowup(text) || textContext)) {
+          await textTurn?.finish({ topic: textTopic, request: text, reply });
+        }
       }
     } catch (err) {
       console.error("[dm] ai_reply_failed", { chatId, userId: message.from.id, error: err instanceof Error ? err.message : String(err) });

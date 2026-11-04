@@ -150,10 +150,10 @@ export function enforceTelegramVietnamesePronouns(input: string, username?: stri
   text = text.replace(/(?<![\p{L}])chúng\s+mình(?![\p{L}])/giu, (s) => s[0] === "C" ? "Chúng ta" : "chúng ta");
   text = text.replace(/(?<![\p{L}])Angel\s*\(\s*(?:mình|tôi)\s*\)/giu, "Angel");
   // Only clear bot-subject clauses, not possessives or the subject of reported speech.
-  text = text.replace(/(^\s*|[.!?…\n]\s*|[,;]\s*|(?:dạ|vâng|Angel:)\s+)(mình|tôi|cha|con|anh|chị|em)(?=\s+(?:sẽ|xin|luôn|có thể|muốn|nghĩ|thấy|tò mò|tin|hiểu|biết|hỗ trợ|sẵn sàng|cảm ơn|chào|chia sẻ|gợi ý|mời|ở đây|là Angel|vừa|rất vui|mong|đã|đang)(?![\p{L}]))/giu, (value, lead: string, _subject: string, offset: number, full: string) => {
+  text = text.replace(/(^\s*|[.!?…\n]\s*|[,;]\s*|(?:dạ|vâng|Angel:)\s+)(mình|tôi|cha|con|anh|chị|em)(?=\s+(?:không(?:\s+(?:phải|thể|biết|hiểu|có))|sẽ|xin|luôn|có thể|muốn|nghĩ|thấy|tò mò|tin|hiểu|biết|hỗ trợ|sẵn sàng|cảm ơn|chào|chia sẻ|gợi ý|mời|ở đây|là Angel|vừa|rất vui|mong|đã|đang)(?![\p{L}]))/giu, (value, lead: string, _subject: string, offset: number, full: string) => {
     if (/^[,;]/u.test(lead)) {
       const before = full.slice(0, offset).split(/[.!?\n]/u).pop() ?? "";
-      if (!/^(?:\s*Angel|\s*(?:dạ|vâng|bé(?: Ly)? ơi|chào bé))/iu.test(before)) return value;
+      if (!/^(?:\s*Angel|\s*(?:à|ừ|dạ|vâng|bé(?: Ly)? ơi|chào bé|nếu bé(?: Ly)? muốn))/iu.test(before)) return value;
     }
     // Family/character nouns such as "Con đang đi học" are not bot subjects.
     // For these ambiguous tokens require an actual assistant speech/action verb.
@@ -164,6 +164,13 @@ export function enforceTelegramVietnamesePronouns(input: string, username?: stri
     return `${lead}Angel`;
   });
   text = text.replace(/(^\s*|[.!?\n]\s*)([Tt]heo)\s+(?:mình|tôi)(?=\s*[,;])/gu, "$1$2 Angel");
+  text = text.replace(/(^\s*|[.!?…\n]\s*|[,;]\s*)(theo)\s+(những\s+gì\s+)?(?:mình|tôi)(?=\s+(?:được\s+)?biết(?![\p{L}]))/giu, (value, lead, theo, qualifier, offset, full) => {
+    const before = full.slice(0, offset).split(/[.!?\n]/u).pop() ?? "";
+    if (/bé[^.!?\n]*(?:nói|kể)/iu.test(before)) return value;
+    return `${lead}${theo} ${qualifier ?? ""}Angel`;
+  });
+  text = text.replace(/(?<![\p{L}])(bé(?: Ly)?\s+muốn)\s+(?:mình|tôi)(?=\s+(?:làm rõ|giải thích|hỗ trợ|chia sẻ|tiếp tục)(?![\p{L}]))/giu, "$1 Angel");
+  text = text.replace(/(^|[.!?\n]\s*|,\s*)bạn\s+thân\s+mến(?![\p{L}])/giu, "$1bé");
   text = text.replace(REFLEXIVE_PREFIX_RE, (_m, prefix: string) => `${prefix} mình`);
   text = text.replace(/(?<![\p{L}])bạn(?![\p{L}])/giu, (value, offset: number, full: string) => {
     if (/^\s+(?:bè|đồng\s+hành|tri\s+kỷ|thân|hữu|đường|đời|học|nhỏ)(?![\p{L}])/iu.test(full.slice(offset + value.length))) return value;

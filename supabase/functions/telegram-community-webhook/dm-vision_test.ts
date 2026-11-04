@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import ts from "npm:typescript@5.8.3";
 import { buildDmImageFollowup, detectImageFollowup } from "../_shared/telegram-dm-image-context.ts";
-import { buildDmTextFollowup, buildDmDefinitionQuestion, detectTextFollowup } from "../_shared/telegram-dm-text-context.ts";
+import { buildDmTextFollowup, buildDmDefinitionQuestion, buildDmDetailedQuestion, detectTextFollowup, dmTextDepthPolicy } from "../_shared/telegram-dm-text-context.ts";
 const source = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
 const translationSourceHelper = source.slice(source.indexOf("function extractInlineTranslationSource"), source.indexOf("async function getPendingDmTranslationTarget"));
 const handler = source.slice(
@@ -19,6 +19,8 @@ const code = ts.transpileModule(
  const buildDmImageFollowup=${buildDmImageFollowup.toString()};
  const buildDmTextFollowup=${buildDmTextFollowup.toString()};
  const buildDmDefinitionQuestion=${buildDmDefinitionQuestion.toString()};
+ const buildDmDetailedQuestion=${buildDmDetailedQuestion.toString()};
+ const dmTextDepthPolicy=${dmTextDepthPolicy.toString()};
  const detectTextFollowup=${detectTextFollowup.toString()};
  async function beginDmTextTurn(){const previous=textContext;textContext=null;return {previous,finish:async c=>{textContext=c;}};}
  async function beginDmImageTurn(){const previous=imageContext;imageContext=null;return {previous,finish:async c=>{imageContext=c;}};}
@@ -259,4 +261,23 @@ Deno.test("missing/reset text context asks one clarification; a photo clears the
   await f.handlePrivateMessage({ ...dm, message_id: 6, text: "tiếp đi cha" });
   assert.ok(f.questions.at(-1).imageAnalysisContext.includes("Ảnh mới"));
   assert.equal(f.questions.at(-1).textConversationContext, undefined);
+});
+
+Deno.test("adaptive depth: definition → continue → deep analysis → shorter; new detailed topic replaces old topic", async () => {
+  f.configure("unused");
+  const dm = { ...image, photo: undefined };
+  await f.handlePrivateMessage({ ...dm, text: "tự do tuyệt đối là gì" });
+  await f.handlePrivateMessage({ ...dm, message_id: 2, text: "tiếp đi cha" });
+  assert.match(f.questions.at(-1).question, /2–3 ý MỚI/);
+  await f.handlePrivateMessage({ ...dm, message_id: 3, text: "phân tích sâu hơn cha" });
+  assert.ok(f.questions.at(-1).question.includes('"topic":"tự do tuyệt đối là gì"'));
+  assert.match(f.questions.at(-1).question, /không ép số câu/);
+  await f.handlePrivateMessage({ ...dm, message_id: 4, text: "ngắn hơn" });
+  assert.match(f.questions.at(-1).question, /Rút gọn đúng yêu cầu/);
+  await f.handlePrivateMessage({ ...dm, message_id: 5, text: "Hãy phân tích chi tiết blockchain" });
+  assert.match(f.questions.at(-1).question, /DM_DETAILED_TASK/);
+  assert.ok(!f.questions.at(-1).question.includes("tự do tuyệt đối"));
+  await f.handlePrivateMessage({ ...dm, message_id: 6, text: "phân tích sâu" });
+  assert.ok(f.questions.at(-1).question.includes('"topic":"Hãy phân tích chi tiết blockchain"'));
+  assert.equal(f.visionCalls.length, 0);
 });

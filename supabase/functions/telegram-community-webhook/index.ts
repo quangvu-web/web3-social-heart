@@ -1,7 +1,7 @@
 ﻿import { buildTelegramGroupContext, type TelegramGroupContext } from "../_shared/telegram-group-context.ts";
 import { isCaptionOperator } from "./caption-operators.ts";
 import { beginDmImageTurn, buildDmImageFollowup, detectImageFollowup, type DmImageContext } from "../_shared/telegram-dm-image-context.ts";
-import { beginDmTextTurn, buildDmTextFollowup, buildDmDefinitionQuestion, detectTextFollowup } from "../_shared/telegram-dm-text-context.ts";
+import { beginDmTextTurn, buildDmTextFollowup, buildDmDefinitionQuestion, buildDmDetailedQuestion, detectTextFollowup } from "../_shared/telegram-dm-text-context.ts";
 import { detectImageIntent } from "../_shared/angel-image.ts";
 import { handleBotInvite } from "../_shared/telegram-unauthorized-invite.ts";
 import { resolveDeletePermission } from "../_shared/telegram-moderation-notice.ts";
@@ -1846,7 +1846,7 @@ export async function handlePrivateMessage(message: TelegramMessage) {
         analyzedDmPhoto = true;
       } else if (!hasAnalyzableImage(message) && !text.startsWith("/") && !pendingTranslationTarget &&
         !extractInlineTranslationSource(text) && !replyToBotText) {
-        const intent = detectImageFollowup(text);
+        const intent = imageTurn?.previous ? detectImageFollowup(text) : detectTextFollowup(text);
         const previous = imageTurn?.previous;
         // An explicit reply to another message must not accidentally use the latest image.
         const referenceMatches = !message.reply_to_message || message.reply_to_message.message_id === previous?.sourceMessageId;
@@ -1870,7 +1870,7 @@ export async function handlePrivateMessage(message: TelegramMessage) {
         }
       }
       if (!hasAnalyzableImage(message) && !textContext && !imageFollowup && !translationTarget && !message.reply_to_message && !detectTextFollowup(text)) {
-        textContext = buildDmDefinitionQuestion(text) ?? undefined;
+        textContext = buildDmDetailedQuestion(text) ?? buildDmDefinitionQuestion(text) ?? undefined;
         if (textContext) effectiveQuestion = textContext;
       }
       const _dmAttachments: Array<{ kind: "image"; url?: string; base64?: string; mime_type?: string }> = [];

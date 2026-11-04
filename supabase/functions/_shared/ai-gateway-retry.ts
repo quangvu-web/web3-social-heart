@@ -62,6 +62,7 @@ export async function callAiGateway(
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       recordAiAttempt(provider);
       console.info("[ai-gateway] ai_call", { ...context, attempt });
+      const attemptStartedAt = Date.now();
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
       try {
@@ -73,6 +74,26 @@ export async function callAiGateway(
         });
         if (res.ok) {
           const data = await res.json().catch(() => null);
+          if (label === "group-rewrite") {
+            const choice = data?.choices?.[0];
+            const finishReason = ["stop", "length", "content_filter", "tool_calls"].includes(choice?.finish_reason)
+              ? choice.finish_reason : "unknown";
+            const tokenCount = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+            console.info("[ai-gateway] group_rewrite_result", {
+              ...context, attempt, duration_ms: Date.now() - attemptStartedAt,
+              finish_reason: finishReason,
+              response_chars: typeof choice?.message?.content === "string" ? choice.message.content.length : 0,
+              completion_tokens: tokenCount(data?.usage?.completion_tokens),
+              reasoning_tokens: tokenCount(data?.usage?.completion_tokens_details?.reasoning_tokens),
+            });
+            // HTTP 200 can still contain an unfinished sentence. Never deliver
+            // a token-limited rewrite as a successful, complete group answer.
+            if (finishReason === "length") {
+              last = { ok: false, status: 502, data: null, error: "Group rewrite output truncated", retryable: true, provider, model };
+              if (attempt < maxAttempts) continue;
+              return last;
+            }
+          }
           // OCR explicitly returns an empty string for a clean image without text.
           // Missing/nonstring content is still malformed for every direct label.
           if (!data || !Array.isArray(data?.choices) || (provider === "gemini" && (typeof data.choices[0]?.message?.content !== "string" || (label !== "ocr" && !data.choices[0].message.content.trim())))) {
@@ -115,7 +136,12 @@ export async function callAiGateway(
     if (!key) fallback("missing_key");
     else if (!nativeModel) fallback("unmapped_model");
     else {
-      const result = await execute("gemini", { ...body, model: nativeModel }, key);
+      // A language rewrite does not need the model's default reasoning budget.
+      // Scope this to rewrite; keep caption/vision/OCR and Gateway bodies intact.
+      const result = await execute("gemini", {
+        ...body, model: nativeModel,
+        ...(label === "group-rewrite" ? { reasoning_effort: "minimal" } : {}),
+      }, key);
       if (result.ok) return result;
       fallback("direct_failed", result.status);
     }

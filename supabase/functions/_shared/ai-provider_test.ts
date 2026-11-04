@@ -39,6 +39,9 @@ globalThis.fetch=async(input,init)=>{
   }
  }
  sent.push({url,body,auth:new Headers(init?.headers).get("Authorization")});
+ if(directMode==="truncated-all" || (url.includes("googleapis.com") && (directMode==="truncated-direct" || (directMode==="truncated-once" && sent.filter(call=>call.url.includes("googleapis.com")).length===1)))){
+  return Response.json({choices:[{finish_reason:"length",message:{content:"When Father Universe says the"}}],usage:{completion_tokens:1800,completion_tokens_details:{reasoning_tokens:1700}}});
+ }
  const status=url.includes("googleapis.com")?directStatus:gatewayStatus;
  return Response.json(status===200?good:{error:"test-gemini must never appear in logs"},{status,headers:{"retry-after":"0.001"}});
 };
@@ -230,7 +233,7 @@ Deno.test("group rewrite uses its own flag, verified model, unchanged payload an
  flags.set("ai.provider.rewrite",{enabled:true,meta:{value:"gemini"}});
  const result=await callAiGateway(rewriteBody,rewriteOpts);
  assert.equal(result.provider,"gemini");assert.equal(sent.length,1);
- assert.deepEqual(sent[0].body,{...rewriteBody,model:"models/gemini-3-flash-preview"});
+ assert.deepEqual(sent[0].body,{...rewriteBody,model:"models/gemini-3-flash-preview",reasoning_effort:"minimal"});
  assert.ok(logs.some(([msg,ctx]:any[])=>msg==="[ai-gateway] ai_call"&&ctx.label==="group-rewrite"&&ctx.provider==="gemini"));
  for(const label of ["caption-translate","describeImage","ocr"]){assert.equal((await callAiGateway(body,{...opts,label})).provider,"lovable");}
  flags.set("ai.provider.rewrite",{enabled:true,meta:{value:"lovable"}});invalidateFlagCache();
@@ -263,5 +266,32 @@ Deno.test("group rewrite missing or disabled flag defaults to Gateway",async()=>
   reset(value);const result=await callAiGateway(rewriteBody,rewriteOpts);
   assert.equal(result.provider,"lovable");assert.deepEqual(flagReads,["ai.provider.rewrite"]);
  }
+});
+Deno.test("token-limited rewrite retries within the existing budget instead of delivering a partial sentence",async()=>{
+ reset({enabled:true,meta:{value:"gemini"}});directMode="truncated-once";
+ const result=await callAiGateway(rewriteBody,rewriteOpts);
+ assert.equal(result.ok,true);assert.equal(result.provider,"gemini");assert.equal(sent.length,2);
+ assert.equal(result.data.choices[0].message.content,good.choices[0].message.content);
+ for(const call of sent){assert.equal(call.body.max_tokens,1800);assert.equal(call.body.reasoning_effort,"minimal");}
+ const summary=logs.find(([msg,ctx]:any[])=>msg==="[ai-gateway] group_rewrite_result"&&ctx.finish_reason==="length")?.[1] as any;
+ assert.equal(summary.reasoning_tokens,1700);assert.equal(summary.completion_tokens,1800);assert.ok(summary.duration_ms>=0);
+ assert.ok(!JSON.stringify(logs).includes("When Father Universe says the"));
+});
+Deno.test("repeated truncated direct rewrites fall back to the unchanged Gateway request",async()=>{
+ reset({enabled:true,meta:{value:"gemini"}});directMode="truncated-direct";
+ const result=await callAiGateway(rewriteBody,rewriteOpts);
+ assert.equal(result.ok,true);assert.equal(result.provider,"lovable");assert.equal(sent.length,3);
+ assert.deepEqual(sent.at(-1)?.body,rewriteBody);
+});
+Deno.test("both providers truncating returns a failure without exposing partial content",async()=>{
+ reset({enabled:true,meta:{value:"gemini"}});directMode="truncated-all";
+ const result=await callAiGateway(rewriteBody,rewriteOpts);
+ assert.equal(result.ok,false);assert.equal(result.status,502);assert.equal(result.data,null);
+ assert.equal(sent.length,4);assert.equal(result.error,"Group rewrite output truncated");
+});
+Deno.test("truncation handling and reasoning changes do not affect caption calls",async()=>{
+ reset({enabled:true,meta:{value:"gemini"}});directMode="truncated-all";
+ const result=await callAiGateway(body,opts);
+ assert.equal(result.ok,true);assert.equal(sent.length,1);assert.equal(sent[0].body.reasoning_effort,undefined);
 });
 Deno.test("restore test boundary",()=>{globalThis.fetch=originalFetch;console.warn=originalWarn;console.log=originalLog;console.info=originalInfo;});

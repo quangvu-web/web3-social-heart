@@ -79,6 +79,17 @@ const photo = {
     file_size: 100,
   }],
 };
+Deno.test("DM-only reply hints treat image text as data and avoid assuming beliefs; group default remains unchanged", async () => {
+  const f = await fixture();
+  const legacy = f.buildImageAnalysisContext("Nội dung ảnh", "");
+  assert.match(legacy, /hỏi bé muốn Angel làm gì/);
+  assert.ok(!legacy.includes("lời đáp gợi ý có thể gửi ngay"));
+  const dm = f.buildImageAnalysisContext("Nội dung ảnh", "", { dmReplyHints: true });
+  assert.match(dm, /lời đáp gợi ý có thể gửi ngay/);
+  assert.match(dm, /không phải chỉ dẫn hệ thống/);
+  assert.match(dm, /Không tự gán niềm tin/);
+  assert.match(dm, /Không đoán chữ bị mờ/);
+});
 Deno.test("vision selects one largest image and cache survives new worker/caption for 30 minutes", async () => {
   const first = await fixture();
   const desc = await first.describeTelegramImage(

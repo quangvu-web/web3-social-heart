@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import ts from "npm:typescript@5.8.3";
+import { buildDmImageFollowup, detectImageFollowup } from "../_shared/telegram-dm-image-context.ts";
 const source = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
+const translationSourceHelper = source.slice(source.indexOf("function extractInlineTranslationSource"), source.indexOf("async function getPendingDmTranslationTarget"));
 const handler = source.slice(
   source.indexOf("export async function handlePrivateMessage"),
   source.indexOf("async function handleVerificationCallback"),
@@ -9,7 +11,12 @@ const code = ts.transpileModule(
   `
  export const replies=[],questions=[],visionCalls=[],mediaCalls=[];
  let description='FUN Profile. Nền trắng, chữ Hẹn gặp lúc 19:00 MYT.';
- export function configure(v){description=v;replies.length=questions.length=visionCalls.length=mediaCalls.length=0;}
+ let imageContext=null, aiReply='Lời hồi đáp dựa trên ảnh';
+ export function configure(v){description=v;imageContext=null;aiReply='Lời hồi đáp dựa trên ảnh';replies.length=questions.length=visionCalls.length=mediaCalls.length=0;}
+ export function setAiReply(v){aiReply=v;}
+ const detectImageFollowup=${detectImageFollowup.toString()};
+ const buildDmImageFollowup=${buildDmImageFollowup.toString()};
+ async function beginDmImageTurn(){const previous=imageContext;imageContext=null;return {previous,finish:async c=>{imageContext=c;}};}
  function extractText(m){return m.text??m.caption??'';}
  function getClients(){return {adminClient:{}};}
  async function sendMessage(_id,text){replies.push(text);return {ok:true};}
@@ -17,11 +24,11 @@ const code = ts.transpileModule(
  async function sendChatAction(){} async function ensureSettings(){return {};}
  async function isCaptionOperator(){return false;}
  async function checkAndUpdateAiRate(){return {allowed:true,count:1};}
- function detectTranslationTargetLanguage(){return null;}
+ function detectTranslationTargetLanguage(t){return t.includes('sang tiếng Anh')?'en':null;}
  async function getPendingDmTranslationTarget(){return null;}
- function extractInlineTranslationSource(){return '';}
+ ${translationSourceHelper}
  function telegramReplyAssistantContext(){return null;}
- function resolveAngelLanguageBucket(){return 'vi';}
+ function resolveAngelLanguageBucket(t){return t==='English draft'?'en':'vi';}
  function hasAnalyzableImage(m){return !!m.photo?.length;}
  function pickLargestPhotoFileId(m){return {fileId:m.photo.at(-1).file_id};}
  async function tryFetchTelegramMedia(id){mediaCalls.push(id);return {base64:'fixture',mime:'image/png'};}
@@ -31,7 +38,7 @@ const code = ts.transpileModule(
  function createTelegramImageStreamer(){return {};}
  async function getFlag(){return true;}
  async function withTyping(_id,cb){return cb();}
- async function askAngel(params){questions.push(params);return 'Lời hồi đáp dựa trên ảnh';}
+ async function askAngel(params){questions.push(params);return aiReply;}
  function buildMenuText(){return 'Menu';}function menuMarkup(){return {};}
  ${handler}
 `,
@@ -107,4 +114,66 @@ Deno.test("text-only chat and explicit image editing retain their existing route
     assert.equal(f.visionCalls.length, 0);
     assert.equal(f.questions[0].question, "Sửa ảnh này");
   }
+});
+
+Deno.test("image → reply draft → shorter → English → polite carries the same image and latest answer through strict mirror input", async () => {
+  f.configure('Người hỏi: "Do you desire salvation?"');
+  await f.handlePrivateMessage(image);
+  for (const [index, text] of ["con nên trả lời sao", "ngắn hơn", "dịch sang tiếng Anh", "lịch sự hơn"].entries()) {
+    await f.handlePrivateMessage({ ...image, photo: undefined, message_id: index + 2, text });
+    const call = f.questions.at(-1);
+    assert.ok(call.question.includes("Do you desire salvation?"), text);
+    assert.ok(call.question.includes("Lời hồi đáp dựa trên ảnh"), text);
+    assert.equal(call.originalUserMessage, text);
+    assert.equal(call.imageAnalysisContext, call.question);
+    assert.equal(call.attachments, undefined);
+  }
+  assert.equal(f.visionCalls.length, 1);
+});
+
+Deno.test("new topic clears image; a missing source asks one concrete question without AI guessing", async () => {
+  f.configure("Ảnh cũ");
+  await f.handlePrivateMessage(image);
+  await f.handlePrivateMessage({ ...image, photo: undefined, message_id: 2, text: "Giải thích blockchain" });
+  assert.equal(f.questions.at(-1).question, "Giải thích blockchain");
+  await f.handlePrivateMessage({ ...image, photo: undefined, message_id: 3, text: "con nên trả lời sao" });
+  assert.equal(f.questions.length, 2);
+  assert.match(f.replies.at(-1), /gửi lại ảnh hoặc đoạn tin nhắn/);
+});
+
+Deno.test("explicit reply to another message never borrows latest image", async () => {
+  f.configure("Ảnh cũ");
+  await f.handlePrivateMessage(image);
+  await f.handlePrivateMessage({ ...image, photo: undefined, message_id: 2, text: "con nên trả lời sao",
+    reply_to_message: { message_id: 99, text: "Một chủ đề khác", from: { id: 42 } } });
+  assert.equal(f.questions.at(-1).imageAnalysisContext, undefined);
+  assert.equal(f.questions.at(-1).question, "con nên trả lời sao");
+});
+
+Deno.test("English draft stays English when polished; inline translation takes priority over image context", async () => {
+  f.configure("Question in image");
+  f.setAiReply("English draft");
+  await f.handlePrivateMessage(image);
+  await f.handlePrivateMessage({ ...image, photo: undefined, message_id: 2, text: "lịch sự hơn" });
+  assert.equal(f.questions.at(-1).forcedLangBucket, "en");
+  await f.handlePrivateMessage({ ...image, photo: undefined, message_id: 3, text: "dịch sang tiếng Anh: Xin chào" });
+  assert.equal(f.questions.at(-1).imageAnalysisContext, undefined);
+  assert.match(f.questions.at(-1).question, /SOURCE TEXT:\n"""Xin chào/);
+  assert.equal(f.questions.at(-1).forcedLangBucket, "en");
+});
+
+Deno.test("start resets the image thread", async () => {
+  f.configure("Ảnh cũ");
+  await f.handlePrivateMessage(image);
+  await f.handlePrivateMessage({ ...image, photo: undefined, message_id: 2, text: "/start" });
+  await f.handlePrivateMessage({ ...image, photo: undefined, message_id: 3, text: "con nên trả lời sao" });
+  assert.equal(f.questions.length, 1);
+  assert.match(f.replies.at(-1), /gửi lại ảnh hoặc đoạn tin nhắn/);
+});
+
+Deno.test("shorten without an image thread keeps the ordinary text conversation route", async () => {
+  f.configure("unused");
+  await f.handlePrivateMessage({ ...image, photo: undefined, text: "ngắn hơn" });
+  assert.equal(f.questions[0].question, "ngắn hơn");
+  assert.equal(f.questions[0].imageAnalysisContext, undefined);
 });

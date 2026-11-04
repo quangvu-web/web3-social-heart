@@ -13,6 +13,7 @@ export type FlagKey =
   | "ai.provider.caption"
   | "ai.provider.vision"
   | "ai.provider.ocr"
+  | "ai.provider.rewrite"
   | "postprocess.style_pass"
   | "postprocess.narrative_fixup"
   | "postprocess.hard_revert"
@@ -78,7 +79,7 @@ function svcClient(): SupabaseClient | null {
  * Cache 60s per key.
  */
 export type AiProviderFlag = "lovable" | "gemini";
-export type AiProviderFlagKey = "ai.provider" | "ai.provider.caption" | "ai.provider.vision" | "ai.provider.ocr";
+export type AiProviderFlagKey = "ai.provider" | "ai.provider.caption" | "ai.provider.vision" | "ai.provider.ocr" | "ai.provider.rewrite";
 interface ProviderFlagReadOptions { throwOnError?: boolean; onMissing?: () => void }
 export function getFlag(key: AiProviderFlagKey, defaultValue: AiProviderFlag, opts?: ProviderFlagReadOptions): Promise<AiProviderFlag>;
 export function getFlag(key: FlagKey, defaultValue: boolean): Promise<boolean>;

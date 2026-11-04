@@ -28,6 +28,7 @@ const PROVIDER_SERVICES = [
   { key: "ai.provider.caption", id: "caption", label: "Dịch phụ đề" },
   { key: "ai.provider.vision", id: "vision", label: "Đọc ảnh" },
   { key: "ai.provider.ocr", id: "ocr", label: "Quét chữ trong ảnh (OCR)" },
+  { key: "ai.provider.rewrite", id: "rewrite", label: "Viết lại đúng ngôn ngữ nhóm" },
 ] as const;
 type ProviderKey = typeof PROVIDER_SERVICES[number]["key"];
 type ProviderService = typeof PROVIDER_SERVICES[number];
@@ -218,6 +219,8 @@ export default function AdminFeatureFlagsTab() {
             );
           })}
           <div className="space-y-1 text-xs text-muted-foreground">
+            <p>Áp dụng cho dịch phụ đề, đọc ảnh, quét chữ trong ảnh (OCR) và viết lại đúng ngôn ngữ nhóm.</p>
+            <p>Viết lại đúng ngôn ngữ nhóm: công tắc áp dụng cho văn bản thường; yêu cầu dịch trả JSON vẫn dùng Lovable Gateway.</p>
             <p>Mỗi dịch vụ có công tắc riêng; đổi một dịch vụ không ảnh hưởng dịch vụ khác.</p>
             <p>Chưa áp dụng cho chat, câu trả lời cho link YouTube và tóm tắt.</p>
             <p>Đổi cờ có hiệu lực trong ~60 giây (cache của edge function).</p>

@@ -34,11 +34,16 @@ export async function callAiGateway(
   const gatewayModel = typeof body.model === "string" ? body.model : "unspecified";
   const configuredForLabel = await resolveAiProviderForLabel(label);
   const hasImage = JSON.stringify(body.messages ?? []).includes('"image_url"');
-  const nativeModel = Object.hasOwn(GEMINI_TEXT_MODELS, gatewayModel) ? GEMINI_TEXT_MODELS[gatewayModel] : undefined;
+  // The newly verified rewrite model must not expand other labels' model allowlist.
+  const modelEligible = gatewayModel !== "google/gemini-3-flash-preview" || label === "group-rewrite";
+  const nativeModel = modelEligible && Object.hasOwn(GEMINI_TEXT_MODELS, gatewayModel) ? GEMINI_TEXT_MODELS[gatewayModel] : undefined;
   // Only image labels verified with a real data URL in Phase 2 may carry images.
   // Chat and the legacy group-vision classifier remain on Gateway this phase.
   const imageEligible = label === "describeImage" || label === "ocr";
-  const directEligible = configuredForLabel === "gemini" && (imageEligible || (label === "caption-translate" && !hasImage)) && body.stream !== true;
+  // Gemini JSON mode for group translation rewrites is not verified yet.
+  // Keep those requests on Gateway even when the rewrite flag selects Gemini.
+  const rewriteEligible = label === "group-rewrite" && !hasImage && body.response_format === undefined;
+  const directEligible = configuredForLabel === "gemini" && (imageEligible || (label === "caption-translate" && !hasImage) || rewriteEligible) && body.stream !== true;
   const fallback = (reason: string, status = 0) => console.warn("[ai-gateway] provider_fallback", {
     provider: "gemini", model: nativeModel ?? gatewayModel, label,
     fallback_provider: "lovable", fallback_model: gatewayModel, reason, status,

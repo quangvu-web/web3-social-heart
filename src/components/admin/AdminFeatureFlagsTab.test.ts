@@ -10,6 +10,7 @@ const services = [
   { key: "ai.provider.caption", label: "Dịch phụ đề" },
   { key: "ai.provider.vision", label: "Đọc ảnh" },
   { key: "ai.provider.ocr", label: "Quét chữ trong ảnh (OCR)" },
+  { key: "ai.provider.rewrite", label: "Viết lại đúng ngôn ngữ nhóm" },
 ];
 const stamp = "2026-10-28T01:00:00+08:00";
 function deferred() {
@@ -90,11 +91,11 @@ function harness() {
 }
 
 describe("per-service AI provider controls", () => {
-  test("three rows read their own value and Malaysia timestamp; all four reserved keys stay hidden", async () => {
+  test("four rows read their own value and Malaysia timestamp; all five reserved keys stay hidden", async () => {
     const h = harness(); await h.mount();
     try {
-      expect(services.map((_, i) => h.toggle(i).props.checked)).toEqual([false, true, false]);
-      for (let i = 0; i < 3; i++) {
+      expect(services.map((_, i) => h.toggle(i).props.checked)).toEqual([false, true, false, false]);
+      for (let i = 0; i < services.length; i++) {
         const status = h.group(i).findByProps({ role: "status" });
         const flatten = (node: any): string => typeof node === "string" ? node : (node.children ?? []).map(flatten).join("");
         const text = flatten(status);
@@ -115,8 +116,18 @@ describe("per-service AI provider controls", () => {
       await h.unmount(); await h.mount(); expect(h.toggle(0).props.checked).toBe(true);
       await h.change(1, false); await h.change(2, true);
       await h.unmount(); await h.mount();
-      expect(services.map((_, i) => h.toggle(i).props.checked)).toEqual([true, false, true]);
+      expect(services.map((_, i) => h.toggle(i).props.checked)).toEqual([true, false, true, false]);
       expect(h.notices.success.length).toBe(3);
+    } finally { await h.unmount(); }
+  });
+  test("rewrite persists independently through reload and restores without touching other flags", async () => {
+    const h = harness(); await h.mount();
+    try {
+      await h.change(3, true); await h.reload();
+      expect(services.map((_, i) => h.toggle(i).props.checked)).toEqual([false, true, false, true]);
+      await h.change(3, false); await h.unmount(); await h.mount();
+      expect(services.map((_, i) => h.toggle(i).props.checked)).toEqual([false, true, false, false]);
+      expect(h.writes.map(row => row.key)).toEqual(["ai.provider.rewrite", "ai.provider.rewrite"]);
     } finally { await h.unmount(); }
   });
   test("saving one row leaves other services usable and blocks duplicate saves only for that key", async () => {
@@ -127,7 +138,7 @@ describe("per-service AI provider controls", () => {
       await h.startChange(1, true); await h.change(0, true); await h.change(2, true);
       expect(h.writes.filter((row) => row.key === services[1].key).length).toBe(1);
       await act(async () => gate.resolve());
-      expect(services.map((_, i) => h.toggle(i).props.checked)).toEqual([true, false, true]);
+      expect(services.map((_, i) => h.toggle(i).props.checked)).toEqual([true, false, true, false]);
     } finally { gate.resolve(); await h.unmount(); }
   });
   test("a stale reload finishing after a save cannot overwrite that service", async () => {

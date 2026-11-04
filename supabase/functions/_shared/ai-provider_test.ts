@@ -223,4 +223,45 @@ Deno.test("429 fallback is scoped to one service call and cannot change other se
  assert.equal((await callAiGateway(imageBody,{...opts,label:"describeImage",maxAttempts:1})).provider,"gemini");
  assert.equal(logs.filter(([message])=>message==="[ai-gateway] provider_fallback").length,1);
 });
+const rewriteBody={model:"google/gemini-3-flash-preview",messages:[{role:"system",content:"Reply in English."},{role:"user",content:"Xin chào"}],max_tokens:1800};
+const rewriteOpts={label:"group-rewrite",maxAttempts:2,timeoutMs:60000};
+Deno.test("group rewrite uses its own flag, verified model, unchanged payload and logs",async()=>{
+ reset({enabled:true,meta:{value:"lovable"}});
+ flags.set("ai.provider.rewrite",{enabled:true,meta:{value:"gemini"}});
+ const result=await callAiGateway(rewriteBody,rewriteOpts);
+ assert.equal(result.provider,"gemini");assert.equal(sent.length,1);
+ assert.deepEqual(sent[0].body,{...rewriteBody,model:"models/gemini-3-flash-preview"});
+ assert.ok(logs.some(([msg,ctx]:any[])=>msg==="[ai-gateway] ai_call"&&ctx.label==="group-rewrite"&&ctx.provider==="gemini"));
+ for(const label of ["caption-translate","describeImage","ocr"]){assert.equal((await callAiGateway(body,{...opts,label})).provider,"lovable");}
+ flags.set("ai.provider.rewrite",{enabled:true,meta:{value:"lovable"}});invalidateFlagCache();
+ assert.equal((await callAiGateway(rewriteBody,rewriteOpts)).provider,"lovable");
+ assert.deepEqual(sent.at(-1)?.body,rewriteBody);
+});
+Deno.test("group rewrite JSON, images and streaming stay on Gateway until verified",async()=>{
+ for(const extra of [{response_format:{type:"json_object"}},{messages:imageBody.messages},{stream:true}]){
+  reset({enabled:true,meta:{value:"gemini"}});
+  const request={...rewriteBody,...extra};
+  assert.equal((await callAiGateway(request,rewriteOpts)).provider,"lovable");
+  assert.equal(sent.length,1);assert.deepEqual(sent[0].body,request);
+ }
+});
+Deno.test("adding the rewrite model does not expand caption vision or OCR model routing",async()=>{
+ for(const label of ["caption-translate","describeImage","ocr"]){
+  reset({enabled:true,meta:{value:"gemini"}});
+  assert.equal((await callAiGateway(rewriteBody,{...rewriteOpts,label})).provider,"lovable");
+  assert.equal(sent.length,1);assert.deepEqual(sent[0].body,rewriteBody);
+ }
+});
+Deno.test("group rewrite direct failure falls back with status preserved when both routes fail",async()=>{
+ reset({enabled:true,meta:{value:"gemini"}});directStatus=429;gatewayStatus=402;
+ const result=await callAiGateway(rewriteBody,rewriteOpts);
+ assert.equal(result.ok,false);assert.equal(result.status,402);assert.equal(result.provider,"lovable");
+ assert.equal(sent.length,3);assert.deepEqual(sent.at(-1)?.body,rewriteBody);
+});
+Deno.test("group rewrite missing or disabled flag defaults to Gateway",async()=>{
+ for(const value of [null,{enabled:false,meta:{value:"gemini"}}]){
+  reset(value);const result=await callAiGateway(rewriteBody,rewriteOpts);
+  assert.equal(result.provider,"lovable");assert.deepEqual(flagReads,["ai.provider.rewrite"]);
+ }
+});
 Deno.test("restore test boundary",()=>{globalThis.fetch=originalFetch;console.warn=originalWarn;console.log=originalLog;console.info=originalInfo;});

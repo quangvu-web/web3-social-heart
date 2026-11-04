@@ -6083,12 +6083,14 @@ export async function askAngel(params: Parameters<typeof askAngelReply>[0]): Pro
     chatType: params.conversationContext?.chatType,
     username: params.conversationContext?.username,
   }, async (source, policyNote) => {
-    const result = await callAngelCore({
-      forceProvider: "lovable",
+    const json = policyNote.includes("TRANSLATION REQUEST");
+    const result = await callAiGateway({
+      model: "google/gemini-3-flash-preview",
       max_tokens: 1800,
-      json: policyNote.includes("TRANSLATION REQUEST"),
+      ...(json ? { response_format: { type: "json_object" } } : {}),
       messages: withTelegramGroupContext(buildGroupReplyRewriteMessages(source, originalRequest, policyNote), params.telegramGroupContext),
-    });
-    return result.text;
+    }, { label: "group-rewrite", timeoutMs: 60_000, maxAttempts: 2 });
+    if (!result.ok) throw new AngelCoreError("Group reply rewrite unavailable", result.status);
+    return gatewayText(result);
   });
 }

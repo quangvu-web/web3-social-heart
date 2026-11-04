@@ -5,11 +5,15 @@ export type AiProvider = "lovable" | "gemini";
 // Verified 2026-10-27: HTTP200, choices[0].message.content nonempty, 1377ms.
 export const GEMINI_TEXT_MODELS: Readonly<Record<string, string>> = Object.freeze({
   "google/gemini-3.1-flash-lite": "models/gemini-3.1-flash-lite",
+  // HTTP 200 text completion recorded on 2026-10-27 in
+  // docs/operations/ai-provider-phase2-step0-evidence.json (chat-candidate).
+  "google/gemini-3-flash-preview": "models/gemini-3-flash-preview",
 });
 export async function resolveAiProviderForLabel(label: string): Promise<AiProvider> {
   const key = label === "caption-translate" ? "ai.provider.caption"
     : label === "describeImage" ? "ai.provider.vision"
-    : label === "ocr" ? "ai.provider.ocr" : null;
+    : label === "ocr" ? "ai.provider.ocr"
+    : label === "group-rewrite" ? "ai.provider.rewrite" : null;
   // The retired ai.provider row and AI_PROVIDER env never override service flags.
   // Unscoped labels do not read flags and always retain the Gateway route.
   if (!key) return "lovable";

@@ -1918,7 +1918,7 @@ export async function handlePrivateMessage(message: TelegramMessage) {
         });
       } else {
         const delivered = await replyDm(reply, { skipAutoDelete: true });
-        if (delivered?.ok && imageContext) await imageTurn?.finish({ ...imageContext, lastReply: reply });
+        if (delivered?.ok && imageContext) await imageTurn?.finish({ ...imageContext, lastReply: reply, lastRequest: text || "Xem ảnh và hỗ trợ lời đáp nếu có câu hỏi rõ ràng trong cuộc trò chuyện." });
       }
     } catch (err) {
       console.error("[dm] ai_reply_failed", { chatId, userId: message.from.id, error: err instanceof Error ? err.message : String(err) });

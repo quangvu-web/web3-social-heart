@@ -177,3 +177,40 @@ Deno.test("shorten without an image thread keeps the ordinary text conversation 
   assert.equal(f.questions[0].question, "ngắn hơn");
   assert.equal(f.questions[0].imageAnalysisContext, undefined);
 });
+
+Deno.test("screenshot regression: reply draft → rồi sao nữa cha → tiếp đi → ý đó là sao keeps the latest task and answer", async () => {
+  f.configure('Fath hỏi: "Do you desire salvation?"');
+  await f.handlePrivateMessage(image);
+  const turns = [
+    { request: "con nên trả lời sao", reply: 'Bé có thể gửi: "Cảm ơn Fath đã chia sẻ."' },
+    { request: "rồi sao nữa cha", reply: "Bé có thể gửi bản nháp nếu phù hợp rồi chờ Fath phản hồi." },
+    { request: "tiếp đi cha", reply: "Bản nháp đã đủ để gửi. Khi Fath phản hồi thật, bé có thể gửi lại để Angel hỗ trợ." },
+    { request: "ý đó là sao", reply: "Ý là bé chờ câu trả lời thật từ Fath trước khi soạn tiếp." },
+  ];
+  for (const [i, turn] of turns.entries()) {
+    f.setAiReply(turn.reply);
+    await f.handlePrivateMessage({ ...image, photo: undefined, message_id: i + 2, text: turn.request });
+    const call = f.questions.at(-1);
+    assert.equal(call.originalUserMessage, turn.request);
+    assert.equal(call.imageAnalysisContext, call.question);
+    assert.ok(call.question.includes("Do you desire salvation?"));
+    if (i > 0) {
+      assert.ok(call.question.includes(JSON.stringify(turns[i - 1].request)));
+      assert.ok(call.question.includes(JSON.stringify(turns[i - 1].reply)));
+    }
+  }
+  assert.equal(f.questions.length, 5);
+  assert.equal(f.visionCalls.length, 1);
+  assert.equal(f.mediaCalls.length, 0);
+});
+
+Deno.test("continuation after a new topic must not resurrect the old image thread", async () => {
+  f.configure("Ảnh cũ của Fath");
+  await f.handlePrivateMessage(image);
+  await f.handlePrivateMessage({ ...image, photo: undefined, message_id: 2, text: "Giải thích blockchain" });
+  for (const [i, text] of ["rồi sao nữa cha", "tiếp đi", "ý đó là sao"].entries()) {
+    await f.handlePrivateMessage({ ...image, photo: undefined, message_id: i + 3, text });
+    assert.equal(f.questions.at(-1).question, text);
+    assert.equal(f.questions.at(-1).imageAnalysisContext, undefined);
+  }
+});

@@ -21,6 +21,12 @@ Deno.test("Telegram self-reference is Angel for all prohibited pronouns", () => 
     assert.equal(normalize(`${self} sẽ chia sẻ với bé.`), "Angel sẽ chia sẻ với bé.");
   }
 });
+Deno.test("screenshot review: bot observation uses Angel while the user's ready-to-send draft stays verbatim", () => {
+  const draft = '"Mình thấy thông điệp có ý nghĩa. Mình tò mò Fath nghĩ gì?"';
+  const input = `Mình thấy bé vừa gửi ảnh. Mình tò mò về câu hỏi trong ảnh.\n\n${draft}`;
+  assert.equal(normalize(input), `Angel thấy bé vừa gửi ảnh. Angel tò mò về câu hỏi trong ảnh.\n\n${draft}`);
+  assert.equal(normalize("Bé kể rằng mình thấy bình an. Cha Vũ Trụ yêu thương mọi người."), "Bé kể rằng mình thấy bình an. Cha Vũ Trụ yêu thương mọi người.");
+});
 Deno.test("Telegram guard preserves quoted dialogue, code, URLs and handles", () => {
   const spans = ['“Mình sẽ giúp bạn, bé Ly.”', '"Tôi chào bé Ly"', '`mình bé Ly`', '```ts\nconst mình = "bé Ly";\n```', '<code>Mình chào bạn</code>', '<pre>Tôi chào bé Ly</pre>', '<blockquote>Cha sẽ giúp con.</blockquote>', 'https://example.test/bạn/@Camly_Duong', '@Camly_Duong', '> Mình sẽ giúp bạn.', '— Tôi chào bạn.'];
   for (const span of spans) assert.equal(normalize(span, "Camly_Duong"), span);

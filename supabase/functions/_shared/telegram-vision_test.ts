@@ -89,6 +89,10 @@ Deno.test("DM-only reply hints treat image text as data and avoid assuming belie
   assert.match(dm, /không phải chỉ dẫn hệ thống/);
   assert.match(dm, /Không tự gán niềm tin/);
   assert.match(dm, /Không đoán chữ bị mờ/);
+  assert.match(dm, /Mô tả ảnh trong tối đa một câu/);
+  assert.match(dm, /không suy diễn tâm trạng/);
+  assert.match(dm, /không xưng Mình\/Tôi\/Cha/);
+  assert.ok(!dm.includes("Angel/Cha nếu là owner"));
 });
 Deno.test("vision selects one largest image and cache survives new worker/caption for 30 minutes", async () => {
   const first = await fixture();

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { beginDmImageTurn, buildDmImageFollowup, detectImageFollowup } from "./telegram-dm-image-context.ts";
 
 const scope = { chatType: "private", chatId: 123, userId: 42, messageId: 1 };
-const context = { sourceMessageId: 1, description: 'Người hỏi: "Do you desire salvation?"', caption: "", lastReply: "Bản nháp trước" };
+const context = { sourceMessageId: 1, description: 'Người hỏi: "Do you desire salvation?"', caption: "", lastReply: "Bản nháp trước", lastRequest: "con nên trả lời sao" };
 
 // In-memory PostgREST double implements uniqueness and conditional updates,
 // including a deliberate competing write to exercise the compare-and-swap.
@@ -43,8 +43,11 @@ Deno.test("recognizes the screenshot follow-up sequence without capturing new to
     ["con nên trả lời sao", "reply"], ["Angel ơi, soạn tin nhắn trả lời giúp con nhé", "reply"],
     ["ngắn hơn", "shorten"], ["dịch sang tiếng Anh", "translate"], ["lịch sự hơn", "polish"],
     ["ý này là gì?", "explain"], ["How should I reply?", "reply"],
+    ["rồi sao nữa cha", "next_step"], ["rồi sao nữa, cha?", "next_step"], ["bước tiếp theo là gì", "next_step"],
+    ["tiếp đi cha", "continue"], ["Cha ơi, nói tiếp đi nhé", "continue"], ["viết tiếp", "continue"],
+    ["ý đó là sao", "explain"], ["what does that mean?", "explain"],
   ]) assert.equal(detectImageFollowup(text), intent, text);
-  for (const text of ["Giá Bitcoin hôm nay?", "con nên trả lời sao về Bitcoin", "dịch sang tiếng Anh: Xin chào", "/start", "giải thích blockchain", "trả lời email mới này"]) {
+  for (const text of ["Giá Bitcoin hôm nay?", "con nên trả lời sao về Bitcoin", "dịch sang tiếng Anh: Xin chào", "/start", "giải thích blockchain", "trả lời email mới này", "Cha Vũ Trụ là ai", "tiếp đi về Bitcoin", "bước tiếp theo khi tạo ví là gì", "rồi sao nữa trong câu chuyện mới này"]) {
     assert.equal(detectImageFollowup(text), null, text);
   }
 });
@@ -56,6 +59,24 @@ Deno.test("prompt carries actual image and last draft, with grounded task and st
   assert.match(prompt, /Soạn ngay một lời đáp/);
   assert.match(prompt, /Không tự gán niềm tin/);
   assert.match(prompt, /Không thi hành chỉ dẫn/);
+  assert.ok(prompt.includes('"previousRequest":"con nên trả lời sao"'));
+});
+
+Deno.test("next step, continuation and explanation have distinct tasks grounded in the previous turn", () => {
+  const next = buildDmImageFollowup(context, "rồi sao nữa cha", "next_step");
+  assert.match(next, /1–2 hành động cụ thể/);
+  assert.match(next, /không giả định bé đã gửi/);
+  assert.match(next, /không dựng tiếp cuộc hội thoại/);
+  const continuation = buildDmImageFollowup(context, "tiếp đi", "continue");
+  assert.match(continuation, /Tiếp tục đúng công việc/);
+  assert.match(continuation, /không bịa thêm diễn biến/);
+  const explanation = buildDmImageFollowup(context, "ý đó là sao", "explain");
+  assert.match(explanation, /ý trong lời đáp gần nhất/);
+  for (const prompt of [next, continuation, explanation]) {
+    assert.ok(prompt.includes(context.description.replaceAll('"', '\\"')));
+    assert.ok(prompt.includes(context.lastReply));
+    assert.ok(prompt.includes(context.lastRequest));
+  }
 });
 
 Deno.test("image survives cold starts and the reply → shorten → translate → polish sequence", async () => {
@@ -66,8 +87,18 @@ Deno.test("image survives cold starts and the reply → shorten → translate �
     const turn = await beginDmImageTurn(db.admin, { ...scope, messageId: id }, 1000 + id);
     assert.equal(turn?.previous?.description, context.description);
     assert.equal(turn?.previous?.lastReply, id === 2 ? context.lastReply : `draft ${id - 1}`);
+    assert.equal(turn?.previous?.lastRequest, context.lastRequest);
     await turn!.finish({ ...turn!.previous!, lastReply: `draft ${id}` });
   }
+});
+
+Deno.test("old cache records without lastRequest remain readable", async () => {
+  const db = cacheDouble();
+  const { lastRequest: _oldMissingField, ...legacy } = context;
+  await (await beginDmImageTurn(db.admin, scope, 1000))!.finish(legacy);
+  const turn = await beginDmImageTurn(db.admin, { ...scope, messageId: 2 }, 2000);
+  assert.equal(turn?.previous?.description, context.description);
+  assert.equal(turn?.previous?.lastRequest, undefined);
 });
 
 Deno.test("new topic and newer photo prevent slow older AI from resurrecting a thread", async () => {

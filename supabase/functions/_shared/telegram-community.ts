@@ -5926,13 +5926,15 @@ export async function describeTelegramImage(
 
 export function buildImageAnalysisContext(description: string, userCaption: string, options?: { dmReplyHints?: boolean }): string {
   const caption = (userCaption ?? "").trim();
-  const dmHint = "Mô tả ảnh ngắn gọn. Nếu ảnh chụp hội thoại có người nhờ trả lời một câu hỏi rõ ràng, hãy đưa thêm một lời đáp gợi ý có thể gửi ngay; nếu ý định còn mơ hồ, hỏi một câu ngắn bám đúng chi tiết ảnh.";
+  const dmHint = "Mô tả ảnh trong tối đa một câu. Nếu ảnh chụp hội thoại có người nhờ trả lời một câu hỏi rõ ràng, hãy đưa thêm một lời đáp gợi ý có thể gửi ngay, trong dấu ngoặc kép; nếu ý định còn mơ hồ, hỏi một câu ngắn bám đúng chi tiết ảnh. Tổng cộng khoảng 3–5 câu, không kể lể toàn bộ ảnh và không suy diễn tâm trạng hay hướng chiêm nghiệm của bé.";
   return [
     caption || (options?.dmReplyHints ? dmHint : "Hãy mô tả ảnh được gửi, rồi hỏi bé muốn Angel làm gì với ảnh này."),
     "",
     "IMAGE_ANALYSIS_CONTEXT — Angel VỪA MỚI XEM bức hình mà người dùng gửi kèm. Coi như bé đã kể lại đầy đủ nội dung hình cho Angel qua đoạn mô tả bên dưới.",
     "TUYỆT ĐỐI KHÔNG được nói các câu kiểu \"Angel không nhìn thấy hình\", \"không tìm thấy hình ảnh nào\", \"Angel không đọc được hình\", \"Angel chưa thấy hình\" — vì Angel ĐÃ có nội dung hình rồi.",
-    "Hãy trả lời tự nhiên, ấm áp, đúng persona Angel/bé (hoặc Angel/Cha nếu là owner), dựa trên mô tả hình + caption/yêu cầu của người dùng.",
+    options?.dmReplyHints
+      ? "Hãy trả lời tự nhiên dựa trên mô tả hình và yêu cầu. Trong lời dẫn tiếng Việt, xưng Angel, gọi người dùng là bé; không xưng Mình/Tôi/Cha. Giữ đại từ tự nhiên trong bản nháp gửi người khác và trích dẫn nguyên văn."
+      : "Hãy trả lời tự nhiên, ấm áp, đúng persona Angel/bé (hoặc Angel/Cha nếu là owner), dựa trên mô tả hình + caption/yêu cầu của người dùng.",
     "",
     `MÔ TẢ HÌNH (do vision model tạo):\n"""${description}"""`,
     "",

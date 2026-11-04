@@ -150,7 +150,7 @@ export function enforceTelegramVietnamesePronouns(input: string, username?: stri
   text = text.replace(/(?<![\p{L}])chúng\s+mình(?![\p{L}])/giu, (s) => s[0] === "C" ? "Chúng ta" : "chúng ta");
   text = text.replace(/(?<![\p{L}])Angel\s*\(\s*(?:mình|tôi)\s*\)/giu, "Angel");
   // Only clear bot-subject clauses, not possessives or the subject of reported speech.
-  text = text.replace(/(^\s*|[.!?…\n]\s*|[,;]\s*|(?:dạ|vâng|Angel:)\s+)(mình|tôi|cha|con|anh|chị|em)(?=\s+(?:sẽ|xin|luôn|có thể|muốn|nghĩ|tin|hiểu|biết|hỗ trợ|sẵn sàng|cảm ơn|chào|chia sẻ|gợi ý|mời|ở đây|là Angel|vừa|rất vui|mong|đã|đang)(?![\p{L}]))/giu, (value, lead: string, _subject: string, offset: number, full: string) => {
+  text = text.replace(/(^\s*|[.!?…\n]\s*|[,;]\s*|(?:dạ|vâng|Angel:)\s+)(mình|tôi|cha|con|anh|chị|em)(?=\s+(?:sẽ|xin|luôn|có thể|muốn|nghĩ|thấy|tò mò|tin|hiểu|biết|hỗ trợ|sẵn sàng|cảm ơn|chào|chia sẻ|gợi ý|mời|ở đây|là Angel|vừa|rất vui|mong|đã|đang)(?![\p{L}]))/giu, (value, lead: string, _subject: string, offset: number, full: string) => {
     if (/^[,;]/u.test(lead)) {
       const before = full.slice(0, offset).split(/[.!?\n]/u).pop() ?? "";
       if (!/^(?:\s*Angel|\s*(?:dạ|vâng|bé(?: Ly)? ơi|chào bé))/iu.test(before)) return value;

@@ -136,7 +136,48 @@ function defaultLovableModel(model?: string): string {
   return model || "google/gemini-3-flash-preview";
 }
 
+/** Map model id Gateway ("google/gemini-x") → id Gemini direct ("gemini-x"). */
+export function toGeminiDirectModel(model?: string): string {
+  const override = Deno.env.get("GEMINI_DIRECT_MODEL")?.trim();
+  if (override) return override;
+  const m = (model || "").replace(/^google\//, "");
+  return m.startsWith("gemini-") ? m : "gemini-2.5-flash";
+}
+
+async function callGeminiDirect(p: CallAngelParams, key: string): Promise<CallAngelResult> {
+  const body: Record<string, unknown> = {
+    model: toGeminiDirectModel(p.model),
+    messages: p.messages,
+  };
+  if (p.max_tokens) body.max_tokens = p.max_tokens;
+  if (typeof p.temperature === "number") body.temperature = p.temperature;
+  if (p.json) body.response_format = { type: "json_object" };
+  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new AngelCoreError(res.status === 429 ? "Rate limited" : "Gemini direct error", res.status, detail.slice(0, 400));
+  }
+  const data = await res.json();
+  const text = (data?.choices?.[0]?.message?.content ?? "").toString().trim();
+  if (!text) throw new AngelCoreError("Gemini direct empty reply", 502);
+  return { text, raw: data, provider: "lovable" };
+}
+
 async function callLovable(p: CallAngelParams): Promise<CallAngelResult> {
+  // Ưu tiên Gemini direct (GEMINI_API_KEY) — lỗi thì rơi xuống Lovable AI Gateway.
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
+  if (geminiKey) {
+    try {
+      return await callGeminiDirect(p, geminiKey);
+    } catch (e) {
+      const err = e as AngelCoreError;
+      console.warn(`[angel-core] gemini-direct failed status=${err?.status ?? "?"} msg=${err?.message ?? e} → gateway`);
+    }
+  }
   const key = Deno.env.get("LOVABLE_API_KEY");
   if (!key) throw new AngelCoreError("LOVABLE_API_KEY is not configured", 500);
 

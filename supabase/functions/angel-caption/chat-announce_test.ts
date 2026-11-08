@@ -21,6 +21,7 @@ function splitCaptionSentences(words) { return globalThis.__captionSplit(words);
 function applyHearingCorrections(text) { return text; }
 function detectSourceLang() { return "en"; }
 async function computeDedupeKey() { return "line-1"; }
+async function loadCaptionTranslationContext() { return []; }
 async function translateCaption() { return "Xin chào"; }
 ${helpers}
 ${handlers}

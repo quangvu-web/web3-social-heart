@@ -18,6 +18,7 @@ function splitCaptionSentences(words) { return globalThis.__captionSplit(words);
 function applyHearingCorrections(text) { return text; }
 function detectSourceLang() { return 'en'; }
 async function computeDedupeKey() { return 'fixture-dedupe'; }
+async function loadCaptionTranslationContext() { return []; }
 async function translateCaption() { return 'Xin chào'; }
 async function recallFetch() { throw new Error('No meeting chat allowed'); }
 async function handleCaptionParticipantJoin(admin, payload, webhookId, sendChat) {

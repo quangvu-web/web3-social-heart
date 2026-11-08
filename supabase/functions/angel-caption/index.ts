@@ -18,6 +18,7 @@ import { callCommunityTelegram } from "../_shared/telegram-community.ts";
 import { MODELS } from "../_shared/angel/models.ts";
 import { formatSummaryForTelegram } from "./summary-format.ts";
 import { splitSummaryMessages } from "./summary-parts.ts";
+import { buildCaptionTranslationMessages, loadCaptionTranslationContext } from "./caption-translation.ts";
 import { handleCaptionParticipantJoin } from "./join-dm.ts";
 import { captionPlayerUrl, isCaptionMediaSignedUrl, playbackDeadline, playbackSuppressesTranscript } from "./playback-utils.ts";
 import {
@@ -45,6 +46,7 @@ const KEYTERMS = [
   "hành trình thăng thiên", "Kinh Urantia", "FUN Community", "Fun.Rich",
   "LoveHub", "FUN-ID", "CAMLY", "Angel Translator", "Daniels Hussaini",
   "Angel Kim", "Hoàng Tỷ Đô", "bé Ly", "Richard E. Warren",
+  "Hoài An", "người dẫn chương trình", "thuyết trình", "lòng biết ơn",
   "The Melchizedek Mission", "The First Humans", "Abuja", "Nigeria",
   "meditation", "mindfulness", "đội ơn",
   "gia hộ", "tinh tấn", "hồi hướng", "thiền nhân", "buổi thiền", "thời thiền",
@@ -108,8 +110,8 @@ function buildRecallBotBody(meetingUrl: string, sessionId: string, webhookUrl: s
           assembly_ai_v3_streaming: {
             language_detection: true,
             keyterms_prompt: KEYTERMS,
-            min_turn_silence: 200,
-            max_turn_silence: 1200,
+            min_turn_silence: 400,
+            max_turn_silence: 1600,
           },
         },
         diarization: { use_separate_streams_when_available: true },
@@ -170,21 +172,11 @@ async function createRecallBot(meetingUrl: string, sessionId: string, webhookUrl
 const GLOSSARY_NOTE =
   "Giữ nguyên không dịch các tên riêng/thuật ngữ: Urantia, Melchizedek, Machiventa, Nebadon, Orvonton, Havona, Satania, Norlatiadek, Thought Adjuster (= Điều Chỉnh Tư Duy), Resurrection Hall (= Sảnh Phục Sinh), FUN Community, Fun.Rich, LoveHub, FUN-ID, CAMLY, Angel Translator. Dịch \"Thầy\" sang Anh là \"our Teacher\". Giữ nguyên số liệu, tên người.";
 
-async function translateCaption(text: string, from: "vi" | "en", previousSource: string | null = null): Promise<string | null> {
-  const to = from === "vi" ? "English" : "Vietnamese";
+async function translateCaption(text: string, from: "vi" | "en", previousSource: string | null = null, speaker: string | null = null): Promise<string | null> {
   const result = await callAiGateway(
     {
       model: MODELS.style_pass.id,
-      messages: [
-        {
-          role: "system",
-          content:
-            `You are a live-meeting subtitle translator. Translate only the current sentence into natural, conversational ${to}. ` +
-            `The previous source sentence is context only; do not translate it or include it in the output. ` +
-            `Output ONLY the translation, no quotes, no notes. ${GLOSSARY_NOTE}`,
-        },
-        { role: "user", content: `${previousSource ? `Previous source sentence (context only): ${previousSource}\n` : ""}Current sentence: ${text}` },
-      ],
+      messages: buildCaptionTranslationMessages(text, from, previousSource, GLOSSARY_NOTE, speaker),
       temperature: 0.2,
     },
     { label: "caption-translate", timeoutMs: 15_000, maxAttempts: 2 },
@@ -1057,6 +1049,7 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
   const prepared = sentences.map((sentence, index) => ({
     sentence, index, textSource: applyHearingCorrections(sentence.text),
   }));
+  const recentSourceContext = await loadCaptionTranslationContext(admin, session.id, speaker, startSec);
   const translations: Array<{
     textSource: string; sourceLang: "vi" | "en"; dedupeKey: string; translation: string | null;
   } | null> = new Array(sentences.length).fill(null);
@@ -1076,7 +1069,8 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
           .eq("session_id", session.id).eq("dedupe_key", dedupeKey).maybeSingle();
         if (existing) continue;
         const translationStarted = performance.now();
-        const translation = await translateCaption(textSource, sourceLang, index ? prepared[index - 1].textSource : null);
+        const previousSource = [...recentSourceContext, ...prepared.slice(Math.max(0, index - 2), index).map(s => s.textSource)].slice(-2).join("\n") || null;
+        const translation = await translateCaption(textSource, sourceLang, previousSource, speaker);
         translationDurations.push(performance.now() - translationStarted);
         translations[index] = { textSource, sourceLang, dedupeKey, translation };
       }
@@ -1302,7 +1296,7 @@ async function handlePlay(req: Request): Promise<Response> {
   if (count !== 1) return json({ error: "Buổi họp đang phát một bài nhạc khác. Bé dùng /stop_play trước nhé." }, 409);
 
   const playerUrl = captionPlayerUrl(PLAYER_PAGE_BASE, session.public_code, body.track_url, title);
-  let output: Response;
+  let output: Awaited<ReturnType<typeof recallFetch>>;
   try {
     output = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/output_media/`, {
       method: "POST",
@@ -1354,7 +1348,7 @@ async function handleStopPlay(req: Request): Promise<Response> {
   if (session.playback_status !== "playing" && !session.playback_file_path) {
     return json({ ok: true, already_stopped: true });
   }
-  let stopped: Response;
+  let stopped: Awaited<ReturnType<typeof recallFetch>>;
   try {
     stopped = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/output_media/`, {
       method: "DELETE", body: JSON.stringify({ camera: true }),

@@ -26,7 +26,7 @@ const production = await import(`data:application/javascript,${encodeURIComponen
 Deno.test("production STT payload includes meditation terms without changing existing keyterms", () => {
   const keyterms = production.buildRecallBotBody("https://zoom.us/j/1", "session", "https://functions.example/caption")
     .recording_config.transcript.provider.assembly_ai_v3_streaming.keyterms_prompt;
-  const added = ["gia hộ", "tinh tấn", "hồi hướng", "thiền nhân", "buổi thiền", "thời thiền", "chư vị đại giác ngộ", "hộ pháp", "mẹ em bé Angel Cam Ly", "em bé Angel Cam Ly"];
+  const added = ["Hoài An", "người dẫn chương trình", "thuyết trình", "lòng biết ơn", "gia hộ", "tinh tấn", "hồi hướng", "thiền nhân", "buổi thiền", "thời thiền", "chư vị đại giác ngộ", "hộ pháp", "mẹ em bé Angel Cam Ly", "em bé Angel Cam Ly"];
   for (const term of added) {
     assert.equal(keyterms.filter((value: string) => value === term).length, 1, `missing/duplicate ${term}`);
   }
@@ -50,7 +50,7 @@ Deno.test("create bot accepts tuned turn silence with existing language and keyt
   assert.equal(result.botId, "bot-fast");
   assert.equal(mod.sent.length, 1);
   assert.deepEqual(mod.sent[0].recording_config.transcript.provider.assembly_ai_v3_streaming, {
-    language_detection: true, keyterms_prompt: ["Urantia"], min_turn_silence: 200, max_turn_silence: 1200,
+    language_detection: true, keyterms_prompt: ["Urantia"], min_turn_silence: 400, max_turn_silence: 1600,
   });
   assert.equal("end_of_turn_confidence_threshold" in mod.sent[0].recording_config.transcript.provider.assembly_ai_v3_streaming, false);
 });

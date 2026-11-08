@@ -5,13 +5,14 @@ import { computeDedupeKey, splitCaptionSentences } from "./caption-utils.ts";
 const source = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
 const handlers = source.slice(source.indexOf("interface TranscriptEvent"), source.indexOf("// ---------- Action: stop"));
 const isolated = ts.transpileModule(`
-let admin, translate;
-export function configure(a, t) { admin = a; translate = t; }
+let admin, translate, history = [];
+export function configure(a, t, h = []) { admin = a; translate = t; history = h; }
 function splitCaptionSentences(words) { return globalThis.__captionSplit(words); }
 function wordsToSentence(words) { return globalThis.__captionSplit(words)[0] ?? { text: "", startSec: null }; }
 function applyHearingCorrections(text) { return text; }
 function detectSourceLang(text) { return /[ăâđêôơư]/i.test(text) ? "vi" : "en"; }
 async function computeDedupeKey(...args) { return globalThis.__captionKey(...args); }
+async function loadCaptionTranslationContext() { return history; }
 async function translateCaption(...args) { return translate(...args); }
 function scheduleCaptionWork() {}
 async function isPlaybackActive(_admin, session) { return session.playback_status === "playing"; }
@@ -26,6 +27,7 @@ Deno.test("translation receives previous source sentence as context but requests
   const translator = source.slice(source.indexOf("async function translateCaption"), source.indexOf("async function summarizeSession"));
   let request: Record<string, unknown> | null = null;
   const compiled = ts.transpileModule(`
+import { buildCaptionTranslationMessages } from ${JSON.stringify(new URL("./caption-translation.ts", import.meta.url).href)};
 const GLOSSARY_NOTE = "Keep names unchanged.";
 const MODELS = { style_pass: { id: "fixture" } };
 async function callAiGateway(value) { globalThis.__translationRequest(value); return { ok: true }; }
@@ -180,7 +182,7 @@ Deno.test("four workers tolerate reverse translation completion, preserve seq/co
       [7, "Sentence 7.", 12], [8, "Sentence 8.", 14], [9, "Sentence 9.", 16],
     ]);
     assert.equal(contexts.get("Sentence 1."), null);
-    assert.equal(contexts.get("Sentence 5."), "Sentence 4.");
+    assert.equal(contexts.get("Sentence 5."), "Sentence 3.\nSentence 4.");
     assert.equal(f.partial.text, "New segment speaking");
     assert.equal(logs.length, 1);
     assert.equal(logs[0].sentence_count, 9);
@@ -195,7 +197,7 @@ Deno.test("four workers tolerate reverse translation completion, preserve seq/co
     });
     await mod.handleTranscriptData(f.admin, f.payload, null);
     assert.equal(contexts.size, 5);
-    assert.equal(contexts.get("Sentence 5."), "Sentence 4.");
+    assert.equal(contexts.get("Sentence 5."), "Sentence 3.\nSentence 4.");
     assert.equal(f.rows.length, 9);
     assert.equal(f.rows[4].text_vi, null, "failed translation preserves source row");
   } finally { console.log = originalLog; }
@@ -227,4 +229,17 @@ Deno.test("single-sentence commit retries a transient partial deletion failure",
   assert.equal(f.rows.length, 1);
   assert.equal(f.partial.text, "");
   assert.equal(f.clearCount, 1);
+});
+
+Deno.test("first sentence of a new segment receives recent source context without rewriting the source", async () => {
+  const f = segmentFixture();
+  const contexts: Array<string | null> = [];
+  mod.configure(f.admin, (text: string, _lang: string, previous: string | null) => {
+    contexts.push(previous); return Promise.resolve(`English: ${text}`);
+  }, ["Hoài An vừa chia sẻ.", "Chúng ta tiếp tục."]);
+  await mod.handleTranscriptData(f.admin, { event: "transcript.data", data: { bot: { id: "bot-1" }, data: { words: [
+    { text: "Xin chào.", start_timestamp: { relative: 12 } },
+  ] } } });
+  assert.deepEqual(contexts, ["Hoài An vừa chia sẻ.\nChúng ta tiếp tục."]);
+  assert.equal(f.rows[0].text_source, "Xin chào.");
 });

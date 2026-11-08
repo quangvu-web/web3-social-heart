@@ -22,6 +22,8 @@ Thư viện hoạt động độc lập với kết nối FUN Core cho câu hỏ
 
 ## Triển khai theo thứ tự
 
+**Production đã áp dụng ngày 08/11/2026. Không chạy lại bước migration bên dưới trên production.** File `20261108000000_approved_telegram_replies.sql` là SQL nguồn; Lovable đã thực thi và ghi nhận SQL này dưới version `20261108091249`, file `20261108091249_6d8e0c4d-e326-4513-8ed9-75196b1f7185.sql`. Phải đối chiếu schema/history, không coi bản SQL nguồn là một migration production còn thiếu để chạy lại. Không chạy hàng loạt các file migration khi chưa đối chiếu hai bản này.
+
 1. Review nhánh/compare. Nhờ Angel trong Lovable áp dụng migration mới `20261108000000_approved_telegram_replies.sql` trên backend `xoiceivuqbxnmpfdiklg`. Codex không chạy migration production. Migration tạo bảng trống, grants và RLS admin qua `has_role`; không sửa bảng/quyền hiện có.
 2. Merge sau review và kiểm tra Lovable sync frontend. Deploy lại **function hiện có** `telegram-community-webhook`; không tạo function thứ 101, không đổi config/secrets.
 3. Kiểm tra `/admin?tab=approved-replies` bằng admin thật. Người không có quyền không được truy cập bảng qua API. Nếu migration/đọc bảng lỗi, UI phải báo lỗi, không hiển thị danh sách rỗng giả.
@@ -44,4 +46,15 @@ Rollback vận hành: thu hồi các mục đã duyệt; giữ bảng để bả
 - `deno check supabase/functions/telegram-community-webhook/index.ts` — pass sau cập nhật triển khai 08/11: Lovable bổ sung ba FlagKey đang dùng; năm import `SupabaseClient` chỉ dùng cho kiểu dữ liệu được đồng bộ về `npm:@supabase/supabase-js@2`. Không thay đổi logic ingest.
 - Migration chưa apply được điều chỉnh GRANT trước ENABLE RLS theo yêu cầu công cụ Lovable; kiểm thử PostgreSQL nhúng chạy lại pass.
 
-Production migration, deploy, giao diện admin thật và Telegram end-to-end chưa được kiểm chứng trong nhiệm vụ này. Không gọi trạng thái này là “đã live”.
+## Biên bản triển khai production — 08/11/2026 (MYT)
+
+- Lovable xác minh HEAD `183094ab226ece167c6018cf46b383aabd0847a9` trước triển khai. GitHub và local đã đồng bộ commit tự sinh sau migration `9196d9cb31d423aa539fc12d10896bf0d2955e33`.
+- Migration history ghi nhận version `20261108091249`, tên `6d8e0c4d-e326-4513-8ed9-75196b1f7185`; đã đối chiếu bằng SELECT trên `supabase_migrations.schema_migrations`. Không chạy lại migration nguồn.
+- Kiểm chứng SQL độc lập: bảng `telegram_approved_replies` tồn tại, 0 dòng, RLS bật, một admin policy dùng `has_role`, một trigger `prepare_telegram_approved_reply`; `anon` không có SELECT; `authenticated` có SELECT/INSERT/UPDATE dưới RLS. Không nhập hoặc duyệt câu trả lời tự động.
+- `telegram-community-webhook` đã deploy; dashboard ghi nhận deployment 17:13 MYT. Verify JWT vẫn tắt theo cấu hình hiện có. GET endpoint production trả 200; POST `{}` không có secret trả 401. Không gửi tin Telegram thật.
+- ZIP tải từ chính trang Code của function production có 57 file TypeScript; tất cả khớp main khi chuẩn hóa BOM/xuống dòng. Có cả `approved-replies.ts`, `approved-replies-policy.ts` và nhánh `approved_library`. SHA-256 entrypoint production: `c91005d34d9229fc415ce58181827d189b6b579a5cbbdf2c06a7bbf9d343645e` (không BOM). CLI vẫn thiếu quyền đọc metadata nên số revision của function chưa xác minh; không suy ra số revision từ commit.
+- Publish frontend hoàn tất, Lovable hiển thị **Your website was updated**. Đã mở URL live; phiên trình duyệt hiện chưa đăng nhập và bị đưa tới `/law-of-light`. Chưa kiểm thử form admin bằng tài khoản admin đã đăng nhập.
+- Công cụ migration tự sinh file SQL đã ghi nhận và cập nhật `src/integrations/supabase/types.ts`; Codex chỉ đồng bộ về local, không sửa tay types hoặc migration đã apply.
+- Publish có các cảnh báo bảo mật có sẵn về access rules và storage. Không sửa policy hiện có, không đánh dấu Ignore và không tắt kiểm tra bảo mật trong nhiệm vụ này; cần rà soát riêng.
+
+**Còn nghiệm thu nghiệp vụ:** đăng nhập admin tại `/admin?tab=approved-replies`, biên tập/duyệt một FAQ thực sự phù hợp, rồi thử câu hỏi chuẩn, biến thể, sai nhóm/ngôn ngữ và thu hồi như các bước 4–7. Thư viện đang trống nên bot vẫn đi đường AI hiện có cho tới khi có mục được duyệt. Chưa gọi luồng FAQ Telegram end-to-end là đã nghiệm thu.

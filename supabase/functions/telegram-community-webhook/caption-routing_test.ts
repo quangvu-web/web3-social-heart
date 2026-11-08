@@ -8,7 +8,7 @@ Deno.test({ name: "caption commands run before settings, translation, memory and
   const originalLog = console.log;
   const originalWarn = console.warn;
   const originalSetInterval = globalThis.setInterval;
-  const intervals: number[] = [];
+  const intervals: ReturnType<typeof setInterval>[] = [];
   globalThis.setInterval = ((...args: Parameters<typeof setInterval>) => {
     const id = originalSetInterval(...args);
     intervals.push(id);

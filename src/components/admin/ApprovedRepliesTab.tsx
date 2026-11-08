@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import ReplyCandidatesPanel from "./ReplyCandidatesPanel";
 import {
   type ApprovedReply,
   isStandaloneLibraryQuestion,
@@ -256,6 +257,7 @@ export default function ApprovedRepliesTab() {
     setForm((prev) => ({ ...prev, [key]: value }));
   return (
     <div className="space-y-6">
+      <ReplyCandidatesPanel onCreated={() => void load(0)} />
       <Card>
         <CardHeader>
           <CardTitle>Thư viện câu trả lời đã duyệt</CardTitle>
@@ -515,6 +517,7 @@ export default function ApprovedRepliesTab() {
                 {" "}
                 · Hết hạn {myt(review.expires_at)} (MYT)
               </p>
+              {review.source_conversation_id && <p className="text-sm text-muted-foreground break-all">Nguồn hội thoại: {review.source_conversation_id}. Bé cần đối chiếu nguồn và ngữ cảnh trước khi duyệt.</p>}
               <label className="flex items-start gap-2 text-sm">
                 <Checkbox
                   checked={checked}

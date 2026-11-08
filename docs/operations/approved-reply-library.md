@@ -8,6 +8,8 @@
 - Lưu luôn tạo bản nháp. Duyệt riêng sau khi đọc lại; sửa câu hỏi/biến thể/nội dung/ngôn ngữ/phạm vi/hạn dùng sẽ trở về nháp ở cả database, không chỉ UI. Có thể thu hồi và duyệt lại.
 - Không cần key, embedding hay function mới. Không tự đẩy câu trả lời AI vào FUN Core knowledge.
 
+**Nâng cấp đang chờ review — 09/11/2026:** [Tự gom ứng viên](reply-candidate-collection.md) thêm lựa chọn tạo bản nháp từ lượt mới của nhóm được bật và quét lịch sử có giới hạn. Không tự duyệt, không thay đổi đường tra cứu FAQ đã duyệt. Biên bản production 08/11 bên dưới chỉ mô tả bản đã triển khai trước nâng cấp này.
+
 ## Đường trả lời
 
 1. Giữ các gate trigger, spam và quota hiện có. Tra cứu thư viện với câu hỏi độc lập dạng text; bỏ qua ảnh, forward, trích dẫn, reply, yêu cầu công cụ, tự tương tác, yêu cầu dịch riêng và dữ liệu tức thời nhận biết được.

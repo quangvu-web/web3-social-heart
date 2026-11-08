@@ -44,6 +44,7 @@ import { resolveAdminRoleCheck } from "./telegram-admin-auth.ts";
 import { violationActionOutcome } from "./telegram-moderation-outcome.ts";
 import { classifyMemberEventType, resolveMemberEventWrite, type MemberEventWriteResult } from "./telegram-membership.ts";
 import { parseJoinEventRecordResult } from "./telegram-join-recovery.ts";
+import { collectReplyCandidate } from "./reply-candidates.ts";
 
 
 // EdgeRuntime.waitUntil declaration (Supabase Edge Runtime global).
@@ -241,6 +242,8 @@ export type AngelConversationContext = {
   webUserId?: string | null;
   /** conversation_id (string/uuid) khi log từ chat inline / web */
   webConversationId?: string | null;
+  /** Only the standalone group text route may opt a successful log into draft collection. */
+  libraryCandidateAllowed?: boolean;
 };
 
 export async function logAngelConversation(
@@ -257,7 +260,9 @@ export async function logAngelConversation(
 ): Promise<void> {
   if (!adminClient) return;
   try {
+    const candidateId = ctx.libraryCandidateAllowed === true ? crypto.randomUUID() : null;
     const row = {
+      ...(candidateId ? { id: candidateId } : {}),
       chat_id: ctx.chatId != null ? (typeof ctx.chatId === "string" ? Number(ctx.chatId) : ctx.chatId) : null,
       chat_type: ctx.chatType ?? null,
       group_id: ctx.groupId != null ? (typeof ctx.groupId === "string" ? Number(ctx.groupId) : ctx.groupId) : null,
@@ -279,6 +284,10 @@ export async function logAngelConversation(
     };
     const { error } = await adminClient.from("telegram_ai_conversations").insert(row);
     if (error) console.warn("[logAngelConversation] insert failed", error.message);
+    else if (candidateId && row.group_id !== null) await collectReplyCandidate(adminClient, {
+      ...row, id: candidateId, group_id: row.group_id,
+      chat_type: row.chat_type ?? "", provider: row.provider ?? "",
+    });
   } catch (e) {
     console.warn("[logAngelConversation] threw (non-fatal)", e);
   }

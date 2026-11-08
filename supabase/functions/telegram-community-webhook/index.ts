@@ -1,6 +1,7 @@
 ﻿import { buildTelegramGroupContext, type TelegramGroupContext } from "../_shared/telegram-group-context.ts";
 import { canUseApprovedLibrary } from "../_shared/approved-replies-policy.ts";
 import { findApprovedReply } from "../_shared/approved-replies.ts";
+import { canCollectReplyCandidate } from "../_shared/reply-candidates-policy.ts";
 import { isCaptionOperator } from "./caption-operators.ts";
 import { beginDmImageTurn, buildDmImageFollowup, detectImageFollowup, type DmImageContext } from "../_shared/telegram-dm-image-context.ts";
 import { beginDmTextTurn, buildDmTextFollowup, buildDmDefinitionQuestion, buildDmDetailedQuestion, detectTextFollowup } from "../_shared/telegram-dm-text-context.ts";
@@ -5277,13 +5278,14 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
   // Read on every request so revocations/expiry never depend on an instance cache.
   const libraryStarted = Date.now();
   const libraryLanguage = groupLanguage.botVoiceBucket ?? userLangBucket;
-  const libraryReply = canUseApprovedLibrary({
+  const libraryEligible = canUseApprovedLibrary({
     messageType, hasReply: Boolean(message.reply_to_message), hasPhoto: Boolean(requestedGroupPhoto),
     hasQuotedContext: hasReplyContext || Boolean(message.entities?.some(e => ["blockquote", "expandable_blockquote", "code", "pre"].includes(e.type))),
     builderActive: Boolean(activeMiniAppBuilderMode), automaticEngagement: triggerSource === "positive_community",
     toolRequest: detectWalletRequest(prompt) || detectLivestreamRequest(prompt) || detectMiniAppBuilder(prompt),
     translationRequest: Boolean(groupLanguage.policyNote?.includes("TRANSLATION REQUEST")),
-  })
+  });
+  const libraryReply = libraryEligible
     ? await findApprovedReply(adminClient, prompt, chatId, libraryLanguage)
     : null;
 
@@ -5587,6 +5589,9 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
         chatId,
         chatType: message.chat?.type ?? null,
         groupId: chatId,
+        libraryCandidateAllowed: canCollectReplyCandidate({ standalone: libraryEligible,
+          forwarded: Boolean(message.forward_origin || message.forward_from || message.forward_from_chat),
+          illustrated: _groupAutoIllustrate, hasAttachment: Boolean(_groupAttachments.length), hasImageContext: Boolean(imageAnalysisContext) }),
         userId: message.from?.id ?? null,
         username: message.from?.username ?? null,
         fullName: actorLabel,

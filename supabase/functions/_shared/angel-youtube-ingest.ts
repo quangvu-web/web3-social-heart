@@ -10,7 +10,7 @@
  * source = "youtube" khi push lên Angel AI gốc.
  */
 
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.0";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { pushToAngelKnowledge } from "./angel-knowledge.ts";
 
 const YT_REGEXES: RegExp[] = [

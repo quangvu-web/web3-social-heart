@@ -5421,6 +5421,60 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_approved_replies: {
+        Row: {
+          aliases: string[]
+          answer: string
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          expires_at: string
+          group_id: number | null
+          id: string
+          language: string
+          match_keys: string[]
+          question: string
+          revision: number
+          source_conversation_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          answer: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          expires_at?: string
+          group_id?: number | null
+          id?: string
+          language: string
+          match_keys?: string[]
+          question: string
+          revision?: number
+          source_conversation_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          answer?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          expires_at?: string
+          group_id?: number | null
+          id?: string
+          language?: string
+          match_keys?: string[]
+          question?: string
+          revision?: number
+          source_conversation_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       telegram_bot_dm_events: {
         Row: {
           bot_reply_to_message_id: number | null

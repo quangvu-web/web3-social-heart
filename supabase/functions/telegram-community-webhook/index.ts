@@ -1,4 +1,6 @@
 ﻿import { buildTelegramGroupContext, type TelegramGroupContext } from "../_shared/telegram-group-context.ts";
+import { canUseApprovedLibrary } from "../_shared/approved-replies-policy.ts";
+import { findApprovedReply } from "../_shared/approved-replies.ts";
 import { isCaptionOperator } from "./caption-operators.ts";
 import { beginDmImageTurn, buildDmImageFollowup, detectImageFollowup, type DmImageContext } from "../_shared/telegram-dm-image-context.ts";
 import { beginDmTextTurn, buildDmTextFollowup, buildDmDefinitionQuestion, buildDmDetailedQuestion, detectTextFollowup } from "../_shared/telegram-dm-text-context.ts";
@@ -5271,6 +5273,20 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
     return;
   }
 
+  // Curated FAQ only: raw standalone text, no quoted/thread/media/tool context.
+  // Read on every request so revocations/expiry never depend on an instance cache.
+  const libraryStarted = Date.now();
+  const libraryLanguage = groupLanguage.botVoiceBucket ?? userLangBucket;
+  const libraryReply = canUseApprovedLibrary({
+    messageType, hasReply: Boolean(message.reply_to_message), hasPhoto: Boolean(requestedGroupPhoto),
+    hasQuotedContext: hasReplyContext || Boolean(message.entities?.some(e => ["blockquote", "expandable_blockquote", "code", "pre"].includes(e.type))),
+    builderActive: Boolean(activeMiniAppBuilderMode), automaticEngagement: triggerSource === "positive_community",
+    toolRequest: detectWalletRequest(prompt) || detectLivestreamRequest(prompt) || detectMiniAppBuilder(prompt),
+    translationRequest: Boolean(groupLanguage.policyNote?.includes("TRANSLATION REQUEST")),
+  })
+    ? await findApprovedReply(adminClient, prompt, chatId, libraryLanguage)
+    : null;
+
   const funCoreContextHash = await sha256Hex(
     (settings.fun_core_context_prompt?.trim() || FUN_PROFILE_PLATFORM_FACTS).trim(),
   );
@@ -5288,7 +5304,7 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
       normalizeAiCachePrompt(prompt),
     ].join("|"))
     : null;
-  if (cacheKey) {
+  if (cacheKey && !libraryReply) {
     const cached = await getAiCachedResponse({ adminClient, groupId: chatId, cacheKey });
     console.log("[GROUP_LANG] cache", { chatId, bucket: userLangBucket, cacheHit: Boolean(cached) });
     if (cached) {
@@ -5368,6 +5384,30 @@ export async function handleGroupAiMention(message: TelegramMessage, settings: C
       status: "skipped",
       extra: { actorKind, isGroupSenderChat, reason: decisionLimit.reason ?? "rate_limited", intent: decision.category },
     });
+    return;
+  }
+
+  if (libraryReply) {
+    // Override the helper's HTML default: library entries are plain text (max 3500 chars).
+    const delivered = await sendMessage(chatId, libraryReply.answer, { parse_mode: undefined, reply_to_message_id: message.message_id, skipAutoDelete: true });
+    if (!delivered.ok) {
+      await markAiMessageLock({ adminClient, groupId: chatId, messageId: message.message_id ?? null,
+        triggerSource, status: "failed", extra: { mode: "approved_library", entryId: libraryReply.id, reason: "send_failed" } });
+      await logAiRuntime({ adminClient, groupId: chatId, userId: actorId, messageId: message.message_id ?? null,
+        messageType, decision, provider: "approved_library", cacheHit: true, allowed: true, inputTokens: 0, outputTokens: 0,
+        promptHash, error: "approved_library_send_failed", extra: { entryId: libraryReply.id } });
+      return;
+    }
+    await markAiMessageLock({ adminClient, groupId: chatId, messageId: message.message_id ?? null,
+      triggerSource, status: "responded", extra: { mode: "approved_library", entryId: libraryReply.id, revision: libraryReply.revision } });
+    await logAiRuntime({ adminClient, groupId: chatId, userId: actorId, messageId: message.message_id ?? null,
+      messageType, decision, provider: "approved_library", cacheHit: true, allowed: true,
+      latencyMs: Date.now() - libraryStarted, retrievalTimeMs: Date.now() - libraryStarted, inputTokens: 0, outputTokens: 0,
+      promptHash, promptPreview: prompt, extra: { entryId: libraryReply.id, revision: libraryReply.revision, triggerSource } });
+    await logAiAudit({ adminClient, groupId: chatId, userId: actorId, username: user?.username ?? senderChat?.username ?? null,
+      triggerSource, prompt, responded: true, responseMs: Date.now() - libraryStarted,
+      extra: { mode: "approved_library", entryId: libraryReply.id, revision: libraryReply.revision } });
+    // Do not copy curated answers into the ordinary TTL cache: edits/revocation must take effect on the next lookup.
     return;
   }
 

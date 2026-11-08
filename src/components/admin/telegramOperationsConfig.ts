@@ -3,7 +3,7 @@ export type AdminTab =
   | "abuse" | "delete" | "blockchain" | "migration" | "live-recording" | "merge" | "antisybil"
   | "telegram" | "dm-bot" | "mutes" | "father" | "ai-triggers" | "allowlists" | "restream"
   | "meditation" | "angel-persona" | "ai-conversations" | "angel-channels" | "angel-memory"
-  | "feedback" | "cloud-usage" | "prompt-versions" | "feature-flags" | "ai-ops";
+  | "approved-replies" | "feedback" | "cloud-usage" | "prompt-versions" | "feature-flags" | "ai-ops";
 
 export interface AdminNavigationItem { value: AdminTab; label: string; }
 export interface AdminNavigationGroup { label: string; items: AdminNavigationItem[]; }
@@ -17,7 +17,7 @@ export const adminNavigationGroups: AdminNavigationGroup[] = [
   ] },
   { label: "Hội thoại", items: [
     { value: "dm-bot", label: "DM bot" }, { value: "ai-conversations", label: "Lịch sử hội thoại" },
-    { value: "feedback", label: "Góp ý người dùng" },
+    { value: "feedback", label: "Góp ý người dùng" }, { value: "approved-replies", label: "Thư viện câu trả lời" },
   ] },
   { label: "Cài đặt", items: [
     { value: "angel-persona", label: "AI & persona" }, { value: "security", label: "Bảo mật" },

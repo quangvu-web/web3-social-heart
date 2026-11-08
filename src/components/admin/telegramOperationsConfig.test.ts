@@ -4,12 +4,13 @@ import { adminNavigationGroups, buildAdminTabSearch, resolveAdminTab } from "./t
 describe("Telegram Operations navigation", () => {
   it("maps every existing admin screen exactly once", () => {
     const values = adminNavigationGroups.flatMap((group) => group.items.map((item) => item.value));
-    expect(values).toHaveLength(31);
-    expect(new Set(values).size).toBe(31);
+    expect(values).toHaveLength(32);
+    expect(new Set(values).size).toBe(32);
     expect(values).toContain("cloud-usage");
     expect(values).toContain("prompt-versions");
     expect(values).toContain("feature-flags");
     expect(values).toContain("ai-ops");
+    expect(values).toContain("approved-replies");
   });
 
   it("resolves valid direct-link tabs and falls back for unknown tabs", () => {

@@ -34,6 +34,7 @@ import TelegramAllowlistsTab from "@/components/admin/TelegramAllowlistsTab";
 import SecurityAppKeysTab from "@/components/admin/SecurityAppKeysTab";
 import UsersTab from "@/components/admin/UsersTab";
 import AdminAngelPersonaTab from "@/components/admin/AdminAngelPersonaTab";
+import ApprovedRepliesTab from "@/components/admin/ApprovedRepliesTab";
 import AdminAiConversationsTab from "@/components/admin/AdminAiConversationsTab";
 import AngelChannelsTab from "@/components/admin/AngelChannelsTab";
 import FeedbackTab from "@/components/admin/FeedbackTab";
@@ -76,6 +77,7 @@ const adminTabIcons = {
   meditation: Sparkles,
   "angel-persona": Shield,
   "ai-conversations": MessageCircle,
+  "approved-replies": ListChecks,
   "angel-channels": Radio,
   "angel-memory": CircleHelp,
   feedback: MessageCircle,
@@ -414,6 +416,10 @@ const Admin = () => {
 
           <TabsContent value="ai-conversations">
             <AdminAiConversationsTab />
+          </TabsContent>
+
+          <TabsContent value="approved-replies">
+            <ApprovedRepliesTab />
           </TabsContent>
 
           <TabsContent value="angel-channels">

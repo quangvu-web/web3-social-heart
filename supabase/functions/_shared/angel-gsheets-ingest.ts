@@ -12,7 +12,7 @@
  * bắt được silent failure như phía Google Docs đã áp dụng.
  */
 
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.0";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { pushToAngelKnowledge } from "./angel-knowledge.ts";
 import { authoritativeMetadata, detectAuthoritative } from "./angel-authoritative.ts";
 

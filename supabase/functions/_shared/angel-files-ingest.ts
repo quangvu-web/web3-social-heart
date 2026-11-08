@@ -18,7 +18,7 @@
  * source = "telegram_file" hoặc "google_sheet".
  */
 
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.0";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import JSZip from "npm:jszip@3.10.1";
 import { pushToAngelKnowledge } from "./angel-knowledge.ts";
 import { fetchTelegramMedia, TelegramMediaError, redactToken } from "./telegram-media.ts";

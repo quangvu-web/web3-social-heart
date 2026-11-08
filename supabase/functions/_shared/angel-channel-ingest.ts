@@ -9,7 +9,7 @@
  *      nguyên khối, không bị Telegram cắt câu.
  */
 
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.0";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { pushToAngelKnowledge } from "./angel-knowledge.ts";
 
 // Cửa sổ auto-merge: 60s. User paste dài, Telegram tự chẻ thành nhiều tin liên tiếp

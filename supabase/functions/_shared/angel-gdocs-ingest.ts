@@ -9,7 +9,7 @@
  * `google_doc` để phân biệt với `telegram_channel`.
  */
 
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.0";
 import { pushToAngelKnowledge } from "./angel-knowledge.ts";
 import { authoritativeMetadata } from "./angel-authoritative.ts";
 

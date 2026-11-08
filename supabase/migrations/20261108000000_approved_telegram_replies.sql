@@ -17,10 +17,10 @@ CREATE TABLE public.telegram_approved_replies (
   approved_by uuid,
   CHECK (cardinality(aliases) <= 20)
 );
-ALTER TABLE public.telegram_approved_replies ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.telegram_approved_replies FROM anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON public.telegram_approved_replies TO authenticated;
 GRANT ALL ON public.telegram_approved_replies TO service_role;
+ALTER TABLE public.telegram_approved_replies ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins manage approved reply library" ON public.telegram_approved_replies
   FOR ALL TO authenticated
   USING (public.has_role(auth.uid(), 'admin'::public.app_role))

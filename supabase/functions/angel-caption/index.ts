@@ -1302,7 +1302,7 @@ async function handlePlay(req: Request): Promise<Response> {
   if (count !== 1) return json({ error: "Buổi họp đang phát một bài nhạc khác. Bé dùng /stop_play trước nhé." }, 409);
 
   const playerUrl = captionPlayerUrl(PLAYER_PAGE_BASE, session.public_code, body.track_url, title);
-  let output: Response;
+  let output: Awaited<ReturnType<typeof recallFetch>>;
   try {
     output = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/output_media/`, {
       method: "POST",
@@ -1354,7 +1354,7 @@ async function handleStopPlay(req: Request): Promise<Response> {
   if (session.playback_status !== "playing" && !session.playback_file_path) {
     return json({ ok: true, already_stopped: true });
   }
-  let stopped: Response;
+  let stopped: Awaited<ReturnType<typeof recallFetch>>;
   try {
     stopped = await recallFetch(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/output_media/`, {
       method: "DELETE", body: JSON.stringify({ camera: true }),

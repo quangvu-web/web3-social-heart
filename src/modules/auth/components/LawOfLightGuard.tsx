@@ -123,7 +123,7 @@ export const LawOfLightGuard = ({ children }: LawOfLightGuardProps) => {
         code="profile_load_error"
         title="Chưa tải được hồ sơ"
         error={profileError}
-        message="Phiên đăng nhập vẫn còn hiệu lực nhưng hồ sơ chưa tải được. Bạn thử lại giúp Angel — không cần xóa cache."
+        message="Phiên đăng nhập vẫn còn hiệu lực nhưng hồ sơ chưa tải được. Vui lòng thử lại — không cần xóa cache."
         onRetry={handleRetry}
         retrying={isRetrying}
       />

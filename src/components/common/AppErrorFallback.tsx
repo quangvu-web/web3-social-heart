@@ -19,6 +19,11 @@ interface AppErrorFallbackProps {
   details?: Partial<AppErrorDetails>;
   updateMode?: boolean;
   className?: string;
+  /** Thử lại ngay trong ứng dụng, không cần tải lại cả trang. */
+  onRetry?: () => void | Promise<void>;
+  /** Đang chạy lượt thử lại (khoá nút, xoay icon). */
+  retrying?: boolean;
+  retryLabel?: string;
 }
 
 export function AppErrorFallback({
@@ -29,6 +34,9 @@ export function AppErrorFallback({
   details,
   updateMode = false,
   className,
+  onRetry,
+  retrying = false,
+  retryLabel = 'Thử lại',
 }: AppErrorFallbackProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -62,6 +70,12 @@ export function AppErrorFallback({
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
+            {onRetry && (
+              <Button type="button" onClick={() => void onRetry()} disabled={retrying} className="gap-2">
+                <RefreshCw className={cn('h-4 w-4', retrying && 'animate-spin')} />
+                {retrying ? 'Đang thử lại...' : retryLabel}
+              </Button>
+            )}
             <Button type="button" onClick={reloadApp} className="gap-2">
               <RefreshCw className="h-4 w-4" />
               {updateMode ? 'Cập nhật ngay' : 'Tải lại ứng dụng'}

@@ -4,6 +4,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { withTimeout } from '@/lib/asyncTimeout';
 import { getGoogleAvatarToSync } from '@/utils/googleAvatarSync';
 
+// Ngân sách timeout cho một lượt bootstrap phiên đăng nhập.
+// Trước đây mốc ngoài của bước hồ sơ (10s) NHỎ HƠN tổng mốc trong
+// (8s đọc hồ sơ + 8s tạo hồ sơ cho mỗi lượt thử), nên chỉ cần mạng/backend
+// chậm một nhịp là ứng dụng báo "Không thể khởi tạo phiên đăng nhập" dù phiên
+// đăng nhập hoàn toàn hợp lệ. Nay mốc ngoài đủ chỗ cho bước đọc rồi tới một
+// lượt tạo dự phòng, và lỗi hồ sơ được xử lý mềm (không khoá ứng dụng).
+const AUTH_SESSION_TIMEOUT_MS = 8_000;
+const AUTH_USER_TIMEOUT_MS = 8_000;
+const PROFILE_FETCH_TIMEOUT_MS = 5_000;
+const PROFILE_WRITE_TIMEOUT_MS = 5_000;
+const PROFILE_BOOTSTRAP_TIMEOUT_MS = 12_000;
+const PROFILE_BOOTSTRAP_RETRY_DELAY_MS = 5_000;
+// 3 lượt thử trước đây khiến bước tạo hồ sơ có thể chạy tới ~48s, vượt xa mọi
+// mốc timeout và chỉ tạo cảm giác "treo". Hai lượt là đủ cho 1 lần tạo + 1 lần
+// đọc lại khi lỗi trùng khoá.
+const PROFILE_CREATE_MAX_ATTEMPTS = 2;
+
 interface Profile {
   id: string;
   username: string;
@@ -41,6 +58,7 @@ interface AuthContextType {
   profile: Profile | null;
   isLoading: boolean;
   bootstrapError: Error | null;
+  profileError: Error | null;
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -67,6 +85,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [bootstrapError, setBootstrapError] = useState<Error | null>(null);
+  const [profileError, setProfileError] = useState<Error | null>(null);
 
   // Refs to avoid closure stale-state issues
   const isMountedRef = useRef(true);
@@ -112,7 +131,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             telegram_linked_at
           `)
           .eq('id', userId)
-          .maybeSingle(), 8_000, 'profile fetch timeout');
+          .maybeSingle(), PROFILE_FETCH_TIMEOUT_MS, 'profile fetch timeout');
 
         if (error) {
           console.error('[AuthContext] Error fetching profile:', error);
@@ -208,7 +227,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     console.log('[AuthContext] Profile not found, creating fallback...');
 
     const username = generateSafeUsername(user);
-    const maxRetries = 3;
+    const maxRetries = PROFILE_CREATE_MAX_ATTEMPTS;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       let finalUsername = attempt === 0
@@ -241,7 +260,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             trust_level, email_claimed, email_verified_at, wallet_verified_at,
             telegram_chat_id, telegram_username, telegram_2fa_enabled, telegram_linked_at
           `)
-          .maybeSingle(), 8_000, 'profile create timeout');
+          .maybeSingle(), PROFILE_WRITE_TIMEOUT_MS, 'profile create timeout');
 
         if (!error && data) {
           console.log('[AuthContext] Fallback profile created:', finalUsername);
@@ -272,7 +291,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const refreshProfile = useCallback(async () => {
     if (user?.id) {
-      await fetchProfile(user.id);
+      const refreshed = await fetchProfile(user.id);
+      if (refreshed && isMountedRef.current) setProfileError(null);
     }
   }, [user?.id, fetchProfile]);
 
@@ -292,10 +312,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const initializeAuth = useCallback(async () => {
     setIsLoading(true);
     setBootstrapError(null);
+    setProfileError(null);
     try {
       const { data: { session: initialSession }, error } = await withTimeout(
         supabase.auth.getSession(),
-        8_000,
+        AUTH_SESSION_TIMEOUT_MS,
         'auth session timeout',
       );
       
@@ -319,7 +340,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         try {
           const { data: { user: latestUser } } = await withTimeout(
             supabase.auth.getUser(),
-            8_000,
+            AUTH_USER_TIMEOUT_MS,
             'auth user timeout',
           );
           if (latestUser && isMountedRef.current) {
@@ -334,11 +355,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setUser(freshUser);
 
       if (initialSession?.user) {
-        await withTimeout(
-          ensureProfile(initialSession.user),
-          10_000,
-          'profile bootstrap timeout',
-        );
+        const bootstrapUser = initialSession.user;
+        try {
+          await withTimeout(
+            ensureProfile(bootstrapUser),
+            PROFILE_BOOTSTRAP_TIMEOUT_MS,
+            'profile bootstrap timeout',
+          );
+          if (isMountedRef.current) setProfileError(null);
+        } catch (profileErr) {
+          // Phiên đăng nhập vẫn hợp lệ — hồ sơ chỉ là bước phụ, không được phép
+          // khoá toàn bộ ứng dụng. Ghi nhận lỗi MỀM để UI báo đúng bản chất
+          // (chưa tải được hồ sơ) và tự thử lại một lượt ở hậu cảnh.
+          const softError = profileErr instanceof Error ? profileErr : new Error('profile bootstrap failed');
+          console.warn('[AuthContext] Profile bootstrap failed, keeping session:', softError);
+          if (isMountedRef.current) setProfileError(softError);
+          window.setTimeout(() => {
+            if (!isMountedRef.current) return;
+            void ensureProfile(bootstrapUser)
+              .then((retried) => {
+                if (retried && isMountedRef.current) setProfileError(null);
+              })
+              .catch((retryErr) => {
+                console.warn('[AuthContext] Profile bootstrap retry failed:', retryErr);
+              });
+          }, PROFILE_BOOTSTRAP_RETRY_DELAY_MS);
+        }
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Auth bootstrap failed');
@@ -427,6 +469,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     profile,
     isLoading,
     bootstrapError,
+    profileError,
     isAuthenticated: !!session && !!user,
     signOut,
     refreshProfile,

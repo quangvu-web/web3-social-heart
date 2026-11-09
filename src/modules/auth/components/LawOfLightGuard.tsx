@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { AppErrorFallback } from '@/components/common/AppErrorFallback';
+import { resolveAuthBootstrapState } from '@/modules/auth/authBootstrapState';
 
 interface LawOfLightGuardProps {
   children: React.ReactNode;
@@ -11,12 +12,30 @@ interface LawOfLightGuardProps {
 export const LawOfLightGuard = ({ children }: LawOfLightGuardProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { session, profile, isLoading, bootstrapError } = useAuth();
+  const { session, profile, isLoading, bootstrapError, profileError, retryBootstrap } = useAuth();
   const [isAllowed, setIsAllowed] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const gate = resolveAuthBootstrapState({
+    isLoading,
+    bootstrapError,
+    profileError,
+    hasSession: !!session,
+    hasProfile: !!profile,
+  });
+
+  const handleRetry = useCallback(async () => {
+    setIsRetrying(true);
+    try {
+      await retryBootstrap();
+    } finally {
+      setIsRetrying(false);
+    }
+  }, [retryBootstrap]);
 
   useEffect(() => {
-    // Skip check while AuthContext is loading
-    if (isLoading || bootstrapError) return;
+    // Chỉ quyết định quyền vào trang khi đã xác minh xong phiên đăng nhập.
+    if (gate !== 'ready') return;
 
     const checkAccess = () => {
       // Public pages - always allow
@@ -70,20 +89,22 @@ export const LawOfLightGuard = ({ children }: LawOfLightGuardProps) => {
     };
 
     checkAccess();
-  }, [navigate, location.pathname, session, profile, isLoading, bootstrapError]);
+  }, [navigate, location.pathname, session, profile, gate]);
 
-  if (bootstrapError) {
+  if (gate === 'fatal') {
     return (
       <AppErrorFallback
         code="auth_bootstrap_error"
         error={bootstrapError}
-        message="Không thể khởi tạo phiên đăng nhập. Bạn có thể tải lại hoặc xóa cache để thử lại."
+        message="Không thể khởi tạo phiên đăng nhập. Bạn có thể thử lại, tải lại hoặc xóa cache để thử lại."
+        onRetry={handleRetry}
+        retrying={isRetrying}
       />
     );
   }
 
   // Show loading while AuthContext is initializing
-  if (isLoading) {
+  if (gate === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -91,6 +112,21 @@ export const LawOfLightGuard = ({ children }: LawOfLightGuardProps) => {
           <p className="text-muted-foreground">Đang kiểm tra...</p>
         </div>
       </div>
+    );
+  }
+
+  // Phiên đăng nhập hợp lệ nhưng hồ sơ chưa tải được: không tự cho vào (sẽ bỏ
+  // qua bước xác nhận Law of Light) và cũng không báo là lỗi phiên đăng nhập.
+  if (gate === 'profile-unavailable') {
+    return (
+      <AppErrorFallback
+        code="profile_load_error"
+        title="Chưa tải được hồ sơ"
+        error={profileError}
+        message="Phiên đăng nhập vẫn còn hiệu lực nhưng hồ sơ chưa tải được. Bạn thử lại giúp Angel — không cần xóa cache."
+        onRetry={handleRetry}
+        retrying={isRetrying}
+      />
     );
   }
 

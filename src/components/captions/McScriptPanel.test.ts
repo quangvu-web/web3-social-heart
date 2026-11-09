@@ -14,6 +14,7 @@ const vi = "Cha đã hoàn thành mọi việc. Bé chỉ cần hiện diện v�
 function harness() {
   let loggedIn = true;
   let failed = false;
+  let unavailable = false;
   let pending: ((value: unknown) => void) | null = null;
   let hold = false;
   const calls: Array<{ name: string; body: { stage: string; text: string }; signal: AbortSignal }> = [];
@@ -22,6 +23,7 @@ function harness() {
     functions: { invoke: async (name: string, options: any) => {
       calls.push({ name, ...options });
       if (hold) return await new Promise(resolve => { pending = resolve; });
+      if (unavailable) return { data: null, error: { context: new Response(JSON.stringify({ error: "Unknown action" }), { status: 404 }) } };
       if (failed) return { data: null, error: { context: new Response(JSON.stringify({ error: "Bé thử lại sau nhé." }), { status: 429 }) } };
       return { data: { stage: options.body.stage, text: options.body.stage === "edit-vi" ? vi : "Everything is ready. Be here and receive the blessings of Father Universe." }, error: null };
     } },
@@ -51,6 +53,7 @@ function harness() {
   return { calls, button, click, field, edit,
     text: () => JSON.stringify(tree.toJSON()),
     review: async () => { await act(async () => { tree.root.findByType("input").props.onChange({ target: { checked: true } }); }); },
+    unavailable: () => unavailable = true,
     logout: () => loggedIn = false, fail: () => failed = true, hold: () => hold = true,
     release: async () => { await act(async () => { pending?.({ data: { stage: "edit-vi", text: vi }, error: null }); }); },
     updateLines: () => act(() => tree.update(React.createElement(module.exports.default, { ...props, lines: [...props.lines, { speaker_name: "Other", source_lang: "vi", text_source: "Dòng mới không được ghi đè bản MC đang sửa." }] }))),
@@ -124,4 +127,17 @@ describe("MC read-back workspace", () => {
       expect(h.calls).toHaveLength(0);
     } finally { h.close(); }
   });
+});
+
+test("undeployed MC action shows an actionable error before the empty Vietnamese editor", async () => {
+  const h = harness();
+  try {
+    await h.click("Lấy đoạn tiếng Việt gần nhất"); h.unavailable(); await h.click("Tạo bản Việt biên tập");
+    const rendered = h.text();
+    expect(rendered).toContain("Chức năng biên tập MC chưa sẵn sàng");
+    expect(rendered.indexOf('"role":"alert"')).toBeLessThan(rendered.indexOf('"aria-label":"Bản Việt biên tập"'));
+    expect(h.field("Lời nói tiếng Việt gốc").props.value).toBe(raw);
+    expect(h.field("Bản Việt biên tập").props.value).toBe("");
+    expect(h.button("Tạo bản Việt biên tập").props.disabled).toBeFalsy();
+  } finally { h.close(); }
 });

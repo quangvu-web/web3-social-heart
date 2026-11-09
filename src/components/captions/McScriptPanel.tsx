@@ -13,6 +13,7 @@ export default function McScriptPanel({ lines, fontSize }: { lines: McCaptionSou
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [needsLogin, setNeedsLogin] = useState(false);
+  const [feedbackStage, setFeedbackStage] = useState<McStage>("edit-vi");
   const requestId = useRef(0);
   const pending = useRef<AbortController | null>(null);
   useEffect(() => () => { requestId.current++; pending.current?.abort(); }, []);
@@ -26,7 +27,7 @@ export default function McScriptPanel({ lines, fontSize }: { lines: McCaptionSou
     const input = stage === "edit-vi" ? source : vietnamese;
     if (!validMcText(input) || (stage === "translate-en" && !canTranslate)) return;
     const id = ++requestId.current;
-    setBusy(stage); setError(""); setNotice(""); setNeedsLogin(false);
+    setFeedbackStage(stage); setBusy(stage); setError(""); setNotice(""); setNeedsLogin(false);
     pending.current = new AbortController();
     try {
       const session = await supabase.auth.getSession();
@@ -42,7 +43,9 @@ export default function McScriptPanel({ lines, fontSize }: { lines: McCaptionSou
         if (response instanceof Response) {
           if (response.status === 401) setNeedsLogin(true);
           const body = await response.json().catch(() => null);
-          if (typeof body?.error === "string") message = body.error.slice(0, 300);
+          if (response.status === 404 && body?.error === "Unknown action") {
+            message = "Chức năng biên tập MC chưa sẵn sàng trên hệ thống. Bé giữ nội dung đang soạn và thử lại sau nhé.";
+          } else if (typeof body?.error === "string") message = body.error.slice(0, 300);
         }
         throw new Error(message);
       }
@@ -73,6 +76,12 @@ export default function McScriptPanel({ lines, fontSize }: { lines: McCaptionSou
     catch { setError("Chưa sao chép được. Bé có thể chọn nội dung trong ô và sao chép thủ công."); }
   }
 
+  const feedback = <div aria-live="polite" className="space-y-2">
+    {error && <p role="alert" className="text-caption-live">{error}</p>}
+    {notice && <p role="status" className="text-caption-muted">{notice}</p>}
+    {needsLogin && <a className="inline-block underline text-caption-speaker" href="/auth" target="_blank" rel="noopener noreferrer">Đăng nhập FUN Profile trong tab mới</a>}
+  </div>;
+
   return <div className="mx-auto max-w-5xl p-4 space-y-4 text-caption-foreground">
     <h2 className="text-xl font-semibold">Bản MC đọc lại · Việt–Anh</h2>
     <p className="text-sm text-caption-muted">Bản biên tập riêng để bé đọc thành lời; không thay phụ đề trực tiếp. Angel không tự thêm lời chào, lời cảm ơn hoặc ý mới. Bé cần kiểm tra tên và nội dung trước khi dùng.</p>
@@ -85,6 +94,7 @@ export default function McScriptPanel({ lines, fontSize }: { lines: McCaptionSou
       {source.length > MC_TEXT_LIMIT && <span className="block text-sm text-caption-live">Đoạn này quá 6.000 ký tự. Nội dung vẫn giữ nguyên; bé chia đoạn trước khi tạo bản MC nhé.</span>}
     </label>
     <button type="button" className={control} disabled={!!busy || !validMcText(source)} onClick={() => void generate("edit-vi")}>{busy === "edit-vi" ? "Đang biên tập bản Việt…" : vietnamese ? "Biên tập lại bản Việt" : "Tạo bản Việt biên tập"}</button>
+    {feedbackStage === "edit-vi" && feedback}
     <label className="block space-y-2"><span className="font-semibold">2. Bản Việt biên tập — bé rà soát trước khi dịch</span>
       <textarea aria-label="Bản Việt biên tập" className={editor} rows={8} value={vietnamese} disabled={!!busy}
         onChange={e => { setVietnamese(e.target.value); setViSource(source); setReviewed(false); setEnglish(""); setNotice(""); }} />
@@ -97,12 +107,11 @@ export default function McScriptPanel({ lines, fontSize }: { lines: McCaptionSou
       <button type="button" className={control} disabled={!!busy || !canTranslate} onClick={() => void generate("translate-en")}>{busy === "translate-en" ? "Đang dịch bản Anh…" : "Dịch bản Việt đã rà soát sang Anh"}</button>
       <button type="button" className={control} disabled={!vietnamese} onClick={() => void copy(vietnamese)}>Sao chép bản Việt</button>
     </div>
+    {feedbackStage === "translate-en" && feedback}
     <label className="block space-y-2"><span className="font-semibold">3. Bản Anh để đọc thành lời</span>
       <textarea aria-label="Bản Anh để đọc thành lời" className={editor} rows={10} style={{ fontSize: Math.max(18, fontSize) }} value={english} disabled={!!busy} onChange={e => setEnglish(e.target.value)} />
     </label>
     <button type="button" className={control} disabled={!english || !!busy} onClick={() => void copy(english)}>Sao chép bản Anh</button>
-    {error && <p role="alert" className="text-caption-live">{error}</p>}
-    {notice && <p role="status" className="text-caption-muted">{notice}</p>}
-    {needsLogin && <a className="inline-block underline text-caption-speaker" href="/auth" target="_blank" rel="noopener noreferrer">Đăng nhập FUN Profile trong tab mới</a>}
+
   </div>;
 }

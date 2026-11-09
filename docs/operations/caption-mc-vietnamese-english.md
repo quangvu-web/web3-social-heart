@@ -1,5 +1,7 @@
 # Phụ đề Việt–Anh để MC đọc thành lời
 
+Nâng cấp hai chế độ (đang chờ review): [Phụ đề trực tiếp và bản MC đọc lại](translator-two-modes.md). Bản MC là luồng biên tập có người rà soát riêng, không thay transcript trực tiếp.
+
 ## Thay đổi
 
 - Vẫn dùng AssemblyAI streaming qua Recall và cùng model/AI provider dịch hiện có; không thêm secret, không tăng số lượt gọi AI cho mỗi câu. Không hardcode tiếng Việt cho mọi người nói trong cuộc họp song ngữ.

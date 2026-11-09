@@ -20,6 +20,7 @@ import { formatSummaryForTelegram } from "./summary-format.ts";
 import { splitSummaryMessages } from "./summary-parts.ts";
 import { buildCaptionTranslationMessages, loadCaptionTranslationContext } from "./caption-translation.ts";
 import { handleCaptionParticipantJoin } from "./join-dm.ts";
+import { handleMcScript } from "./mc-script.ts";
 import { captionPlayerUrl, isCaptionMediaSignedUrl, playbackDeadline, playbackSuppressesTranscript } from "./playback-utils.ts";
 import {
   applyHearingCorrections,
@@ -1473,6 +1474,8 @@ Deno.serve(withUsage("angel-caption", "Angel Caption Bot", async (req) => {
 
   const action = new URL(req.url).searchParams.get("action") ?? "";
   switch (action) {
+    case "mc-script":
+      return await handleMcScript(req);
     case "start":
       return await handleStart(req);
     case "recall-webhook":

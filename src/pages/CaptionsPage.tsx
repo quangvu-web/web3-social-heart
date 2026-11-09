@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Minus, Plus, Loader2, ArrowDown } from "lucide-react";
 
 import { CaptionThemePicker } from "@/components/captions/CaptionThemePicker";
+import McScriptPanel from "@/components/captions/McScriptPanel";
 import { readCaptionTheme, saveCaptionTheme, type CaptionTheme } from "@/components/captions/captionThemes";
 
 type SessionStatus = "pending" | "joining" | "live" | "ended" | "failed";
@@ -142,6 +143,7 @@ export default function CaptionsPage() {
   const [theme, setTheme] = useState<CaptionTheme>(() => readCaptionTheme());
   const [speakingWidth, setSpeakingWidth] = useState(readSpeakingWidth);
   const [speakingHeight, setSpeakingHeight] = useState(readSpeakingHeight);
+  const [workspace, setWorkspace] = useState<"live" | "mc">("live");
   const changeTheme = (next: CaptionTheme) => {
     setTheme(next);
     saveCaptionTheme(next);
@@ -503,7 +505,13 @@ export default function CaptionsPage() {
             </span>
           </div>
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <div className="flex rounded-lg overflow-hidden border border-caption-control-border">
+            <div className="flex rounded-lg overflow-hidden border border-caption-control-border" role="group" aria-label="Chế độ Translator">
+              {(["live", "mc"] as const).map(value => <button key={value} type="button" aria-pressed={workspace === value} onClick={() => setWorkspace(value)}
+                className={`px-3 py-1.5 text-sm font-medium ${workspace === value ? "bg-caption-selected text-caption-selected-foreground" : "bg-caption-control/60 text-caption-control-foreground hover:bg-caption-control-hover"}`}>
+                {value === "live" ? "Phụ đề trực tiếp" : "Bản MC đọc lại"}
+              </button>)}
+            </div>
+            <div className={workspace === "live" ? "flex rounded-lg overflow-hidden border border-caption-control-border" : "hidden"}>
               {(["vi", "en", "both"] as ViewMode[]).map((m) => (
                 <button
                   key={m}
@@ -538,7 +546,7 @@ export default function CaptionsPage() {
       </header>
 
       {/* Danh sách phụ đề — native div scroll theo quy ước dự án */}
-      <div className="relative flex-1 flex flex-col min-h-0">
+      <div className={workspace === "live" ? "relative flex-1 flex flex-col min-h-0" : "hidden"}>
         <div ref={scrollRef} onScroll={onScroll} aria-label="Lịch sử phụ đề" className="flex-1 min-h-0 overflow-y-auto">
           <CaptionHistory lines={lines} mode={mode} fontSize={fontSize} status={session.status} />
         </div>
@@ -552,13 +560,16 @@ export default function CaptionsPage() {
           </button>
         )}
       </div>
+      <section aria-label="Soạn bản MC Việt–Anh" className={workspace === "mc" ? "flex-1 min-h-0 overflow-y-auto" : "hidden"}>
+        <McScriptPanel key={session.id} lines={lines} fontSize={fontSize} />
+      </section>
       {/* Mặc định 6 dòng; chiều cao tùy chọn vẫn bám theo cỡ chữ bằng em.
           Partial/chờ luôn dùng cùng các node, độc lập với bám đáy của lịch sử. */}
       {session.status === "live" && (
         <section
           ref={speakingPanelRef}
           aria-label="Người đang nói"
-          className="relative mx-auto h-[8.25em] shrink-0 overflow-y-auto overscroll-contain border-t border-caption-border leading-snug italic text-caption-muted"
+          className={workspace === "live" ? "relative mx-auto h-[8.25em] shrink-0 overflow-y-auto overscroll-contain border-t border-caption-border leading-snug italic text-caption-muted" : "hidden"}
           style={{
             fontSize, width: `${speakingWidth}%`, minWidth: "min(300px, 100%)",
             height: `${speakingHeight}em`, minHeight: "4em", maxHeight: "max(4em, 70dvh)",

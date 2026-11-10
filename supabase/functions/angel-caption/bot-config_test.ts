@@ -50,7 +50,7 @@ Deno.test("create bot accepts tuned turn silence with existing language and keyt
   assert.equal(result.botId, "bot-fast");
   assert.equal(mod.sent.length, 1);
   assert.deepEqual(mod.sent[0].recording_config.transcript.provider.assembly_ai_v3_streaming, {
-    language_detection: true, keyterms_prompt: ["Urantia"], min_turn_silence: 400, max_turn_silence: 1600,
+    speech_model: "universal-3-6-pro", language_detection: true, keyterms_prompt: ["Urantia"], min_turn_silence: 400, max_turn_silence: 1600,
   });
   assert.equal("end_of_turn_confidence_threshold" in mod.sent[0].recording_config.transcript.provider.assembly_ai_v3_streaming, false);
 });
@@ -70,7 +70,7 @@ Deno.test("create bot retries with proven baseline if Recall rejects either new 
         ["transcript.data", "transcript.partial_data", "participant_events.join"]);
     }
     assert.deepEqual(mod.sent[1].recording_config.transcript.provider.assembly_ai_v3_streaming, {
-      language_detection: true, keyterms_prompt: ["Urantia"],
+      speech_model: "universal-3-6-pro", language_detection: true, keyterms_prompt: ["Urantia"],
     });
   }
 });
@@ -83,4 +83,20 @@ Deno.test("new bots subscribe to participant join without dropping final or part
     type: "webhook", url: "https://functions.example/caption?action=recall-webhook",
     events: ["transcript.data", "transcript.partial_data", "participant_events.join"],
   }]);
+});
+
+Deno.test("a rejected speech model is never silently removed from the fallback requests", async () => {
+  mod.sent.length = 0;
+  mod.configure([
+    { ok: false, status: 400, data: { message: "speech_model is not available" } },
+    { ok: false, status: 400, data: { message: "speech_model is not available" } },
+  ]);
+  const result = await mod.createRecallBot("https://zoom.us/j/1", "session-model", "https://functions.example/caption");
+  assert.equal(result.ok, false);
+  for (const body of mod.sent) {
+    const cfg = body.recording_config.transcript.provider.assembly_ai_v3_streaming;
+    assert.equal(cfg.speech_model, "universal-3-6-pro");
+    assert.equal(cfg.language_detection, true);
+    assert.equal("language_codes" in cfg, false, "do not send a parameter not in Recall's schema");
+  }
 });

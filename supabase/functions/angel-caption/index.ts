@@ -109,6 +109,8 @@ function buildRecallBotBody(meetingUrl: string, sessionId: string, webhookUrl: s
       transcript: {
         provider: {
           assembly_ai_v3_streaming: {
+            // Explicit Vietnamese-capable model; never silently fall back to an English-only default.
+            speech_model: "universal-3-6-pro",
             language_detection: true,
             keyterms_prompt: KEYTERMS,
             min_turn_silence: 400,
@@ -128,13 +130,13 @@ function buildRecallBotBody(meetingUrl: string, sessionId: string, webhookUrl: s
 /** Nếu Recall từ chối tham số turn mới, dùng lại cấu hình nhà cung cấp đã chạy ổn định. */
 async function createRecallBot(meetingUrl: string, sessionId: string, webhookUrl: string) {
   const body = buildRecallBotBody(meetingUrl, sessionId, webhookUrl);
+  const providerCfg = body.recording_config.transcript.provider.assembly_ai_v3_streaming;
   const first = await recallFetch("/api/v1/bot/", { method: "POST", body: JSON.stringify(body) });
   if (first.ok) {
-    console.log("[angel-caption] recall_bot_config", { config: "tuned", result: "accepted" });
+    console.log("[angel-caption] recall_bot_config", { config: "tuned", result: "accepted", requested_speech_model: providerCfg.speech_model });
     return { ok: true as const, botId: String(first.data?.id ?? ""), droppedField: null as string | null };
   }
 
-  const providerCfg = body.recording_config.transcript.provider.assembly_ai_v3_streaming;
   let response = first;
   if (first.status === 400 || first.status === 422) {
     delete (providerCfg as Record<string, unknown>).min_turn_silence;
@@ -142,7 +144,7 @@ async function createRecallBot(meetingUrl: string, sessionId: string, webhookUrl
     console.warn("[angel-caption] recall_bot_config", { config: "tuned", result: "rejected", status: first.status });
     response = await recallFetch("/api/v1/bot/", { method: "POST", body: JSON.stringify(body) });
     if (response.ok) {
-      console.log("[angel-caption] recall_bot_config", { config: "baseline", result: "accepted" });
+      console.log("[angel-caption] recall_bot_config", { config: "baseline", result: "accepted", requested_speech_model: providerCfg.speech_model });
       return { ok: true as const, botId: String(response.data?.id ?? ""), droppedField: "turn_silence" };
     }
   }
@@ -162,7 +164,7 @@ async function createRecallBot(meetingUrl: string, sessionId: string, webhookUrl
   console.warn("[angel-caption] Recall rejected field, retrying without it", { field: droppedField, status: response.status });
   const second = await recallFetch("/api/v1/bot/", { method: "POST", body: JSON.stringify(body) });
   if (second.ok) {
-    console.log("[angel-caption] recall_bot_config", { config: `baseline_without_${droppedField}`, result: "accepted" });
+    console.log("[angel-caption] recall_bot_config", { config: `baseline_without_${droppedField}`, result: "accepted", requested_speech_model: providerCfg.speech_model });
     return { ok: true as const, botId: String(second.data?.id ?? ""), droppedField };
   }
   return { ok: false as const, status: second.status, error: JSON.stringify(second.data ?? "").slice(0, 300), droppedField };
@@ -998,6 +1000,27 @@ interface TranscriptEvent {
   };
 }
 
+/** Translate at most four sentences ahead; commit each ready prefix without waiting for the tail. */
+async function* orderedCaptionWork<T, R>(items: T[], map: (item: T) => Promise<R>) {
+  let cursor = 0;
+  const launch = () => Promise.resolve().then(() => map(items[cursor++])).then(
+    value => ({ ok: true as const, value }),
+    error => ({ ok: false as const, error }),
+  );
+  const pending = Array.from({ length: Math.min(4, items.length) }, launch);
+  try {
+    while (pending.length) {
+      const result = await pending.shift()!;
+      if (!result.ok) throw result.error;
+      yield result.value;
+      if (cursor < items.length) pending.push(launch());
+    }
+  } finally {
+    // Observe outstanding work on early stop/error; never launch new calls after the writer stops.
+    await Promise.all(pending);
+  }
+}
+
 async function findSessionByBot(admin: SupabaseClient, botId: string | null, metadataSessionId: string | null) {
   if (botId) {
     const { data } = await admin
@@ -1051,35 +1074,30 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
     sentence, index, textSource: applyHearingCorrections(sentence.text),
   }));
   const recentSourceContext = await loadCaptionTranslationContext(admin, session.id, speaker, startSec);
-  const translations: Array<{
-    textSource: string; sourceLang: "vi" | "en"; dedupeKey: string; translation: string | null;
-  } | null> = new Array(sentences.length).fill(null);
   const translationDurations: number[] = [];
-  let cursor = 0;
+  const languageDurations: Record<"vi" | "en", number[]> = { vi: [], en: [] };
   let partialCleared = false;
+  let firstInsertMs: number | null = null;
   let lastInsertMs: number | null = null;
   let insertedCount = 0;
   try {
-    // Bound both dedupe reads and Gateway calls within this segment.
-    await Promise.all(Array.from({ length: Math.min(4, prepared.length) }, async () => {
-      while (cursor < prepared.length) {
-        const { index, textSource } = prepared[cursor++];
-        const sourceLang = detectSourceLang(textSource);
-        const dedupeKey = await computeDedupeKey(botId ?? "unknown", startSec, `${segmentKey}|${index}`);
-        const { data: existing } = await admin.from("caption_lines").select("id")
-          .eq("session_id", session.id).eq("dedupe_key", dedupeKey).maybeSingle();
-        if (existing) continue;
-        const translationStarted = performance.now();
-        const previousSource = [...recentSourceContext, ...prepared.slice(Math.max(0, index - 2), index).map(s => s.textSource)].slice(-2).join("\n") || null;
-        const translation = await translateCaption(textSource, sourceLang, previousSource, speaker);
-        translationDurations.push(performance.now() - translationStarted);
-        translations[index] = { textSource, sourceLang, dedupeKey, translation };
-      }
-    }));
-    for (const { sentence, index } of prepared) {
-      const result = translations[index];
+    const work = orderedCaptionWork(prepared, async ({ sentence, index, textSource }) => {
+      const sourceLang = detectSourceLang(textSource);
+      const dedupeKey = await computeDedupeKey(botId ?? "unknown", startSec, `${segmentKey}|${index}`);
+      const { data: existing } = await admin.from("caption_lines").select("id")
+        .eq("session_id", session.id).eq("dedupe_key", dedupeKey).maybeSingle();
+      if (existing) return null;
+      const translationStarted = performance.now();
+      const previousSource = [...recentSourceContext, ...prepared.slice(Math.max(0, index - 2), index).map(s => s.textSource)].slice(-2).join("\n") || null;
+      const translation = await translateCaption(textSource, sourceLang, previousSource, speaker);
+      const translationMs = performance.now() - translationStarted;
+      translationDurations.push(translationMs);
+      languageDurations[sourceLang].push(translationMs);
+      return { sentence, index, textSource, sourceLang, dedupeKey, translation, translationMs };
+    });
+    for await (const result of work) {
       if (!result) continue;
-      const { textSource, sourceLang, dedupeKey, translation } = result;
+      const { sentence, index, textSource, sourceLang, dedupeKey, translation, translationMs } = result;
       const { data: currentPlayback, error: playbackReadError } = await admin.from("caption_sessions")
         .select("id, playback_status, playback_until, playback_file_path").eq("id", session.id).maybeSingle();
       if (playbackReadError || !currentPlayback) return;
@@ -1108,11 +1126,12 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
         return;
       } else if (!insertErr) {
         lastInsertMs = performance.now() - receivedAtMs;
+        firstInsertMs ??= lastInsertMs;
         insertedCount++;
         if (!partialCleared) {
           partialCleared = await clearCaptionPartial(admin, session.id, receivedAt);
         }
-        console.log("[angel-caption] caption_sentence_insert", { session_id: session.id, segment_key: segmentKey, sentence_index: index, seq: nextSeq, inserted_at: new Date().toISOString(), received_at: receivedAt });
+        console.log("[angel-caption] caption_sentence_insert", { session_id: session.id, segment_key: segmentKey, sentence_index: index, source_lang: sourceLang, translation_ms: translationMs, seq: nextSeq, inserted_at: new Date().toISOString(), received_at: receivedAt });
       }
     }
   } finally {
@@ -1122,7 +1141,8 @@ async function handleTranscriptData(admin: SupabaseClient, payload: TranscriptEv
     console.log("[angel-caption] transcript_segment_complete", {
       session_id: session.id, segment_key: segmentKey, received_at: receivedAt,
       sentence_count: sentences.length, inserted_count: insertedCount,
-      processing_ms: performance.now() - receivedAtMs, last_insert_ms: lastInsertMs,
+      processing_ms: performance.now() - receivedAtMs, first_insert_ms: firstInsertMs, last_insert_ms: lastInsertMs,
+      translation_by_language: Object.fromEntries(Object.entries(languageDurations).map(([lang, values]) => [lang, { count: values.length, total_ms: values.reduce((a, b) => a + b, 0) }])),
       translation_median_ms: median, completed_at: new Date().toISOString(),
     });
   }

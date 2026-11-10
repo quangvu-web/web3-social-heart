@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import ts from "npm:typescript@5.8.3";
-import { computeDedupeKey, splitCaptionSentences } from "./caption-utils.ts";
+import { computeDedupeKey, detectSourceLang, splitCaptionSentences } from "./caption-utils.ts";
 
 const source = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
 const handlers = source.slice(source.indexOf("interface TranscriptEvent"), source.indexOf("// ---------- Action: stop"));
@@ -10,7 +10,7 @@ export function configure(a, t, h = []) { admin = a; translate = t; history = h;
 function splitCaptionSentences(words) { return globalThis.__captionSplit(words); }
 function wordsToSentence(words) { return globalThis.__captionSplit(words)[0] ?? { text: "", startSec: null }; }
 function applyHearingCorrections(text) { return text; }
-function detectSourceLang(text) { return /[ăâđêôơư]/i.test(text) ? "vi" : "en"; }
+function detectSourceLang(text) { return globalThis.__captionLang(text); }
 async function computeDedupeKey(...args) { return globalThis.__captionKey(...args); }
 async function loadCaptionTranslationContext() { return history; }
 async function translateCaption(...args) { return translate(...args); }
@@ -21,6 +21,7 @@ export { handleTranscriptData };
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
 (globalThis as Record<string, unknown>).__captionSplit = splitCaptionSentences;
 (globalThis as Record<string, unknown>).__captionKey = computeDedupeKey;
+(globalThis as Record<string, unknown>).__captionLang = detectSourceLang;
 const mod = await import(`data:application/javascript,${encodeURIComponent(isolated)}`);
 
 Deno.test("translation receives previous source sentence as context but requests only current sentence", async () => {
@@ -76,8 +77,7 @@ Deno.test("long final turn translates concurrently, retains partial until insert
   } };
   mod.configure(admin, async (text: string, _lang: string, previous: string | null) => {
     translated.push({ text, previous });
-    assert.equal(clears.length, 0, "partial must survive throughout translation");
-    if (translated.length === 2) assert.equal(rows.length, 0, "translations run before ordered inserts");
+    if (!rows.length) assert.equal(clears.length, 0, "partial must survive until the first durable row");
     return `translated ${text}`;
   });
   const words = ["Xin", "chào", "mọi", "người", ".", "Chúng", "ta", "bắt", "đầu", "!"].map((text, i) => ({
@@ -165,15 +165,21 @@ Deno.test("four workers tolerate reverse translation completion, preserve seq/co
     assert.equal(active, 4);
     assert.equal(f.partial.text, "Speaking");
     assert.equal(f.rows.length, 0);
-    // Keep sentence 1 slow while later workers refill their slots.
-    for (const n of [4, 3, 2, 7, 6, 5, 9, 8]) {
+    // Bound lookahead to four: a slow first sentence cannot create an unbounded ready backlog.
+    for (const n of [4, 3, 2]) {
       await waitFor(() => pending.has(`Sentence ${n}.`));
       pending.get(`Sentence ${n}.`)?.();
     }
-    assert.equal(f.rows.length, 0, "insertion waits for all translations");
+    assert.equal(f.rows.length, 0, "later sentences must not overtake sentence 1");
+    assert.equal(pending.size, 4, "lookahead stays bounded while the writer waits");
     f.partial.updated_at = "2999-01-01T00:00:00Z";
     f.partial.text = "New segment speaking";
     pending.get("Sentence 1.")?.();
+    await waitFor(() => f.rows.length === 4 && pending.has("Sentence 8."));
+    assert.equal(f.rows.length, 4, "ready prefix commits while the tail still translates");
+    for (const n of [8, 7, 6, 5]) pending.get(`Sentence ${n}.`)?.();
+    await waitFor(() => pending.has("Sentence 9."));
+    pending.get("Sentence 9.")?.();
     await work;
     assert.equal(peak, 4);
     assert.deepEqual(f.rows.map(row => [row.seq, row.text_source, row.ts_offset_sec]), [
@@ -187,7 +193,9 @@ Deno.test("four workers tolerate reverse translation completion, preserve seq/co
     assert.equal(logs.length, 1);
     assert.equal(logs[0].sentence_count, 9);
     assert.equal(logs[0].inserted_count, 9);
-    assert.ok(Number(logs[0].last_insert_ms) > 0);
+    assert.ok(Number(logs[0].first_insert_ms) > 0);
+    assert.ok(Number(logs[0].last_insert_ms) >= Number(logs[0].first_insert_ms));
+    assert.equal((logs[0].translation_by_language as { en: { count: number } }).en.count, 9);
     assert.ok(Number(logs[0].processing_ms) >= Number(logs[0].last_insert_ms));
     assert.ok(Number(logs[0].translation_median_ms) >= 0);
     // Mixed replay: already-inserted sentences are not translated again but remain context.
@@ -242,4 +250,59 @@ Deno.test("first sentence of a new segment receives recent source context withou
   ] } } });
   assert.deepEqual(contexts, ["Hoài An vừa chia sẻ.\nChúng ta tiếp tục."]);
   assert.equal(f.rows[0].text_source, "Xin chào.");
+});
+
+Deno.test("first ready sentence is visible before a slow later sentence; prefix replay does not duplicate it", async () => {
+  const f = segmentFixture();
+  f.payload.data.data.words = f.payload.data.data.words.slice(0, 2);
+  let release: (() => void) | undefined;
+  mod.configure(f.admin, (text: string) => text === "Sentence 1."
+    ? Promise.resolve("Dịch đầu")
+    : new Promise(resolve => { release = () => resolve("Dịch sau"); }));
+  const work = mod.handleTranscriptData(f.admin, f.payload, null);
+  await waitFor(() => f.rows.length === 1 && !!release);
+  assert.equal(f.rows[0].text_source, "Sentence 1.");
+  assert.equal(f.partial.text, "", "partial clears after the first durable row, not after the slow tail");
+  release!(); await work;
+  assert.deepEqual(f.rows.map(row => row.seq), [1, 2]);
+  let replayCalls = 0;
+  mod.configure(f.admin, () => { replayCalls++; return Promise.resolve("Unexpected"); });
+  await mod.handleTranscriptData(f.admin, f.payload, null);
+  assert.equal(replayCalls, 0); assert.equal(f.rows.length, 2);
+});
+
+Deno.test("translation exception keeps committed prefix, observes in-flight work and stops lookahead", async () => {
+  const f = segmentFixture();
+  const calls: string[] = [];
+  mod.configure(f.admin, (text: string) => {
+    calls.push(text);
+    if (text === "Sentence 2." || text === "Sentence 4.") return Promise.reject(new Error("translation offline"));
+    return Promise.resolve("Dịch đầu");
+  });
+  await assert.rejects(() => mod.handleTranscriptData(f.admin, f.payload, null), /translation offline/);
+  assert.deepEqual(f.rows.map(row => row.seq), [1]);
+  assert.ok(calls.length <= 5, "do not translate the entire remaining turn after a failure");
+});
+
+Deno.test("translation timing distinguishes Vietnamese and English without logging speech", async () => {
+  const f = segmentFixture();
+  f.payload.data.data.words = [
+    { text: "Xin chào.", start_timestamp: { relative: 0 } },
+    { text: "Welcome.", start_timestamp: { relative: 2 } },
+  ];
+  const captured: Array<{ label: string; fields: Record<string, unknown> }> = [];
+  const originalLog = console.log;
+  console.log = (label: string, fields: Record<string, unknown>) => captured.push({ label, fields });
+  mod.configure(f.admin, () => Promise.resolve("Translated"));
+  try {
+    await mod.handleTranscriptData(f.admin, f.payload, null);
+    const inserts = captured.filter(r => r.label.endsWith("caption_sentence_insert"));
+    assert.deepEqual(inserts.map(r => r.fields.source_lang), ["vi", "en"]);
+    assert.ok(inserts.every(r => typeof r.fields.translation_ms === "number"));
+    const summary = captured.find(r => r.label.endsWith("transcript_segment_complete"))!;
+    const timings = summary.fields.translation_by_language as Record<string, { count: number; total_ms: number }>;
+    assert.equal(timings.vi.count, 1); assert.equal(timings.en.count, 1);
+    assert.ok(timings.vi.total_ms >= 0); assert.ok(timings.en.total_ms >= 0);
+    assert.ok(!JSON.stringify(captured).includes("Xin chào"));
+  } finally { console.log = originalLog; }
 });

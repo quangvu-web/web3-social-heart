@@ -35,7 +35,7 @@ export async function sendCaptionJoinDm(
     log("claim_failed", true); return;
   }
 
-  const url = `https://web3-social-heart.lovable.app/captions/${session.public_code}`;
+  const url = `https://funecosystem.org/captions/${session.public_code}`;
   try {
     const response = await sendChat(`/api/v1/bot/${encodeURIComponent(session.recall_bot_id)}/send_chat_message/`, {
       method: "POST",

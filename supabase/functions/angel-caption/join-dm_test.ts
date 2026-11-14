@@ -40,7 +40,7 @@ Deno.test("one webhook event claims before sending one private bilingual caption
   assert.equal(f.messages.length, 1);
   assert.equal(f.messages[0].path, "/api/v1/bot/bot-1/send_chat_message/");
   assert.equal(f.messages[0].body.to, "1234");
-  const url = "https://web3-social-heart.lovable.app/captions/test-caption";
+  const url = "https://funecosystem.org/captions/test-caption";
   assert.equal(f.messages[0].body.message, `👋 Welcome to the FUN Community session! Here's your live caption link: ${url} — click to view live subtitles in your preferred language. 🎙️ This session is recorded and transcribed to generate the live captions. / Chào bạn! Link phụ đề trực tiếp: ${url} — buổi họp được ghi và chép lời để tạo phụ đề.`);
 });
 

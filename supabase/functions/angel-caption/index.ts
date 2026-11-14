@@ -36,8 +36,8 @@ import {
 } from "./caption-utils.ts";
 
 const RECALL_BASE = "https://ap-northeast-1.recall.ai"; // region Tokyo — cố định
-const CAPTION_PAGE_BASE = "https://web3-social-heart.lovable.app/captions";
-const PLAYER_PAGE_BASE = "https://web3-social-heart.lovable.app/angel-player";
+const CAPTION_PAGE_BASE = "https://funecosystem.org/captions";
+const PLAYER_PAGE_BASE = "https://funecosystem.org/angel-player";
 
 const KEYTERMS = [
   "Urantia", "Melchizedek", "Machiventa", "Nebadon", "Orvonton", "Havona",
